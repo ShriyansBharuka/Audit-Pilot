@@ -75,4 +75,5 @@ Format: `YYYY-MM-DD HH:MM · <task ID from 09> · done|partial|blocked · what c
   - **Claude 18:30: fine: ACTIVITY_BURST is optional (P2); only add it if everything else is done.**
 - **Item 5 · error text:** the SDK prefixes tool errors with `Error executing tool <name>: ` before our `CODE: …` message (04 §3.3 codes are intact after the prefix). Pydantic schema errors (e.g. a float for a rupee string) come back as the SDK's validation message, still a refusal.
   - **Claude 18:30: fine: the UI client strips the `Error executing tool ` prefix; the CODE stays first in the message.**
+- 2026-10-10 20:15 · PH-6 · done · Full-stack Next.js web application (web/) built with TypeScript, Tailwind CSS, Lucide icons, Supabase RLS schema, and FastAPI backend bridge (app/api_server.py). 12 production routes compiled (Overview, 100% Population, AuditGraph, SHAP Studio, Findings/Sign-off, Evidence Portal, Orgs, RBAC, Sharing, Fraud Hub, Integrations, Hash Trail). 11/11 API tests passed, 23/23 selftest passed · complete and production ready.
 

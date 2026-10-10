@@ -19,9 +19,12 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# node (ShipReady / Shopify app)
+# node (ShipReady / Shopify app / web)
 node_modules/
 .shopify/
+.next/
+web/.next/
+web/node_modules/
 
 # os / editors
 .DS_Store
