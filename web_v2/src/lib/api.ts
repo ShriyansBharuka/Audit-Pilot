@@ -3,6 +3,7 @@ import {
   ChartsData,
   NewTenantInput,
   TenantItem,
+  TrailResponse,
   StatutoryMemo,
   N8nEvents,
   ShapSummary,
@@ -168,8 +169,7 @@ export const api = {
     downloadWithToken(`/api/audit/deliverables/statutory-memo?format=${format}`, `statutory_memo.${format}`),
 
   // Audit Trail
-  getAuditTrail: (limit = 50, offset = 0) =>
-    request<{ total: number; offset: number; limit: number; items: any[] }>(`/api/audit/trail?limit=${limit}&offset=${offset}`),
+  getAuditTrail: (limit = 50, offset = 0) => request<TrailResponse>(`/api/audit/trail?limit=${limit}&offset=${offset}`),
 
   // Power BI: JSON "Web" feed URL + the zip package (4 CSVs in paise + measures.dax)
   getPowerBiDatasetUrl: () => `${API_BASE}/api/v1/powerbi/feed`,

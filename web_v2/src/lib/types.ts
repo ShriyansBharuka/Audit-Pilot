@@ -381,3 +381,27 @@ export interface NewTenantInput {
   gstin: string;
   fy: string;
 }
+
+export interface TrailRow {
+  seq: number;
+  at: string;
+  principal: string;
+  role: string;
+  transport: "STDIO" | "HTTP" | "UI" | "SYSTEM" | "CONNECTOR";
+  tool: string;
+  args: Record<string, unknown>;
+  outcome: "OK" | "DENIED" | "ERROR";
+  result_sha256: string | null;
+  erp_seq: number | null;
+  erp_hash: string | null;
+  prev_hash: string;
+  hash: string;
+}
+
+export interface TrailResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  items: TrailRow[];
+  verification: { valid: boolean; broken_at_seq: number | null; anchor_mismatch_at: number | null; head_seq: number; head_hash: string; anchors: number };
+}

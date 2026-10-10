@@ -550,8 +550,17 @@ async def submit_evidence_file(
     """Client uploads evidence for a request; the server computes sha256 and stores the bytes verbatim."""
     content = await file.read()
     filename = file.filename or "evidence.bin"
-    sid = intake.submit("EVIDENCE", content, filename, who["principal"], request_id=request_id)
-    return intake.on_client_upload(sid)              # EVIDENCE_RECEIVED event (n8n W3) + next_steps
+    try:
+        sid = intake.submit("EVIDENCE", content, filename, who["principal"], request_id=request_id)
+    except (LookupError, ValueError) as ex:
+        trail.trail(who["principal"], who["role"], "submit_evidence", {"request_id": request_id, "filename": filename},
+                    "ERROR", None, transport="UI")
+        raise HTTPException(status_code=400, detail=str(ex))
+    out = intake.on_client_upload(sid)              # EVIDENCE_RECEIVED event (n8n W3) + next_steps
+    trail.trail(who["principal"], who["role"], "submit_evidence",
+                {"request_id": request_id, "filename": filename, "sha256": hashlib.sha256(content).hexdigest()},
+                "OK", {"submission_id": sid}, transport="UI")
+    return out
 
 
 # ---------------------------------------------------------------- SHAP Explainability
@@ -801,22 +810,24 @@ def get_findings_memo():
 # ---------------------------------------------------------------- Audit Trail (Hash-chained)
 
 @app.get("/api/audit/trail", dependencies=[AUDIT])
-def get_audit_trail(limit: int = 50, offset: int = 0):
-    """Retrieve hash-chained audit trail entries."""
+def get_audit_trail(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
+    """The hash-chained audit trail (03 #40), newest first, plus a full-chain verification. Every MCP tool call
+    (allowed or denied) and every web decision lands here; tokens are never logged."""
+    from app import chain
     with db.borrow("audit", "system") as a:
         total = a.execute("SELECT count(*) FROM audit_trail").fetchone()[0]
-        rows = [dict(r) for r in a.execute("SELECT * FROM audit_trail ORDER BY seq DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()]
-        
+        rows = [dict(r) for r in a.execute("SELECT * FROM audit_trail ORDER BY seq DESC LIMIT ? OFFSET ?",
+                                           (limit, offset)).fetchall()]
+        anchors = [(r[0], r[1]) for r in a.execute("SELECT trail_seq, trail_hash FROM anchors WHERE trail_seq > 0")]
+        check = chain.verify(a, "audit_trail", anchors)
+        head = chain.head(a, "audit_trail")
     for r in rows:
-        r["args"] = json.loads(r.get("args_json") or "{}")
-        r["result"] = json.loads(r.get("result_json") or "null")
-
-    return {
-        "total": total,
-        "offset": offset,
-        "limit": limit,
-        "items": rows,
-    }
+        try:
+            r["args"] = json.loads(r.get("args_json") or "{}")
+        except ValueError:
+            r["args"] = {}
+    return {"total": total, "offset": offset, "limit": limit, "items": rows,
+            "verification": {**check, "head_seq": head[0], "head_hash": head[1], "anchors": len(anchors)}}
 
 
 # ---------------------------------------------------------------- Power BI & Integrations
