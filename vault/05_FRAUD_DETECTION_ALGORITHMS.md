@@ -315,6 +315,13 @@ Built with networkx `MultiDiGraph` from data that already exists; nothing new is
   - Example: A→B ₹10 L, B→C ₹9 L, C→A ₹8 L gives circular ₹8 L; residuals 2 / 1 / 0.
 - **FlowScope-lite money paths:** a payment out to X, then within 15 days a receipt from Y with X ~ Y (an identity edge) and amount within 2%, gives `ROUND_TRIP_CASH`. Multi-hop (≤3) paths with similar values and short gaps give `MONEY_PATH`.
 - Legitimate reciprocal trade (job work, scrap buy-back with matching goods, qty and time) is labelled `RECIPROCAL_EXPLAINED`, not flagged. The seed must include some.
+- **The decomposition is mandatory, not optional.** `risk_graph.py` must:
+  1. keep the chronological transaction edges;
+  2. find directed cycles **whose edges are in time order inside the window**;
+  3. compute the circular ₹ exposure by minimum-span decomposition;
+  4. keep both the original edge history and the residual-flow view.
+
+  Calling `networkx.simple_cycles()` and flagging every cycle does **not** meet this spec. A cycle only becomes a hit (`CIRCULAR_FLOW`, D10) when its circular value is ≥ the clearly-trivial threshold and it is not `RECIPROCAL_EXPLAINED`.
 
 ### 19.5 Fusion: transaction risk `R` (what sampling and the UI rank by)
 `R = max(0.70·A + 0.30·E_party_before_txn, FLOOR)`.
@@ -324,8 +331,22 @@ Built with networkx `MultiDiGraph` from data that already exists; nothing new is
   - Base: 0.9 if an independent source backs the hit, 0.7 deterministic internal, 0.4 heuristic.
   - +0.1 per corroborating detector; +0.2 after `test_sample` confirms; −0.3 when evidence is missing / NEEDS_MANUAL_REVIEW.
 
-### 19.6 Temporal risk history (continuous mode)
-- Every analytics run (manual, n8n W4 every 15 min, or replay) appends `audit.risk_snapshots(run_id, at, object_type, object_id, A, E, R, C, band, reasons_json)`. Snapshots are append-only and **never overwritten**, so the UI can show "INV-3042 was Low at dispatch on 28 Mar, then High when the 10 Apr credit note arrived".
+### 19.6 Continuous updates and temporal risk history
+
+**Two triggers, two jobs:**
+1. **Every business event updates AuditGraph immediately (year-round mode).**
+   - `erp.write_doc` is the single path every ERP write goes through. After it commits, it calls `risk_graph.on_event(doc_type, doc_id, erp_seq)`.
+   - The call is best-effort: errors are logged, and the business write is never blocked or rolled back.
+   - `on_event` adds or updates the graph edges for that document (invoice, movement, receipt/payment, credit note, amend/cancel), then re-runs the **per-document detectors** for that invoice (D3, D4, D6, D7, D9, D13 subset).
+   - It recomputes `A` and `R` for the touched invoice(s), and `E` for the touched party and its one-hop neighbours. The cycle search runs only on the touched party's component.
+   - It appends a `risk_snapshots` row per changed object, with `run_id = 'EV-<erp_seq>'`. A crossing into High emits an `events` row (n8n alert).
+   - Cost: ~milliseconds per event. Safe on Voroa's 2 vCPU.
+   - The register upload is **not** needed for this.
+2. **The register upload triggers the annual-audit workflow:** a full rebuild (D0 reconciliation against the register, every detector, a full graph + cycle decomposition), then sampling, evidence and the workpaper. This and the n8n 15-min schedule (W4) are **full** runs that re-baseline every score.
+
+**Anti-escalation still holds:** `on_event` reads neighbours' `E` from their latest stored snapshot and never from values computed in the same call, so the graph never inflates its own scores.
+
+**History:** snapshots are append-only and **never overwritten**. The UI timeline reads them, e.g. "INV-3042: Low at invoice (28 Mar) → Review at dispatch (30 Mar, no POD) → High when the 10 Apr credit note arrived". The evidence available at each timestamp is kept the same way (`erp_log` seq at each snapshot).
 - **Replay mode (demo):** `python -m app.replay --speed 600` replays the seed's entry-time-ordered events through the erp services (the seed already produces this list), running incremental analytics every N events. The audience watches risk evolve over a "year in 3 minutes", then the annual-audit workpaper.
 
 ### 19.7 Company flag (SA 315 risk of material misstatement)
@@ -344,6 +365,19 @@ Built with networkx `MultiDiGraph` from data that already exists; nothing new is
 | Proposed | yes | yes | yes |
 
 - Report all results as **prototype performance on our synthetic data**, not real-world accuracy.
+
+### 19.10 Stated limitations (put these on a PPT slide; never overclaim)
+1. **Simulated "independent" sources.** `ext.db` (IRP, e-way bill, GSTN, bank, MCA) is generated inside our simulation. Keeping it in a separate, client-read-only file shows **how** a real system would check against the government portals and bank feeds (in production these come from the IRP/EWB APIs, GSTN and bank statements). It doesn't make our demo records independently trustworthy.
+2. **Partial network visibility.** AuditGraph can only trace goods and money through entities whose transactions it has. It doesn't assume visibility into trading partners' other books. That's why cycles close only through SELF, identity links or loaded group entities (19.1).
+3. **Weights are provisional.** The engineering weights (0.70 / 0.30, 0.35 / 0.25 / 0.15 / 0.15 / 0.10) are tuned on our synthetic data. Scores rank risk; they are **not** calibrated fraud probabilities.
+4. **Synthetic evaluation.** Precision and recall (19.8) are prototype performance on a dataset we designed.
+
+**Synthetic network data for the cycle demo (seed, DA-1).** The seed adds a small fictional trading network:
+- 3–4 group entities with purchases and payments, so goods and cash cycles close through SELF, e.g. SELF → Customer B (sale), B ~ C (common director), C → SELF (purchase of the same item in 20 days);
+- one 3-hop cash round trip;
+- one legitimate reciprocal (job-work) pair as the false-positive control.
+
+Optional: a `data/network_demo/` second erp.db for a group company, to show the multi-entity view.
 
 ### 19.9 Output shapes
 - `risk_graph.build(engagement_id, as_of_run=None) -> {nodes:[{id,type,label,E|R,C,band}], edges:[{a,b,kind,amount_paise,ts}], cycles:[{members,circular_paise,span_days,residuals}], company:{band, exposure_paise, families, circular_paise}}`

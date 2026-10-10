@@ -21,13 +21,13 @@ Status: DA-1a / DA-2 / DA-3 pure cores are done (25 tests green). No platform co
 
 | # | Task(s) | Why this order |
 |---|---|---|
-| 1 | **SH-1 + SH-2**: scaffold, `requirements.txt`, `config.py` (incl. `set_clock/now`, `UNITS`, `RISK_WEIGHTS`), `db.py`, `schema/*.sql` | everything imports these |
+| 1 | ✅ **done 15:14 (4fa6848)**: **SH-1 + SH-2**: scaffold, `requirements.txt`, `config.py` (incl. `set_clock/now`, `UNITS`, `RISK_WEIGHTS`), `db.py`, `schema/*.sql` | everything imports these |
 | 2 | **IB-1 + IB-2**: `chain.py`, `money.py`, `ledger.py`, test_tamper | the ledger is needed by erp |
-| 3 | **IB-3 + SH-4**: `portal.py`, `erp.py` services (the kwargs the seed already calls) | the system of record |
-| 4 | **DA-1 load()**, **DA-2 reconcile + intake**, **DA-3 run_d1_d2**: wire the existing pure cores into the DB | data flows end to end |
+| 3 | **IB-3 + SH-4**: `portal.py`, `erp.py` services (the kwargs the seed already calls). `write_doc` calls `risk_graph.on_event(doc_type, doc_id, erp_seq)` after commit (best-effort; a no-op stub until item 7; `05 §19.6`) | the system of record |
+| 4 | **DA-1 load()**, **DA-2 reconcile + intake**, **DA-3 run_d1_d2**: wire the existing pure cores into the DB. The seed also adds the **synthetic group network** (`05 §19.10`: group entities + purchases/payments closing cycles through SELF, a 3-hop cash round trip, one legitimate job-work pair) | data flows end to end |
 | 5 | **IB-4 + SH-3 + SH-5**: `trail.py`, `gateway.py` / `mcp_server.py` (04 §2 verbatim), tool wrappers | MCP server live (judges' entry point) |
 | 6 | **AA-1**: sampling; **AA-2**: detectors D3/D4/D5/D6/D7/D9/D13 | what we're judged on |
-| 7 | **DA-6**: AuditGraph `risk_graph.py` (`05 §19`), `get_risk_graph`, `app/replay.py`, `app/evaluate.py` | the differentiator + demo + PPT numbers |
+| 7 | **DA-6**: AuditGraph `risk_graph.py` (`05 §19`: `build` + `on_event` per-event updates + **mandatory minimum-span decomposition** + five-factor E + limitations), `get_risk_graph`, `app/replay.py`, `app/evaluate.py` | the differentiator + demo + PPT numbers |
 | 8 | **IB-5**: evidence + D11 stale + D12 integrity | change-after-testing story |
 | 9 | **AA-3 + AA-4 + DA-4**: findings/AJEs, memo, 4-sheet xlsx | deliverables |
 | 10 | **AA-5**: investigator (when the OpenAI key arrives); D10/D14 | P1 |

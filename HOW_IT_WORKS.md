@@ -82,10 +82,18 @@ Every agent or person holds a **token**. The token decides the role, and the ser
   - backdating: D13;
   - plus evidence (D8), changes after testing (D11), integrity (D12) and instruction text hidden in documents (D14).
 
-**F. AuditGraph scores the risk.**
-- Each invoice gets an **anomaly score (A)**, each customer an **entity score (E)**, and the combined **risk R = 0.7·A + 0.3·E**. Hard evidence (a fake e-way bill, no dispatch) always counts as High.
-- Each score has a **confidence**.
-- The whole company gets a **LOW / MODERATE / HIGH** flag, and every score is kept over time.
+**F. AuditGraph scores the risk** (full spec: `vault/05 §19`).
+- **Continuous, not just at upload.** Every business event (invoice, dispatch, payment, credit note, edit) updates the graph and the affected risk scores the moment it happens. The register upload triggers the bigger annual-audit run (reconciliation, every detector, a full graph rebuild, sampling).
+- **Transaction score:** `A` = the invoice's own anomaly score from its detector hits.
+- **Entity score:** `E = 0.35·C + 0.25·F + 0.15·T + 0.15·H + 0.10·N`:
+  - circular-trading exposure (C);
+  - significance of suspicious flows (F);
+  - temporal anomalies (T);
+  - unresolved exceptions (H);
+  - counterparty/network risk (N), read from the *previous* round so scores can't feed back into themselves and escalate.
+- **Combined:** `R = 0.7·A + 0.3·E`, and hard evidence (a fake e-way bill, no dispatch) never drops below High.
+- **Circular trading** uses the minimum-span cycle decomposition from the 2017 paper. It finds time-ordered directed cycles and measures how much ₹ is genuinely circular, with the original history kept alongside the residual flows. It does not flag every cycle it finds.
+- Each score carries a **confidence**, the whole company gets a **LOW / MODERATE / HIGH** flag, and every score is kept over time (history is never overwritten).
 
 **G. Pick samples.**
 - Sales TOD of 25–35 items: the riskiest first, then high-value, related parties, then risk-weighted random picks across customers.
@@ -132,6 +140,11 @@ The seed is recorded, so anyone can re-run the selection and get the identical p
 ## 8. Our data
 
 We generate a **synthetic but realistic company** (*Konkan Marine Controls Ltd*, fictional): FY 2025-26, ~7,000 invoices, 2 factories, ~150 customers, directors and relatives. We plant irregularities in it (at least 2 per family, some easy and some sneaky) and keep the list in `data/answer_key.json`, which the engine **never reads**. We use that key only to measure precision and recall for the PPT. Judges can also plant their own irregularities live through the client tools.
+
+## 8b. Honest limitations (also a PPT slide)
+- **The "government" and bank records are simulated by us.** A separate read-only database shows *how* the system would check against real portals and bank feeds; it doesn't make our demo records independently trustworthy.
+- **The graph only sees entities we have transactions for.** It can't trace money through trading partners' other books, so cycles are shown through the company itself, shared identifiers, or the small synthetic group network we include for the demo.
+- **The weights are provisional.** Scores rank risk; they are not fraud probabilities. Results are prototype performance on our synthetic data.
 
 ## 9. The demo (~7 minutes)
 

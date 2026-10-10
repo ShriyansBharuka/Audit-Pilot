@@ -131,7 +131,8 @@ def run_all(engagement_id, detectors=None, incremental=False) -> dict    # write
 def select(engagement_id, kind, size=30, seed=None, actor='') -> dict     # first call = testing start (anchor + snapshots + requests)
 def reproduce(run_id: str) -> dict;  def pps(items, k, rng) -> list
 # risk_graph.py (05 §19)
-def build(engagement_id) -> dict                                  # {nodes, edges, company:{band, exposure_paise, families}}
+def build(engagement_id) -> dict                                  # {nodes, edges, cycles, company:{band, exposure_paise, families, circular_paise}}
+def on_event(doc_type: str, doc_id: str, erp_seq: int) -> list[dict]  # called by erp.write_doc after commit (best-effort); returns changed snapshots (05 §19.6)
 def from_hits(engagement_id) -> list[str];  def aje(finding: dict) -> list[dict] | None;  def sa450_summary(engagement_id) -> dict
 
 # evidence.py
