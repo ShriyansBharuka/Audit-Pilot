@@ -24,7 +24,7 @@ money-trail / reports screens against `13 §6`. Queue 1 below is done.
 | MT-2 | ✅ done | D15 (7 codes, family P) + plants PP1-PP6; demo_audit 7k: P 5/5, 0 sev ≥ 4 FP, PP6 clean | — |
 | MT-3 | ✅ done | `money_trail.trace`, tool #49 `trace_money`; ABC: verified ₹5 L, received ₹3 L, affected ₹2 L | `GET /api/money-trail/{id}?hops=` |
 | MT-4 | ✅ done | `cases` + `case_events` (#45-46), tools #50-52; 7k: 31 cases, one per root cause | `GET /api/cases`, `GET /api/cases/{id}`, `POST /api/cases/{id}/action` |
-| MT-5 | 🟡 partial | 4-agent case investigation (amounts copied from the case, unknown ids flagged), tested offline; **live Sol run pending** (LLM off on the build PC) | `POST /api/cases/{id}/investigate` (409 when the LLM is off) |
+| MT-5 | ✅ done | 4-agent case investigation (amounts copied from the case, unknown ids flagged); **live Sol run 2026-10-11 on the ABC case: $0.0917, 41 s, 11 tool calls, 0 unverified ids, conclusion UNRESOLVED** | `POST /api/cases/{id}/investigate` (409 when the LLM is off) |
 | MT-6 | ✅ done | `yearend.timeline`, `march_april_links` (exactly PC1-3, PI1-2, PP5 on 7k), `freeze` | `GET /api/yearend/timeline`, `GET /api/yearend/march-april`, `POST /api/yearend/freeze` |
 | MT-7 | ✅ done | Reports A and B, json / md / html, DRAFT until sign-off, every amount carries a case or finding id | `GET /api/reports/continuous`, `GET /api/reports/year-end?format=&ai=` |
 | MT-8 | ✅ done | `HOW_IT_WORKS.md` §5c, demo video "trace this ₹5 lakh payment" beat, `docs/FEASIBILITY.md` latencies + investigation cost model, this table | — |

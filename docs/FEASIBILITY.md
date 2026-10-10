@@ -95,8 +95,10 @@ against ~4.7k for all 25 audit tools. Each agent is capped at 5 turns and 1,500 
 2 turns and 2,500 output tokens. Assuming ~3 turns per specialist with 2-4k-token tool results, a run is about 29k uncached
 input, 21k cached input and 7.5k output tokens: roughly **$0.13 on Sol** (bound) and $0.65 on Astra. The single-agent run
 measured above came in 5x under its model, which would put a case at **~$0.03 on Sol**. Wall time is about the slowest
-specialist plus the reporter, roughly 40 s. *Not yet measured live: LLM_ENABLED is off on the build PC; run
-`python -m app.investigator --case <ABC case>` to record the real number (done-when: < $0.10 on Sol).*
+specialist plus the reporter, roughly 40 s.
+**Measured live (11 Oct, case AUD-0014, the ABC short receipt, `gpt-6.1-sol`): $0.0917, 41 s, 11 tool calls** across
+the three specialists + reporter; every cited record id was returned by a tool (0 unverified); amounts attached by code.
+So the bound above was the right order: ~$0.09 per case on Sol, ~$0.45 on Astra.
 
 ## 4. Is the math sound?
 
