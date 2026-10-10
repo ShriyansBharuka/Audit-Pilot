@@ -1,6 +1,7 @@
 import {
   AuditOverview,
   ChartsData,
+  CsvCheckResult,
   NewTenantInput,
   TenantItem,
   TrailResponse,
@@ -158,6 +159,19 @@ export const api = {
   // Organisations (EX-4): each is its own data directory + engagement
   getTenants: () => request<{ items: TenantItem[] }>("/api/tenants"),
   createTenant: (body: NewTenantInput) => request<TenantItem>("/api/tenants", { method: "POST", body: JSON.stringify(body) }),
+
+  // CSV verification agent (LangGraph): does the file hold data, and does it match the books?
+  verifyCsv: async (file: File, ai = false) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("ai", String(ai));
+    const res = await fetch(`${API_BASE}/api/agents/csv-verify`, { method: "POST", body: form, headers: authHeaders() });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.detail || `Check failed (${res.status})`);
+    }
+    return (await res.json()) as CsvCheckResult;
+  },
 
   // Analytics charts (EX-2)
   getAnalyticsCharts: () => request<ChartsData>("/api/audit/analytics/charts"),

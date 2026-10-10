@@ -405,3 +405,40 @@ export interface TrailResponse {
   items: TrailRow[];
   verification: { valid: boolean; broken_at_seq: number | null; anchor_mismatch_at: number | null; head_seq: number; head_hash: string; anchors: number };
 }
+
+export interface CsvCheckRow {
+  row: number;
+  status: "MATCHED" | "AMOUNT_MISMATCH" | "DATE_MISMATCH" | "NOT_IN_BOOKS" | "NO_KEY" | "UNPARSED_AMOUNT";
+  doc_type?: string;
+  doc_id?: string;
+  csv_paise?: number;
+  books_paise?: number;
+  difference_paise?: number;
+  books_date?: string;
+  client_data: { key?: string; amount?: string; date?: string };
+}
+
+export interface CsvCheckResult {
+  sha256: string;
+  filename: string;
+  framework: string;
+  path: string[];
+  profile: {
+    has_data: boolean;
+    verdict: "HAS_DATA" | "NO_DATA";
+    reason: "EMPTY_FILE" | "NOT_TEXT" | "HEADER_ONLY" | "BLANK_ROWS" | null;
+    rows_total: number;
+    data_rows: number;
+    blank_rows: number;
+    columns: string[];
+    bytes: number;
+  };
+  verification: {
+    key_column?: string | null;
+    amount_column?: string | null;
+    counts: Record<string, number>;
+    rows: CsvCheckRow[];
+    note?: string;
+  };
+  summary: { text: string; by: string; status: string; usd?: number; llm?: string };
+}

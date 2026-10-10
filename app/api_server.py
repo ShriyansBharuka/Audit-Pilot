@@ -778,6 +778,24 @@ def post_tenant(body: NewTenant, who: Dict[str, Any] = Depends(require(*AUDIT_RO
     return {**tenants.public(t), **tenants.counts(t)}
 
 
+@app.post("/api/agents/csv-verify")
+async def post_csv_verify(file: UploadFile = File(...), ai: bool = Form(False),
+                          who: Dict[str, Any] = Depends(require(*AUDIT_ROLES))):
+    """CSV verification agent (LangGraph): does the uploaded file contain data, and do its rows exist in the books
+    with the same amounts? Stored byte-for-byte with its SHA-256; ai=true lets the LLM word the summary (PROPOSED)."""
+    from starlette.concurrency import run_in_threadpool
+    from app import csv_agent
+    content = await file.read()
+    try:
+        out = await run_in_threadpool(csv_agent.run, content, file.filename or "upload.csv", who["principal"], ai)
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+    trail.trail(who["principal"], who["role"], "csv_agent.verify",
+                {"filename": file.filename, "sha256": out["sha256"], "ai": ai}, "OK",
+                {"verdict": out["profile"]["verdict"], "counts": out["verification"].get("counts")}, transport="UI")
+    return out
+
+
 # ---------------------------------------------------------------- Deliverables & Exports
 
 def _fresh_deliverables(eid):

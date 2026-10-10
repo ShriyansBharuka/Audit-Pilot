@@ -15,6 +15,7 @@
 | Stats | stdlib `statistics` (median/MAD), `secrets`, `random` | **no numpy, scipy or pandas**. Pandas coerces dates, numbers and leading zeros, which breaks "pasted exactly as provided" |
 | Graph (D10) | `networkx` (optional; installed) or a 15-line DFS | brownie only |
 | Investigator | `openai-agents` (0.23.x) + GPT credits | optional P1, see `10` |
+| CSV verification agent | `langgraph` (1.2.x): StateGraph profile → verify → summarize, deterministic nodes; optional LLM wording via the OpenAI Responses API under the same CostMeter | optional, `app/csv_agent.py`, REST `POST /api/agents/csv-verify` |
 | Web app API (added 2026-10-10 by Ibrahim's PH-6, recorded by Claude) | `fastapi>=0.143` (REST bridge `app/api_server.py` for the Next.js app in `web/`, port **8001**; needs Starlette 1.x like `mcp`, so not 0.115) | the MCP server stays the agent entry point; the REST API enforces the same token roles |
 | Tunnel | `cloudflared tunnel --url http://localhost:8000` | judges' hosted agents and n8n cloud need a public URL |
 
