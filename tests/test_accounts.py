@@ -67,6 +67,13 @@ def test_onboarding_invite_upload_and_isolation(api):
                      json={"name": "Coastal Dredgers Pvt Ltd", "tags": "CUSTOMER", "gstin": "27AAPFU0939F1ZV"})
     assert party.status_code == 200, party.text
     assert party.json()["result"]["id"]
+    item = api.post("/api/client/records/item", headers=H("eyC.client.sig", slug),
+                    json={"name": "Ball valve DN25", "hsn": "8481", "gst_rate_bp": 1800, "list_rate": "4500.00"})
+    assert item.status_code == 200, item.text
+    inv = api.post("/api/client/records/invoice", headers=H("eyC.client.sig", slug),
+                   json={"party_id": party.json()["result"]["id"], "series": "G2", "invoice_date": "2026-03-20",
+                         "lines": [{"item_id": item.json()["result"]["id"], "qty": 2, "rate": "4500.00"}]})
+    assert inv.status_code == 200, inv.text
     assert api.post("/api/client/records/nonsense", headers=H("eyC.client.sig", slug), json={}).status_code == 404
     # internal service arguments are refused (the web gets the MCP tool's parameters only)
     assert api.post("/api/client/records/party", headers=H("eyC.client.sig", slug),

@@ -6,10 +6,11 @@ import { useAuth } from "@/lib/auth";
 import { Lookups } from "@/lib/types";
 import { CheckCircle2, Plus, Trash2 } from "lucide-react";
 
-type Kind = "party" | "invoice" | "credit-note" | "journal";
+type Kind = "party" | "item" | "invoice" | "credit-note" | "journal";
 // same role rules as the client MCP tools (app/tools_client.py)
 const TABS: { kind: Kind; label: string; roles: string[] }[] = [
   { kind: "party", label: "Party", roles: ["sales", "client_admin"] },
+  { kind: "item", label: "Item", roles: ["client_admin"] },
   { kind: "invoice", label: "Invoice", roles: ["accounts", "client_admin"] },
   { kind: "credit-note", label: "Credit note", roles: ["accounts", "client_admin"] },
   { kind: "journal", label: "Journal", roles: ["accounts", "client_admin"] },
@@ -59,6 +60,7 @@ export default function RecordsPage() {
 
   // ---- forms
   const [party, setParty] = useState({ name: "", tags: "CUSTOMER", gstin: "", pan: "", state_code: "", email: "", phone: "" });
+  const [item, setItem] = useState({ name: "", hsn: "", uom: "NOS", gst: "18", list_rate: "" });
   const [inv, setInv] = useState({ party_id: "", series: "G2", invoice_date: today(), lines: [{ item_id: "", qty: "1", rate: "" }] });
   const [cn, setCn] = useState({ invoice_no: "", cn_date: today(), reason: "RATE_DIFF", taxable: "" });
   const [jv, setJv] = useState({ voucher_date: today(), narration: "", lines: [{ account_code: "", side: "debit", amount: "" }, { account_code: "", side: "credit", amount: "" }] });
@@ -114,6 +116,28 @@ export default function RecordsPage() {
             <label className={label}>State code<input className={input} maxLength={2} placeholder="27" value={party.state_code} onChange={(e) => setParty({ ...party, state_code: e.target.value })} /></label>
             <label className={label}>Email<input type="email" className={input} value={party.email} onChange={(e) => setParty({ ...party, email: e.target.value })} /></label>
             <label className={label}>Phone<input className={input} value={party.phone} onChange={(e) => setParty({ ...party, phone: e.target.value })} /></label>
+            <div className="sm:col-span-2"><Submit busy={busy} /></div>
+          </form>
+        )}
+
+        {active === "item" && (
+          <form
+            className="grid gap-4 sm:grid-cols-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (item.list_rate && !rupee.test(item.list_rate)) return setError("Enter the list rate like 4500.00");
+              save("item", { name: item.name, hsn: item.hsn, uom: item.uom, gst_rate_bp: Math.round(Number(item.gst) * 100), list_rate: item.list_rate || "0" }, (r) => `Saved ${r.id} · ${item.name}`);
+            }}
+          >
+            <label className={`${label} sm:col-span-2`}>Name<input required className={input} placeholder="Ball valve DN25" value={item.name} onChange={(e) => setItem({ ...item, name: e.target.value })} /></label>
+            <label className={label}>HSN / SAC<input required className={input} placeholder="8481" value={item.hsn} onChange={(e) => setItem({ ...item, hsn: e.target.value })} /></label>
+            <label className={label}>Unit<input className={input} value={item.uom} onChange={(e) => setItem({ ...item, uom: e.target.value })} /></label>
+            <label className={label}>GST rate (%)
+              <select className={input} value={item.gst} onChange={(e) => setItem({ ...item, gst: e.target.value })}>
+                {["0", "5", "12", "18", "28"].map((g) => <option key={g} value={g}>{g}%</option>)}
+              </select>
+            </label>
+            <label className={label}>List rate (₹)<input className={input} inputMode="decimal" placeholder="4500.00" value={item.list_rate} onChange={(e) => setItem({ ...item, list_rate: e.target.value })} /></label>
             <div className="sm:col-span-2"><Submit busy={busy} /></div>
           </form>
         )}

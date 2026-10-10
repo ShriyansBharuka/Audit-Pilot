@@ -209,7 +209,7 @@ export const api = {
     return (await res.json()) as UploadResult;
   },
   getLookups: () => request<Lookups>("/api/client/lookups"),
-  createRecord: (kind: "party" | "invoice" | "credit-note" | "journal", body: Record<string, unknown>) =>
+  createRecord: (kind: "party" | "item" | "invoice" | "credit-note" | "journal", body: Record<string, unknown>) =>
     request<{ result: Record<string, unknown>; next_steps: unknown[] }>(`/api/client/records/${kind}`, {
       method: "POST",
       body: JSON.stringify(body),

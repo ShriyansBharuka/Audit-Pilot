@@ -897,6 +897,7 @@ _RECORDS = {
     "credit-note": (("accounts", "client_admin"), "issue_credit_note",
                     ("lines", "cn_date", "reason", "reason_text", "scheme_id", "return_movement_id", "party_id")),
     "journal": (("accounts", "client_admin"), "post_journal_entry", ("lines", "narration", "voucher_date", "aje_ref")),
+    "item": (("client_admin",), "create_item", ("name", "hsn", "uom", "gst_rate_bp", "list_rate", "cost")),
 }
 
 
@@ -914,8 +915,7 @@ def post_record(kind: str, body: Dict[str, Any], who: Dict[str, Any] = Depends(r
         raise HTTPException(status_code=400, detail=f"INVALID_ARGUMENT: unknown field(s) {', '.join(extra)} for a {kind}")
     args = {k: v for k, v in body.items() if v not in (None, "")}
     try:
-        if "lines" in args:
-            args["lines"] = money_in(args["lines"])     # rupee strings -> integer paise
+        args = money_in(args)                           # rupee strings -> integer paise (lines, list_rate, cost)
         res = getattr(erp, fn)(who["principal"], who["role"], **args)
     except TypeError as ex:
         raise HTTPException(status_code=400, detail=f"INVALID_ARGUMENT: {ex}")
