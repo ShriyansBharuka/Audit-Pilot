@@ -57,6 +57,7 @@ app/
   erp.py               write_doc + every business service                           [Shriyans]
   portal.py            ext.db: IRN, EWB, GSTR-1/3B, bank, signatures                 [Ibrahim]
   trail.py  notify.py  audit_trail + anchors; events → n8n webhook (HMAC)           [Ibrahim]
+  tenants.py           organisations as data directories, scope(), create(), seed_demo() (EX-4)
   intake.py            submit(), on_client_upload()                                 [Darshan]
   register.py          parse_verbatim, map_columns, D0 reconcile                    [Darshan]
   related_parties.py   D1 identifier graph, D2 RP timing                            [Darshan]
@@ -77,6 +78,24 @@ scripts/               verify_trail.py  tamper_demo.py  replay_shopify.py  judge
 tests/                 test_tamper.py  test_rbac.py  test_sampling.py  test_detectors.py  test_verbatim.py
 data/                  gitignored: *.db  evidence/  audit_files/  answer_key.json
 ```
+
+### 3a. Tenant-aware settings (EX-4)
+
+`config.DATA_DIR`, `EVIDENCE_DIR`, `AUDIT_FILES_DIR`, `EXPORTS_DIR`, `DB_PATHS[db]`, `ENGAGEMENT_ID`, `ENTITY_NAME`,
+`PERIOD_START`, `PERIOD_END` and `FY_LABEL` follow the active tenant (a ContextVar; module `__getattr__`). Read them as
+`config.X` at call time, never `from app.config import X` and never as a default argument, or a request for tenant 2
+would silently use tenant 1. `config.set_data_dir(path)` moves the default tenant (tests, selftest).
+
+```python
+tenants.scope(slug) -> contextmanager[tenant]        # run a block against one organisation (default when falsy)
+tenants.registry() -> [tenant]; tenants.visible(principal) -> [tenant]; tenants.allowed(principal, slug) -> bool
+tenants.create(name, pan, gstin, fy, principals, created_by) -> tenant   # ValueError('INVALID_ARGUMENT: …')
+tenants.seed_demo(principals=None, invoices=300) -> tenant               # Sahyadri Shipyards Enterprises
+config.use_tenant(settings | None) -> token; config.reset_tenant(token); config.active_tenant() -> dict | None
+```
+
+REST: `GET /api/tenants` (any signed-in identity: the tenants it may see), `POST /api/tenants` (audit roles), and every
+endpoint honours `X-Tenant` (403 when the token's principal may not see that tenant; ignored without a Bearer token).
 
 ## 4. Module contracts (code against these; stubs first)
 

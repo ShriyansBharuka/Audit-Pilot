@@ -16,6 +16,26 @@ The PS says *"an auditor identity must never change business data"*. We enforce 
 
 The `orchestrator` role (n8n) gets read-only handles to `audit.db` and `pbc.db`, and none to `erp.db`.
 
+## 0a. Organisations = tenants (EX-4, added 2026-10-11)
+
+The schema stays **single-company**: no `org_id` column anywhere. An organisation (tenant) is a **data directory** with
+its own four files and its own engagement:
+
+| Tenant | Directory | Engagement | Seeded by |
+|---|---|---|---|
+| `konkan` (default): Konkan Marine Controls Ltd | `DATA_DIR/` (`data/`) | `ENG-2025-26` | `python -m app.seed --reset` |
+| `sahyadri-shipyards-enterprises`: Sahyadri Shipyards Enterprises | `DATA_DIR/tenants/<slug>/` + `tenant.json` | `ENG-SAHYADRI-2025-26` | `python -m app.tenants --seed-demo` (300 invoices) |
+| any "+ New organization" | `DATA_DIR/tenants/<slug>/` | `ENG-<FIRSTWORD>-<FY>` | `POST /api/tenants` (empty books, COA, engagement) |
+
+- `tenant.json` = `{slug, name, pan, gstin, fy_label, period_start, period_end, engagement_id, principals[], created_by,
+  created_at}`. PAN and GSTIN are validated (format, GSTIN check digit, GSTIN embeds the PAN); FY like `2026-27`.
+- **Access:** the default tenant is visible to every identity; another tenant only to the principals in its
+  `principals` list (the creator; for the demo tenant, the audit principals in `identities.json`). Picking a tenant
+  never grants or changes a role: the role always comes from the token, and every role rule in §0 applies inside each
+  tenant unchanged.
+- **Resolution:** server-side, per request (REST header `X-Tenant: <slug>`), through a ContextVar (`app.tenants.scope`),
+  so concurrent requests never share a tenant. The MCP server serves the default tenant only.
+
 ## 1. Conventions (all files)
 
 - **Money is `*_paise INTEGER`, always ≥ 0.** The only exceptions are `ext.bank_txns.amount_paise` (signed: + in, − out) and `invoices.round_off_paise` (signed, small). Tools take rupees as **strings** (`"118000.50"`) and convert with `to_paise()`. **No REAL / NUMERIC / DECIMAL column anywhere.** SQLite's `NUMERIC(15,2)` silently turns `118000.0` into `118000` and makes hashes fail.

@@ -15,12 +15,41 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import cases, charts, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, trail, workpaper, yearend
+from app import cases, charts, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, tenants, trail, workpaper, yearend
+
+async def tenant_scope(x_tenant: Optional[str] = Header(None, alias="X-Tenant"),
+                       authorization: Optional[str] = Header(None, alias="Authorization")):
+    """EX-4: run this request against the organisation named in X-Tenant (default: Konkan Marine Controls Ltd).
+    Only an organisation visible to the token's principal can be picked; it never grants or changes a role."""
+    slug = (x_tenant or "").strip()
+    if not slug or slug == tenants.DEFAULT:
+        yield None
+        return
+    token = authorization[7:].strip() if (authorization or "").startswith("Bearer ") else ""
+    if not token:                       # public endpoints (health, identities, login): default tenant; the
+        yield None                      # endpoint's own auth still decides everything else
+        return
+    try:
+        principal = partner.identity(token)["principal"]
+    except LookupError:
+        raise HTTPException(status_code=401, detail="UNAUTHENTICATED: send the Bearer token with X-Tenant")
+    if not tenants.allowed(principal, slug):
+        raise HTTPException(status_code=403, detail="PERMISSION_DENIED: that organisation is not visible to you")
+    tok = config.use_tenant(tenants.settings(tenants.get(slug)))   # this request's context only (ContextVar)
+    try:
+        yield slug
+    finally:
+        try:
+            config.reset_tenant(tok)
+        except ValueError:                                         # teardown in another context: nothing leaks
+            pass
+
 
 app = FastAPI(
     title="AuditPilot AI API",
     version="1.0.0",
     description="Statutory Revenue Audit API for AuditPilot AI Next.js Application",
+    dependencies=[Depends(tenant_scope)],
 )
 
 # Enable CORS for Next.js (port 3000 and any local dev origin)
@@ -707,6 +736,37 @@ def get_statutory_memo(format: str = "md"):
                         headers={"Content-Disposition": 'attachment; filename="statutory_memo.pdf"'})
     return Response(r["markdown"], media_type="text/markdown; charset=utf-8",
                     headers={"Content-Disposition": 'attachment; filename="statutory_memo.md"'})
+
+
+class NewTenant(BaseModel):
+    name: str
+    pan: str
+    gstin: str
+    fy: str
+
+
+@app.get("/api/tenants")
+def get_tenants(who: Dict[str, Any] = Depends(require(*AUDIT_ROLES, *CLIENT_ROLES))):
+    """EX-4: the organisations this identity may open (the default for everyone; others by membership) + the active one."""
+    active = (config.active_tenant() or {}).get("ENGAGEMENT_ID")
+    items = []
+    for t in tenants.visible(who["principal"]):
+        items.append({**tenants.public(t), **tenants.counts(t),
+                      "active": (t["engagement_id"] == active) if active else t["default"]})
+    return {"items": items}
+
+
+@app.post("/api/tenants")
+def post_tenant(body: NewTenant, who: Dict[str, Any] = Depends(require(*AUDIT_ROLES))):
+    """+ New organisation (audit roles): an empty tenant directory, four databases and its FY engagement. PAN and GSTIN
+    are validated (format, check digit, GSTIN embeds the PAN). The creator is its first member."""
+    try:
+        t = tenants.create(body.name, body.pan, body.gstin, body.fy, [who["principal"]], who["principal"])
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+    trail.trail(who["principal"], who["role"], "tenants.create", {"slug": t["slug"]}, "OK", {"slug": t["slug"]},
+                transport="UI")
+    return {**tenants.public(t), **tenants.counts(t)}
 
 
 # ---------------------------------------------------------------- Deliverables & Exports

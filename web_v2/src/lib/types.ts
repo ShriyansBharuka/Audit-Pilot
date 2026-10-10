@@ -360,3 +360,24 @@ export interface StatutoryMemo {
   aje_totals: { dr_paise: number; cr_paise: number };
   polished: boolean;
 }
+
+export interface TenantItem {
+  slug: string;
+  name: string;
+  pan: string;
+  gstin: string;
+  fy_label: string;
+  period_start: string;
+  period_end: string;
+  engagement_id: string;
+  default: boolean;
+  invoices_count: number;
+  active?: boolean;
+}
+
+export interface NewTenantInput {
+  name: string;
+  pan: string;
+  gstin: string;
+  fy: string;
+}

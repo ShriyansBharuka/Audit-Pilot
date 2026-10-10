@@ -4,6 +4,7 @@ Time is Asia/Kolkata (03 §1). IST has no DST, so a fixed +05:30 offset is exact
 The clock is settable so the seeder (and replay) can record FY 2025-26 history on its business dates: every
 recorded_at, erp_log.recorded_at, IRN ack_at and EWB generated_at must come from now(), never datetime.now().
 """
+import contextvars
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -54,27 +55,89 @@ def today():
 
 # ---------------------------------------------------------------- paths
 
-DATA_DIR = Path(env("DATA_DIR", str(ROOT / "data")))
 DBS = ("erp", "ext", "pbc", "audit")
-DB_PATHS = {}
-EVIDENCE_DIR = AUDIT_FILES_DIR = EXPORTS_DIR = None
 SCHEMA_DIR = ROOT / "schema"
 IDENTITIES = Path(env("IDENTITIES", str(ROOT / "identities.json")))
 
+# Tenant-aware settings (EX-4, vault/03 §0 / 07): each organisation is its own data directory with its own engagement.
+# The default tenant lives in DATA_DIR; app.tenants.scope() switches these for one request / block through a
+# ContextVar, so concurrent requests never see each other's tenant. Read them as config.X (module __getattr__).
+_TENANT = contextvars.ContextVar("auditpilot_tenant", default=None)
+_BASE = {}
+_TENANT_KEYS = ("DATA_DIR", "EVIDENCE_DIR", "AUDIT_FILES_DIR", "EXPORTS_DIR", "ENGAGEMENT_ID", "ENTITY_NAME",
+                "PERIOD_START", "PERIOD_END", "FY_LABEL")
+
+
+def _dirs(data_dir):
+    d = Path(data_dir)
+    return {"DATA_DIR": d,
+            "EVIDENCE_DIR": d / "evidence",            # content-addressed client submissions (pbc.submissions)
+            "AUDIT_FILES_DIR": d / "audit_files",      # workpaper, memo, trail export
+            "EXPORTS_DIR": d / "exports"}              # client register exports (pbc.exports)
+
+
+class _DbPaths(dict):
+    """{db: path}; follows the active tenant at lookup time (db.py holds this same object)."""
+    def __getitem__(self, k):
+        t = _TENANT.get()
+        if t is not None:
+            if k not in DBS:
+                raise KeyError(k)
+            return Path(t["DATA_DIR"]) / f"{k}.db"
+        return dict.__getitem__(self, k)
+
+    def get(self, k, default=None):
+        try:
+            return self[k]
+        except KeyError:
+            return default
+
+    def items(self):
+        return [(k, self[k]) for k in DBS]
+
+
+DB_PATHS = _DbPaths()
+
 
 def set_data_dir(path):
-    """Point every database and file store at `path` (selftest and tests use a temp dir). db.py reads DB_PATHS
-    at call time, so this takes effect immediately."""
-    global DATA_DIR, EVIDENCE_DIR, AUDIT_FILES_DIR, EXPORTS_DIR
-    DATA_DIR = Path(path)
-    DB_PATHS.clear()
-    DB_PATHS.update({d: DATA_DIR / f"{d}.db" for d in DBS})
-    EVIDENCE_DIR = DATA_DIR / "evidence"            # content-addressed client submissions (pbc.submissions)
-    AUDIT_FILES_DIR = DATA_DIR / "audit_files"      # workpaper, memo, trail export
-    EXPORTS_DIR = DATA_DIR / "exports"              # client register exports (pbc.exports)
+    """Point the default tenant's databases and file stores at `path` (selftest and tests use a temp dir). db.py reads
+    DB_PATHS at call time, so this takes effect immediately."""
+    _BASE.update(_dirs(path))
+    dict.clear(DB_PATHS)
+    dict.update(DB_PATHS, {d: _BASE["DATA_DIR"] / f"{d}.db" for d in DBS})
 
 
-set_data_dir(DATA_DIR)
+def use_tenant(settings):
+    """Activate a tenant ({data_dir, engagement_id, entity_name, period_start, period_end, fy_label}) in this context;
+    None returns to the default. -> a token for reset_tenant()."""
+    if settings is None:
+        return _TENANT.set(None)
+    t = _dirs(settings["data_dir"])
+    t.update({"ENGAGEMENT_ID": settings["engagement_id"], "ENTITY_NAME": settings["entity_name"],
+              "PERIOD_START": settings["period_start"], "PERIOD_END": settings["period_end"],
+              "FY_LABEL": settings["fy_label"]})
+    return _TENANT.set(t)
+
+
+def reset_tenant(token):
+    _TENANT.reset(token)
+
+
+def active_tenant():
+    t = _TENANT.get()
+    return None if t is None else dict(t)
+
+
+def __getattr__(name):
+    if name in _TENANT_KEYS:
+        t = _TENANT.get()
+        if t is not None and name in t:
+            return t[name]
+        return _BASE[name]
+    raise AttributeError(f"module 'app.config' has no attribute {name!r}")
+
+
+set_data_dir(env("DATA_DIR", str(ROOT / "data")))
 
 # ---------------------------------------------------------------- server / integrations (07 §2, 10)
 
@@ -91,7 +154,7 @@ LLM_DAY_CAP_USD = env("LLM_DAY_CAP_USD", "40")
 
 # ---------------------------------------------------------------- the audited company (fictional)
 
-ENTITY_NAME = "Konkan Marine Controls Ltd"
+_BASE["ENTITY_NAME"] = "Konkan Marine Controls Ltd"
 SELF_PAN = "AAKCK4821M"
 # Unit master: one invoice/CN series per unit per FY (CGST Rule 46(b)); issue_invoice takes supplier_gstin from here.
 # Same values as seed.UNITS (DA-1a); the seed should import these instead of keeping its own copy.
@@ -104,11 +167,11 @@ UNITS = {
 
 # ---------------------------------------------------------------- engagement defaults (audit.engagements)
 
-ENGAGEMENT_ID = "ENG-2025-26"                   # one engagement per FY; created on the first client upload
+_BASE["ENGAGEMENT_ID"] = "ENG-2025-26"          # one engagement per FY; created on the first client upload
 FRAMEWORK = "IND_AS"
-PERIOD_START = "2025-04-01"
-PERIOD_END = "2026-03-31"                       # drives every date default (04 §3.5); configure_engagement overrides
-FY_LABEL = "2025-26"
+_BASE["PERIOD_START"] = "2025-04-01"
+_BASE["PERIOD_END"] = "2026-03-31"              # drives every date default (04 §3.5); configure_engagement overrides
+_BASE["FY_LABEL"] = "2025-26"
 # Materiality (SA 320) as basis points; findings.py applies them (AA-3). The auditor can override.
 OVERALL_MATERIALITY_BP_OF_REVENUE = 50          # OM = 0.5% of revenue
 PERFORMANCE_MATERIALITY_BP_OF_OM = 7500         # PM = 75% of OM

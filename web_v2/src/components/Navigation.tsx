@@ -117,7 +117,7 @@ function LoginScreen() {
 
 export function Navigation({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, identities, loginWithToken } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [ov, setOv] = useState<AuditOverview | null>(null);
@@ -133,6 +133,10 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   if (!user) return <LoginScreen />;
 
   const n = (v?: number) => (v === undefined || v === null ? undefined : v.toLocaleString("en-IN"));
+  // demo personas carry a token only when the API runs with DEMO_ROLE_SWITCHER=1; the partner's never does
+  const personas = identities.filter(
+    (i: any) => i.token && i.role !== "engagement_partner" && i.role !== "orchestrator" && i.principal !== user.principal,
+  );
   const findingsTotal = ov?.findings_counts ? Object.values(ov.findings_counts).reduce((a, b) => a + b, 0) : undefined;
   const requestsTotal = ov?.evidence_requests ? Object.values(ov.evidence_requests).reduce((a, b) => a + b, 0) : undefined;
   const auditItems = [
@@ -256,7 +260,28 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                 <ChevronDown className="h-3 w-3 text-slate-400 ml-1" />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-md bg-slate-900 border border-slate-700 py-1 z-50 text-xs">
+                <div className="absolute right-0 mt-2 w-56 rounded-md bg-slate-900 border border-slate-700 py-1 z-50 text-xs">
+                  {/* Switch user = sign in with another persona's token (demo mode only; never the partner) */}
+                  {personas.length > 0 && (
+                    <>
+                      <div className="px-3 pt-1.5 pb-1 text-[11px] text-slate-500">Switch user</div>
+                      {personas.map((p) => (
+                        <button
+                          key={p.principal}
+                          onClick={async () => {
+                            setMenuOpen(false);
+                            await loginWithToken(p.token);
+                            window.location.href = AUDIT_ROLES.includes(p.role) ? "/" : "/evidence";
+                          }}
+                          className="w-full text-left px-3 py-1.5 flex items-center justify-between text-slate-300 hover:bg-slate-800"
+                        >
+                          <span className="truncate">{p.name}</span>
+                          <span className="text-[11px] text-slate-500">{p.role.replace("_", " ")}</span>
+                        </button>
+                      ))}
+                      <div className="my-1 border-t border-slate-800" />
+                    </>
+                  )}
                   <button
                     onClick={() => {
                       setMenuOpen(false);
@@ -264,7 +289,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                     }}
                     className="w-full text-left px-3 py-2 flex items-center gap-2 text-slate-300 hover:bg-slate-800"
                   >
-                    <LogOut className="h-3.5 w-3.5" /> Sign out / switch user
+                    <LogOut className="h-3.5 w-3.5" /> Sign out
                   </button>
                 </div>
               )}

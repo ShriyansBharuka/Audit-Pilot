@@ -248,7 +248,7 @@ def _masters(rng):
 
     g2 = UNITS["G2"]
     acct, ifsc = bank()
-    parties = [_party("SELF", "ENTITY", "SELF", "Konkan Marine Controls Ltd", SELF_PAN, g2["gstin"], "27",
+    parties = [_party("SELF", "ENTITY", "SELF", config.ENTITY_NAME, SELF_PAN, g2["gstin"], "27",
                       g2["address"], g2["pincode"], phone(), f"accounts@{SELF_DOMAIN}", acct, ifsc)]
     links, meta = [], {}
 

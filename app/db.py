@@ -68,9 +68,10 @@ def keep_open():
 def borrow(db, role):
     """A connection for the duration of a block: pooled under keep_open(), otherwise opened and closed here."""
     if _POOLING[0]:
-        c = _POOL.get((db, role))
+        key = (db, role, str(DB_PATHS.get(db)))          # the path keeps tenants apart (EX-4)
+        c = _POOL.get(key)
         if c is None:
-            c = _POOL[(db, role)] = connect(db, role)
+            c = _POOL[key] = connect(db, role)
         yield c
         return
     c = connect(db, role)
