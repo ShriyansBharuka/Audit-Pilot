@@ -4,16 +4,6 @@ import pytest
 from app import config, db, seed
 
 
-@pytest.fixture()
-def world(tmp_path):
-    default = config.DATA_DIR
-    config.set_data_dir(tmp_path)
-    db.init_all(reset=True)
-    yield tmp_path
-    config.set_clock(None)
-    config.set_data_dir(default)
-
-
 def raises(fn, *fragments):
     with pytest.raises(Exception) as e:
         fn()
@@ -64,7 +54,7 @@ def test_tx_commits_rolls_back_and_nests(world):
         c.execute("INSERT INTO accounts(code,name,type) VALUES ('A2','a','ASSET')")
         with db.tx(c):                                     # joins the outer transaction
             c.execute("INSERT INTO accounts(code,name,type) VALUES ('A3','a','ASSET')")
-    assert [r[0] for r in c.execute("SELECT code FROM accounts ORDER BY code")] == ["A2", "A3"]
+    assert [r[0] for r in c.execute("SELECT code FROM accounts WHERE code LIKE 'A_' ORDER BY code")] == ["A2", "A3"]
     c.close()
 
 
