@@ -10,6 +10,7 @@ LLM_RUN_CAP_USD or today's spend exceeds LLM_DAY_CAP_USD. Off unless LLM_ENABLED
 
     python -m app.investigator --finding F-001            # or --invoice G2/0391/25, or --task "..."
     python -m app.investigator --invoice INV-000123 --demo   # the demo model (GPT-6 Astra)
+    python -m app.investigator --case AUD-0001               # multi-agent case investigation (vault/13 MT-5)
 """
 import argparse
 import asyncio
@@ -135,6 +136,130 @@ async def investigate(task_text, model=None, aud_token=None, meter=None, save_no
             "at": datetime.now().isoformat(timespec="seconds")}
 
 
+# ---------------------------------------------------------------- case investigation (vault/13 MT-5)
+#
+# Orchestrator = this code (fixed order, one CostMeter): the risk, evidence and money-flow specialists run in parallel,
+# each an Agents-SDK agent on its own stdio MCP client (audit token, a static allow-list of read tools); the reporting
+# agent (no tools) turns their notes into the structured output. Amounts are never the model's: they are copied from
+# cases.get_case (deterministic). Record ids the model cites but no tool returned are flagged, not trusted.
+
+SPECIALISTS = {
+    "risk": ("Risk agent. Explain why this case is prioritised: its hits (codes, severities), the AuditGraph risk and "
+             "confidence, and related hits on the same counterparty. Cite risk-hit and record ids.",
+             ["get_case", "list_audit_items", "get_risk_graph"]),
+    "evidence": ("Evidence agent. Fetch the underlying records (invoices, POs, GRNs, bills, ledger, bank lines, delivery "
+                 "documents, edit history) and say which exist, which are missing and which contradict each other. "
+                 "Cite record ids.", ["get_case", "trace_sale", "query_records", "run_readonly_sql", "list_audit_items"]),
+    "money_flow": ("Money-flow agent. Use trace_money to separate where the books say money went (CLAIMED) from where "
+                   "bank or portal records prove it went (VERIFIED). Never attribute money beyond the first hop and "
+                   "never add up a cycle's edges. Cite edge evidence_refs.", ["trace_money", "get_case", "get_risk_graph"]),
+}
+REPORTER = ("Reporting agent. From the specialists' notes and the deterministic case numbers, write the investigation. "
+            "Facts must cite record ids that appear in the notes or the case. Do not compute or restate amounts: the "
+            "system attaches them. conclusion: SUPPORTED (records explain the case: no misstatement indicated), "
+            "UNRESOLVED (records contradict each other or the money is not accounted for) or INSUFFICIENT_EVIDENCE "
+            "(the evidence needed is missing). Never conclude fraud; the engagement partner decides.")
+SPECIALIST_TURNS = 5
+
+
+class Fact(BaseModel):
+    text: str
+    record_ids: list[str]
+
+
+class CaseInvestigation(BaseModel):
+    facts: list[Fact] = Field(description="facts, each citing record ids returned by the tools")
+    discrepancies: list[str]
+    missing_evidence: list[str]
+    open_questions: list[str]
+    conclusion: str = Field(description="SUPPORTED | UNRESOLVED | INSUFFICIENT_EVIDENCE")
+    suggested_action: str
+
+
+CONCLUSIONS = ("SUPPORTED", "UNRESOLVED", "INSUFFICIENT_EVIDENCE")
+
+
+def _brief(case):
+    c, n = case["case"], case["numbers"]
+    return (f"Case {c['case_id']}: {c['root_type']} {c['root_id']}, codes {', '.join(c['codes'])}. Deterministic numbers "
+            f"(do not recompute): recorded {n['recorded_paise']} paise, bank-verified {n['verified_paise']} paise, "
+            f"potentially affected {n['affected_paise']} paise, risk {n['risk_score']}, confidence {n['confidence']}. "
+            f"Start with get_case(case_id='{c['case_id']}').")
+
+
+def finalize(case, out, notes, known_text):
+    """Model output + deterministic case -> the AI_INVESTIGATION payload (always PROPOSED)."""
+    inv = out.model_dump() if hasattr(out, "model_dump") else dict(out)
+    if inv.get("conclusion") not in CONCLUSIONS:
+        inv["conclusion"] = "INSUFFICIENT_EVIDENCE"
+    unknown = sorted({i for f in inv.get("facts", []) for i in f.get("record_ids", []) if i and i not in known_text})
+    for f in inv.get("facts", []):
+        f["unverified_ids"] = [i for i in f.get("record_ids", []) if i in unknown]
+    n = case["numbers"]
+    inv["amounts"] = {"verified_paise": n["verified_paise"], "claimed_paise": n["recorded_paise"],
+                      "received_paise": n.get("received_paise"), "affected_paise": n["affected_paise"],
+                      "source": "cases.get_case (deterministic); never computed by the model"}
+    inv["unverified_ids"] = unknown
+    inv["status"] = "PROPOSED"
+    inv["specialist_notes"] = {k: (v or "")[:2000] for k, v in notes.items()}
+    return inv
+
+
+async def _sdk_run(name, instructions, text, model, tools, aud_token, output_type=None):
+    """One agent run -> (final_output, usage, tool_calls). tools = MCP allow-list ([] = no MCP client)."""
+    from agents import Agent, ModelSettings, Runner
+    from agents.mcp import MCPServerStdio, create_static_tool_filter
+    common = PROMPT.split("Rules:")[1]
+    settings = ModelSettings(max_tokens=1500 if output_type is None else 2500)
+    if not tools:
+        agent = Agent(name=name, instructions=instructions + "\nRules:" + common, model=model, output_type=output_type,
+                      model_settings=settings)
+        r = await Runner.run(agent, text, max_turns=2)
+        return r.final_output, r.context_wrapper.usage, 0
+    env = {**os.environ, "MCP_TRANSPORT": "stdio", "MCP_TOKEN": aud_token, "PYTHONPATH": str(config.ROOT)}
+    params = {"command": sys.executable, "args": ["-m", "app.mcp_server"], "env": env, "cwd": str(config.ROOT)}
+    async with MCPServerStdio(params=params, name=f"auditpilot-{name}", cache_tools_list=True,
+                              client_session_timeout_seconds=60,
+                              tool_filter=create_static_tool_filter(allowed_tool_names=tools)) as server:
+        agent = Agent(name=name, instructions=instructions + "\nRules:" + common, mcp_servers=[server], model=model,
+                      model_settings=settings)
+        r = await Runner.run(agent, text, max_turns=SPECIALIST_TURNS)
+        calls = sum(1 for it in r.new_items if getattr(it, "type", "") == "tool_call_item")
+        return r.final_output, r.context_wrapper.usage, calls
+
+
+async def investigate_case(case_id, model=None, demo=False, meter=None, aud_token=None, run=None):
+    """Multi-agent investigation of one case -> {investigation, usd, tool_calls, model, event}. Saved as a case event
+    AI_INVESTIGATION (PROPOSED, never a decision). `run` replaces the SDK call in tests."""
+    from app import cases
+    case = cases.get_case(case_id)                       # LookupError for an unknown case, before any spend
+    if run is None:
+        ok, why = ready()
+        if not ok:
+            raise RuntimeError(f"investigator not configured: {why}")
+        run = _sdk_run
+    model = model or model_for(demo)
+    meter = meter or CostMeter()
+    meter.check()
+    token = aud_token or (_token() if run is _sdk_run else "test")
+    brief = _brief(case)
+    results = await asyncio.gather(*(run(k, p, brief, model, tools, token) for k, (p, tools) in SPECIALISTS.items()))
+    notes, micros, calls = {}, 0, 0
+    for k, (out, usage, n) in zip(SPECIALISTS, results):
+        notes[k] = str(out or "")
+        micros += meter.add(usage, model, f"case:{k}")
+        calls += n
+    report_in = brief + "\n\n" + "\n\n".join(f"[{k} agent notes]\n{v}" for k, v in notes.items())
+    out, usage, _ = await run("reporting", REPORTER, report_in, model, [], token, CaseInvestigation)
+    micros += meter.add(usage, model, "case:reporting")
+    known = json.dumps(case, default=str) + "\n".join(notes.values())
+    inv = finalize(case, out, notes, known)
+    inv.update(model=model, usd=round(micros / 1e6, 4), tool_calls=calls)
+    ev = cases.add_event(case_id, "AI_INVESTIGATION", "aud.investigator", "audit_staff",
+                         "AI investigation (PROPOSED; the auditor decides)", inv)
+    return {"investigation": inv, "usd": round(micros / 1e6, 4), "tool_calls": calls, "model": model, "event": ev}
+
+
 def task_for(finding=None, invoice=None, task=None):
     if task:
         return task, None
@@ -151,9 +276,13 @@ def main(argv=None):
     g.add_argument("--finding")
     g.add_argument("--invoice")
     g.add_argument("--task")
+    g.add_argument("--case", help="multi-agent investigation of an audit case (saved as AI_INVESTIGATION)")
     ap.add_argument("--demo", action="store_true", help="use OPENAI_MODEL_DEMO (GPT-6 Astra)")
     ap.add_argument("--no-save", action="store_true")
     a = ap.parse_args(argv)
+    if a.case:
+        print(json.dumps(asyncio.run(investigate_case(a.case, demo=a.demo)), indent=1, ensure_ascii=False))
+        return 0
     text, target = task_for(a.finding, a.invoice, a.task)
     r = asyncio.run(investigate(text, model_for(a.demo), save_note=None if a.no_save else target))
     print(json.dumps(r, indent=1, ensure_ascii=False))

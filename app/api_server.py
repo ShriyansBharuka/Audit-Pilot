@@ -597,6 +597,28 @@ def post_case_action(case_id: str, body: CaseAction, who: Dict[str, Any] = Depen
         raise HTTPException(status_code=400, detail=str(ex))
 
 
+@app.post("/api/cases/{case_id}/investigate")
+def post_case_investigate(case_id: str, demo: bool = False, who: Dict[str, Any] = Depends(require("audit_staff"))):
+    """MT-5: multi-agent investigation (risk, evidence, money-flow, reporting) saved as a PROPOSED case event.
+    409 when the LLM is off or the CostMeter cap is hit."""
+    import asyncio
+    from app import investigator
+    try:
+        cases.get_case(case_id)
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+    ok, why = investigator.ready()
+    if not ok:
+        raise HTTPException(status_code=409, detail=f"LLM_OFF: {why}")
+    try:
+        out = asyncio.run(investigator.investigate_case(case_id, demo=demo))
+    except RuntimeError as ex:
+        raise HTTPException(status_code=409, detail=str(ex))
+    trail.trail(who["principal"], who["role"], "investigator.investigate_case", {"case_id": case_id}, "OK",
+                {"event": out["event"]["id"], "usd": out["usd"]}, transport="UI")
+    return out
+
+
 # ---------------------------------------------------------------- Deliverables & Exports
 
 def _fresh_deliverables(eid):
