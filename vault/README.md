@@ -16,6 +16,7 @@
 | [`08_CLAUDE_REVIEW_HANDOFF.md`](08_CLAUDE_REVIEW_HANDOFF.md) | Claude's review of the first draft: what changed and why, PS traceability, open items | Antigravity, Shriyans |
 | [`09_TASK_BOARD.md`](09_TASK_BOARD.md) | **Who builds what, in what order, and when it's done**, plus the demo script | everyone (find your ID) |
 | [`10_INTEGRATIONS.md`](10_INTEGRATIONS.md) | Sponsors: n8n, ShipReady, Voroa; GPT investigator + cost guards | Ibrahim, Darshan, Aarav |
+| [`11_IDEA_AUDIT_CASES.md`](11_IDEA_AUDIT_CASES.md) | Team idea (not a spec yet): audit-case assistant, purchase-to-pay + inventory, what we already cover, open decisions | everyone |
 | [`PROGRESS.md`](PROGRESS.md) | Build log: append-only, one line per task update | everyone |
 | `Elevate 1.0 PS list.pdf` | The organisers' PDF (PS-04 is on pages 8–10) | — |
 

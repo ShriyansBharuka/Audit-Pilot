@@ -70,7 +70,7 @@ the API's own usage numbers and refuses a run when **today's spend + the run cap
 $40)**; unknown model names are priced as Astra (safe side); every call is a row in `audit.llm_usage`. Also set a
 project budget on the OpenAI key itself.
 
-Investigation latency (estimate until the first live run): 8 turns x (2-6 s model + <1 s tool) = **20-60 s**, shown
+**Measured (first live run, 10 Oct 19:08):** one investigation of a flagged invoice on `gpt-6.1-sol` = **$0.024, 31 s, 3 tool calls**, about 5x cheaper than the typical-case model above (the agent needed 3 turns, not 8). Astra at the same token count is ~5x Sol, so **~$0.12**; a 13-item demo on Astra is ~$1.60. The table above stays as the conservative bound.
 with a spinner in the UI; it never blocks the deterministic audit.
 
 ## 4. Is the math sound?
