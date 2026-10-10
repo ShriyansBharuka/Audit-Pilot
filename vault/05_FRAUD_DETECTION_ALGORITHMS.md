@@ -269,37 +269,82 @@ Only the partner confirms, in the UI.
 | Changes after testing | LR/POD edit; party GSTIN/bank edit; CN on a sampled invoice; register re-upload; direct SQLite edit; DROP TRIGGER + rehash | D11, D12 |
 | Circular trading | sale to B / buy from C (shared director); cash round trip | D10 |
 
-## 19. Risk graph, risk scores, confidence scores, company flag (team proposal, 2026-10-10)
+## 19. AuditGraph: the risk engine (transaction + entity risk, temporal graph, company flag)
 
-**Decision: adopt it as a scoring layer on top of D0–D14, not as a replacement for matching.**
-The PS judges itemised findings: "every difference … is a finding", a cut-off TOD that verifies dispatch dates, and a memo with ₹ impact and proposed adjustments. A score alone can't produce an AJE, isn't audit evidence, and can't tell a judge *which* planted row it caught. The detectors stay the source of truth. The graph turns their hits into a ranked, visual, company-level picture. Framing for the pitch and memo: we **detect and flag** manipulation. Preventing it is management's control job (SA 240: the auditor doesn't determine fraud).
+> Updated 2026-10-10 15:00. Merges the team's risk-score proposal and Aarav's *AuditGraph* design. **AuditGraph is the risk engine inside AuditPilot; it is not a replacement for D0–D14.** Detectors produce the evidence and findings the PS judges (every register ≠ SoR difference, cut-off, ₹ impact, AJEs). AuditGraph ranks, propagates, tracks risk over time and flags the company. Wording: "detect and flag", "risk of material misstatement", never "fraud" (SA 240).
 
-**Graph (`risk_graph.py`, built from data that already exists):**
-- **Nodes:** SELF, parties, invoices, CNs, movements, settlements/bank accounts, journals.
-- **Document edges:** invoice–party, invoice–movement, invoice–journal, receipt–payer account, CN–invoice.
-- **Identity edges:** the D1 graph (shared PAN, bank, phone, email, address, director).
+**Module and owner:** `app/risk_graph.py`. The tool is `get_risk_graph` (04 #46). The UI is a graph view + risk timeline (`st.graphviz_chart`, no new dependency). Coding: Darshan's Claude Pro (DA-6); design owner and reviewer: Aarav.
 
-**Entry risk score `R` (0–100), deterministic.** It is a noisy-OR over the entry's own hits:
-`R = 100 × (1 − Π(1 − w(code) × severity/5))`. The `w(code)` weights sit in `config.RISK_WEIGHTS` (default 1.0; [REG]-only format codes 0.2).
+### 19.1 Temporal multigraph
+Built with networkx `MultiDiGraph` from data that already exists; nothing new is stored in erp.db.
+- **Nodes:** SELF, every party, plus person nodes from `party_links` / RP list / MCA.
+- **Edges**, each with `{kind, ts, amount_paise, doc_id, observed: true|inferred}`:
+  - `SALE` (SELF→customer, invoice), `PURCHASE` (vendor→SELF), `PAYMENT_IN` (payer account owner→SELF), `PAYMENT_OUT`, `DISPATCH` (movement);
+  - `CONTROL` / `DIRECTOR` / `RELATIVE` (party_links, MCA);
+  - `SHARED_ID` (D1 STRONG/MEDIUM keys; *inferred*).
+- **An invoice edge is not evidence of money moving.** Sales, payment and identity edges are kept separate and never merged.
+- **Visibility caveat:** the auditee's books only show its own trades. A cycle can therefore only close through SELF (a purchase or payment), through identity edges, or through group entities loaded from extra `erp.db` files (the multi-entity brownie). Third-party B→C trades are not invented.
 
-**Propagation (one pass, two hops):**
-- Party risk = value-weighted noisy-OR of its entries' `R`, raised to ≥60 for UNDISCLOSED_RP / CUSTOMER_CLUSTER.
-- Entry risk becomes `R' = max(R, 0.5 × risk of its party, 0.5 × risk of the payer account)`.
+### 19.2 Engine A: transaction anomaly score `A` (0–100)
+`A = 100 × (1 − Π(1 − w(code) × severity/5))` is a noisy-OR over the entry's own `risk_hits` (D0–D14).
+- Weights live in `config.RISK_WEIGHTS` (default 1.0; FORMAT_ONLY 0.2; heuristic D5 codes 0.5).
+- Add **burst features (MIDAS-inspired, simple):** per customer, a rolling 7-day invoice count and value vs that customer's median 7-day window. Above median + 3·MAD gives code `ACTIVITY_BURST` (D5, severity 3).
 
-This is how a clean-looking invoice to a high-risk customer cluster still floats up.
+### 19.3 Engine B: entity risk `E` (0–100) per party
+`E = 0.35·C + 0.25·F + 0.15·T + 0.15·H + 0.10·N`, each term normalised to 0–100:
 
-**Confidence score `C` (0–1) per entry and per finding.** It measures how sure we are, not how bad it is:
-- **Base:** 0.9 if the hit compares against an independent source (ext.db portal/bank, POD); 0.7 deterministic internal; 0.4 heuristic (D5, CUSTOMER_CLUSTER).
-- **Up:** +0.1 per corroborating detector on the same entry, and +0.2 after `test_sample` confirms with evidence.
-- **Down:** −0.3 when the evidence is NP or NEEDS_MANUAL_REVIEW.
-- Capped at [0, 1].
+| Term | Meaning | Normalisation |
+|---|---|---|
+| C | circular exposure | ₹ value in this party's cycles (19.4) ÷ performance materiality, capped at 100 |
+| F | financial significance of flagged flows | Σ taxable of its entries with A ≥ 30 ÷ PM, capped |
+| T | temporal anomalies | share of its value in the last 10 business days of the period + bursts, scaled 0–100 |
+| H | unresolved exceptions | open findings/hits on its entries (1 → 30, 3 → 70, ≥5 → 100) |
+| N | counterparty/network risk | max `E` of neighbours one hop away **from the previous snapshot**, × edge strength |
 
-**Company flag (engagement-level risk, SA 315).**
-- Exposure = Σ (R′/100 × taxable) over entries, shown with the count of PS families hit (rows in §18).
-- **HIGH** if exposure ≥ performance materiality *or* ≥4 families hit; **MODERATE** if ≥50% of PM or ≥2 families; else **LOW**.
-- It drives the Sales TOD size (LOW 25 / MODERATE 30 / HIGH 35), feeds the KEY stratum ranking, and is the headline on `get_engagement_status`, the Overview page and memo §2. It is wording-safe: "risk of material misstatement: HIGH", never "fraud".
+- **Edge strength** = min(1, shared ₹ ÷ PM). Identity edges count 1.0 for STRONG, 0.5 for MEDIUM.
+- **Floor:** UNDISCLOSED_RP, CUSTOMER_CLUSTER or a cycle member is at least 60. A weighted sum would otherwise leave a party fully inside a proven cycle at only 35.
+- **Propagation safeguards:**
+  - `N` uses the previous snapshot only, so a score never feeds back into itself in the same run.
+  - It's one hop only.
+  - It's weighted by relationship strength.
+  - One weak link can't lift a party above "Review".
 
-**Outputs:**
-- `risk_graph.build(engagement_id) -> {nodes:[{id,type,R,C,label}], edges:[{a,b,kind}], company:{band, exposure_paise, families}}`, cached per analytics run.
-- MCP tool `get_risk_graph` (04 #46).
-- UI graph view via `st.graphviz_chart` (built into Streamlit, no new dependency; node colour = R′, border = C, top 150 nodes by R′).
+### 19.4 Circular-flow analysis (upgrades D10)
+- Find cycles of length ≤5 through SELF (or within group entities) with `networkx.simple_cycles(G, length_bound=5)`, keeping only edges inside a 90-day window and in time order.
+- **Minimum-span decomposition** (Kumar et al., *A Graph Theoretical Approach for Identifying Fraudulent Transactions in Circular Trading*, 2017). For each cycle, the circular amount = min(edge amounts). Subtract it along the cycle into a separate *analytical* view (the original graph is never modified) and repeat until no cycle remains. Report each cycle's ₹ circular value, its members, its time span, and the residual edges.
+  - Example: A→B ₹10 L, B→C ₹9 L, C→A ₹8 L gives circular ₹8 L; residuals 2 / 1 / 0.
+- **FlowScope-lite money paths:** a payment out to X, then within 15 days a receipt from Y with X ~ Y (an identity edge) and amount within 2%, gives `ROUND_TRIP_CASH`. Multi-hop (≤3) paths with similar values and short gaps give `MONEY_PATH`.
+- Legitimate reciprocal trade (job work, scrap buy-back with matching goods, qty and time) is labelled `RECIPROCAL_EXPLAINED`, not flagged. The seed must include some.
+
+### 19.5 Fusion: transaction risk `R` (what sampling and the UI rank by)
+`R = max(0.70·A + 0.30·E_party_before_txn, FLOOR)`.
+- `FLOOR` = 60 when any HIGH-confidence deterministic hit (portal/bank/register-sourced: EWB_NOT_FOUND, NO_MOVEMENT, NOT_IN_SOR, REVENUE_WITHOUT_SALE, …) is on the entry, else 0. **Hard evidence is never diluted by averaging, and it is always a finding regardless of score.**
+- Bands: 0–29 **Low** (log) · 30–59 **Review** · 60–100 **High** (escalate with explanation + evidence).
+- **Confidence `C` (0–1), separate from risk:**
+  - Base: 0.9 if an independent source backs the hit, 0.7 deterministic internal, 0.4 heuristic.
+  - +0.1 per corroborating detector; +0.2 after `test_sample` confirms; −0.3 when evidence is missing / NEEDS_MANUAL_REVIEW.
+
+### 19.6 Temporal risk history (continuous mode)
+- Every analytics run (manual, n8n W4 every 15 min, or replay) appends `audit.risk_snapshots(run_id, at, object_type, object_id, A, E, R, C, band, reasons_json)`. Snapshots are append-only and **never overwritten**, so the UI can show "INV-3042 was Low at dispatch on 28 Mar, then High when the 10 Apr credit note arrived".
+- **Replay mode (demo):** `python -m app.replay --speed 600` replays the seed's entry-time-ordered events through the erp services (the seed already produces this list), running incremental analytics every N events. The audience watches risk evolve over a "year in 3 minutes", then the annual-audit workpaper.
+
+### 19.7 Company flag (SA 315 risk of material misstatement)
+- Exposure = Σ (R/100 × taxable) over entries, plus the count of PS families hit (rows in §18) and the circular ₹ value.
+- **HIGH** if exposure ≥ PM, ≥4 families, or circular value ≥ PM; **MODERATE** if ≥50% of PM or ≥2 families; else **LOW**.
+- It drives the Sales TOD size (25 / 30 / 35) and KEY-stratum ranking, and is the headline of `get_engagement_status`, the Overview page and memo §2.
+
+### 19.8 Evaluation (a PPT slide; uses `data/answer_key.json`, never read by the engine)
+- `python -m app.evaluate` prints precision, recall and false-positive rate per family, detection latency in replay (events between the plant and its first High), and the number of invoices prioritised.
+- **Ablation:**
+
+| Model | Transaction features | Graph features | Entity risk |
+|---|---|---|---|
+| Baseline A | yes | no | no |
+| Baseline B | yes | yes | no |
+| Proposed | yes | yes | yes |
+
+- Report all results as **prototype performance on our synthetic data**, not real-world accuracy.
+
+### 19.9 Output shapes
+- `risk_graph.build(engagement_id, as_of_run=None) -> {nodes:[{id,type,label,E|R,C,band}], edges:[{a,b,kind,amount_paise,ts}], cycles:[{members,circular_paise,span_days,residuals}], company:{band, exposure_paise, families, circular_paise}}`
+- `get_risk_graph(min_risk=30, focus_party=None, limit=150)` returns the top nodes by risk. Lists are paged per `04 §3`.

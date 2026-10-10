@@ -11,6 +11,7 @@ Format: `YYYY-MM-DD HH:MM · <task ID from 09> · done|partial|blocked · what c
 - For Aarav (AA-1 RP stratum) / DA-4: call `related_parties.status_on(analyse(...)["rp"].get(party_id), control_date)` → `(status, basis)`.
 
 - 2026-10-10 14:30 · CL-1a · done · Claude: Voroa = hosting (10 §3, IB-8); deadline 08:00 + PPT/prototype, ship one web app (07 §6); risk-graph/score/company-flag layer adopted on top of detectors (05 §19, DA-6, tool #46 `get_risk_graph`); answered DA-1a's 2 questions; new allocation in 09 "Who pulls what right now" · next: SH-1/SH-2/SH-4 (blocker), IB-1, IB-8 hello-world
+- 2026-10-10 15:00 · CL-1b · done · Claude: AuditGraph merged as risk engine (05 §19, 03 risk_snapshots); all coding → Darshan's Claude Pro queue (09 "C2 coding queue"); Antigravity → UI; root WHO_DOES_WHAT.md · next: C2 queue item 1 (SH-1 + SH-2)
 
 ## Requests (to another owner)
 - **DA-1a → Shriyans (SH-1/SH-4), clock:** please add `config.set_clock(iso_ts_or_None)` + `config.now()` and use `now()` for every `recorded_at`, `erp_log.recorded_at`, IRN `ack_at` and EWB `generated_at`. The seed replays FY 2025-26 through the services; on the wall clock every seeded IRN would be ~6 months after its invoice (D13 `IRN_LATE` on all 7,000) and the 24 h cancel rules would be meaningless. `seed.load()` calls `config.set_clock(ev["at"])` before each event.

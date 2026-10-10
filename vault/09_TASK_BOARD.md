@@ -11,17 +11,30 @@
 > Prefixes: SH = Shriyans, IB = Ibrahim, DA = Darshan, AA = Aarav (detector codes D0–D14 are a different namespace).
 > Worker column: **AG** Antigravity · **C2** Claude Code #2 (second PC) · **CL** this Claude (review/cores on request).
 
-## Who pulls what right now (updated 2026-10-10 14:30 · submission 08:00 tomorrow)
+## Who pulls what right now (updated 2026-10-10 15:00 · submission 08:00 tomorrow)
 
-Status: DA-1a / DA-2 / DA-3 pure cores are done and tested (25 tests green). **Everything else waits on the platform (SH-1 / SH-2 / SH-4)**, so that goes first.
+**Decision:** all coding runs on **Darshan's Claude Pro (C2)**, in the order below. Antigravity (Shriyans's PC) takes only the Streamlit UI and overflow. People own review, data plants, deployment, sponsors, the PPT and testing. We **are** using the MCP server (`04`). Short version for people: [`../WHO_DOES_WHAT.md`](../WHO_DOES_WHAT.md).
 
-| Person · machine | Pull, then do (in order) |
-|---|---|
-| **Shriyans · Antigravity (this PC)** | **SH-1 → SH-2 → SH-4 now (the critical path).** Honour DA-1a's *Requests* in `PROGRESS.md`: `config.set_clock()/now()`, the service kwargs it already calls, `config.UNITS`, WAL + `synchronous=NORMAL`. Then SH-3 / SH-5 |
-| **Claude Code #2 (other PC)** | Keep the pure-core pattern while the platform lands: **AA-1a → AA-1** (sampling), **AA-2** analytics cores (D3/D4/D5/D6/D7/D9/D13 over the seed plan + register rows), **DA-6** risk-graph core. Wire DA-1 `load()` / DA-2 `reconcile` / DA-3 `run_d1_d2` into the DB as soon as SH-2/SH-4 are pushed |
-| **Ibrahim** | **IB-1 now** (chain, money, test_tamper: no dependencies), then **IB-8 Voroa hello-world** (de-risks hosting early), then IB-2 / IB-3 / IB-4. IB-6 (n8n) once the login arrives |
-| **Darshan** | DA-1 complete plant set (≥2 per family from `08 §5`, naive + evasive), checked against the answer key. The synthetic dataset **is** DA-1: no external dataset needed. Then DA-4 workpaper. DA-5 ShipReady when its creds arrive |
-| **Aarav** | Review Claude #2's AA work and own the detector false-positive list; start **ALL-4 PPT** outline at T9; AA-5 investigator when the OpenAI key arrives |
+Status: DA-1a / DA-2 / DA-3 pure cores are done (25 tests green). No platform code yet, so C2 starts with the platform.
+
+**C2 coding queue** (one Claude session per item; commit + push after each; log in `PROGRESS.md`):
+
+| # | Task(s) | Why this order |
+|---|---|---|
+| 1 | **SH-1 + SH-2**: scaffold, `requirements.txt`, `config.py` (incl. `set_clock/now`, `UNITS`, `RISK_WEIGHTS`), `db.py`, `schema/*.sql` | everything imports these |
+| 2 | **IB-1 + IB-2**: `chain.py`, `money.py`, `ledger.py`, test_tamper | the ledger is needed by erp |
+| 3 | **IB-3 + SH-4**: `portal.py`, `erp.py` services (the kwargs the seed already calls) | the system of record |
+| 4 | **DA-1 load()**, **DA-2 reconcile + intake**, **DA-3 run_d1_d2**: wire the existing pure cores into the DB | data flows end to end |
+| 5 | **IB-4 + SH-3 + SH-5**: `trail.py`, `gateway.py` / `mcp_server.py` (04 §2 verbatim), tool wrappers | MCP server live (judges' entry point) |
+| 6 | **AA-1**: sampling; **AA-2**: detectors D3/D4/D5/D6/D7/D9/D13 | what we're judged on |
+| 7 | **DA-6**: AuditGraph `risk_graph.py` (`05 §19`), `get_risk_graph`, `app/replay.py`, `app/evaluate.py` | the differentiator + demo + PPT numbers |
+| 8 | **IB-5**: evidence + D11 stale + D12 integrity | change-after-testing story |
+| 9 | **AA-3 + AA-4 + DA-4**: findings/AJEs, memo, 4-sheet xlsx | deliverables |
+| 10 | **AA-5**: investigator (when the OpenAI key arrives); D10/D14 | P1 |
+
+If C2 hits its Pro quota, hand the next queue item to Antigravity (the same task IDs and specs) and note it in `PROGRESS.md`.
+
+**Antigravity (Shriyans's PC):** **SH-7 Streamlit UI** against the `07 §4` contracts (stub data until the services land): login by token; Overview with the company risk band; Transactions; Investigation; **Risk graph + timeline** (`st.graphviz_chart`); Workpaper; client portal; partner review.
 
 ## Start now (no dependencies; do these while the rest of the vault is read)
 | ID | Owner · Worker | Task | Done when |

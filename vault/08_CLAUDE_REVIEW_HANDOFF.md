@@ -199,6 +199,16 @@
   2. Partner `membership_no` in the identity record: yes (`04 §1`).
 - Who works on what next: `09` → "Who pulls what right now".
 
+## 6c. Update 2026-10-10 15:00
+- Aarav's **AuditGraph** design is merged as the risk engine (`05 §19`). Taken from it: transaction + entity risk fusion, temporal risk snapshots, minimum-span cycle decomposition, FlowScope-lite money paths, burst features, the ablation/evaluation and replay demo.
+- **Changed from it, and why:**
+  - A hard-evidence floor (`R ≥ 60` for portal/bank/register-sourced hits; hard evidence is always a finding), because weighted sums dilute proven exceptions.
+  - Cycles only through SELF, identity links or group entities, because the auditee's books can't see third-party trades.
+  - SQLite/Streamlit instead of PostgreSQL/React/FastAPI (Voroa is 2 vCPU / 4 GB shared, and there's no time for builds).
+  - Reconciliation and cut-off stay P0, because the PS judges them.
+- The MCP server stays the backbone.
+- **All coding now runs on Darshan's Claude Pro**, in the queue in `09`. Antigravity does the UI. The people summary is in the root `WHO_DOES_WHAT.md`.
+
 ## 7. Next review checkpoints
 - **T6** (integration #1, ~18:30) and **T11** (judge simulation, ~23:30). Before pinging Claude, make sure `PROGRESS.md` is current and pushed.
 - Claude can also take correctness-critical cores on request: `chain.py` + anchors, the Gateway, `check_for_changes`.
