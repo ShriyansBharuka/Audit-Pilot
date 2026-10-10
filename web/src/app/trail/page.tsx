@@ -62,7 +62,7 @@ export default function TrailPage() {
       {/* Trail Table */}
       <div className="glass-panel rounded-xl border border-slate-800 overflow-hidden">
         <table className="w-full text-left text-xs text-slate-300">
-          <thead className="bg-slate-900/80 text-[10px] text-slate-400 uppercase font-mono border-b border-slate-800">
+          <thead className="bg-slate-900/80 text-[11px] text-slate-400 uppercase font-mono border-b border-slate-800">
             <tr>
               <th className="py-3 px-4">Seq #</th>
               <th className="py-3 px-4">Timestamp (IST)</th>
@@ -91,16 +91,16 @@ export default function TrailPage() {
               items.map((row) => (
                 <tr key={row.seq} className="hover:bg-slate-800/40 transition">
                   <td className="py-3 px-4 font-bold text-indigo-400">#{row.seq}</td>
-                  <td className="py-3 px-4 text-slate-400 text-[11px]">{row.at}</td>
+                  <td className="py-3 px-4 text-slate-400 text-xs">{row.at}</td>
                   <td className="py-3 px-4">
                     <span className="text-white font-medium">{row.principal}</span>
-                    <span className="text-slate-500 text-[10px] block font-sans">{row.role}</span>
+                    <span className="text-slate-500 text-[11px] block font-sans">{row.role}</span>
                   </td>
                   <td className="py-3 px-4 font-semibold text-slate-200">{row.tool}</td>
-                  <td className="py-3 px-4 text-[10px] text-slate-400">{row.transport}</td>
+                  <td className="py-3 px-4 text-[11px] text-slate-400">{row.transport}</td>
                   <td className="py-3 px-4">
                     <span
-                      className={`text-[9px] px-2 py-0.5 rounded font-bold ${
+                      className={`text-[11px] px-2 py-0.5 rounded font-bold ${
                         row.outcome === "OK"
                           ? "bg-emerald-500/20 text-emerald-300"
                           : row.outcome === "DENIED"
@@ -111,7 +111,7 @@ export default function TrailPage() {
                       {row.outcome}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-[10px] text-slate-500">
+                  <td className="py-3 px-4 text-[11px] text-slate-500">
                     <div className="flex items-center gap-1">
                       <Lock className="h-3 w-3 text-emerald-500" />
                       <span className="truncate max-w-[120px]">{row.chain_hash?.slice(0, 16)}...</span>

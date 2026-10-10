@@ -11,7 +11,7 @@ function Waterfall({ data }: { data: ShapExplanation }) {
   let running = data.base_value;
   return (
     <div className="space-y-2 pt-2">
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_4.5rem] gap-3 items-center text-[11px] text-slate-500 font-mono">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_4.5rem] gap-3 items-center text-xs text-slate-500 font-mono">
         <span>feature (player)</span>
         <span>0 ────────────── score 100</span>
         <span className="text-right">φ (pts)</span>
@@ -45,7 +45,7 @@ function Row({ label, from = 0, to = 0, value, muted = false, sub = false }: {
   const width = Math.max(0.6, Math.abs(to - from));
   return (
     <div className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_4.5rem] gap-3 items-center text-xs ${sub ? "opacity-75" : ""}`}>
-      <span className={`truncate ${sub ? "pl-4 text-slate-400 text-[11px]" : "text-slate-200"}`} title={label}>
+      <span className={`truncate ${sub ? "pl-4 text-slate-400 text-xs" : "text-slate-200"}`} title={label}>
         {label}
       </span>
       <div className="h-2.5 w-full bg-slate-900 rounded-full relative overflow-hidden">
@@ -56,7 +56,7 @@ function Row({ label, from = 0, to = 0, value, muted = false, sub = false }: {
           />
         )}
       </div>
-      <span className={`font-mono text-right ${value >= 0 ? "text-rose-300" : "text-emerald-300"} ${sub ? "text-[11px]" : "font-bold"}`}>
+      <span className={`font-mono text-right ${value >= 0 ? "text-rose-300" : "text-emerald-300"} ${sub ? "text-xs" : "font-bold"}`}>
         {value >= 0 ? "+" : ""}
         {value.toFixed(1)}
       </span>
@@ -144,7 +144,7 @@ function ShapContent() {
         </form>
         {picks.length > 0 && (
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 text-[11px]">Highest risk:</span>
+            <span className="text-slate-500 text-xs">Highest risk:</span>
             {picks.map((pick) => (
               <button
                 key={pick}
@@ -152,7 +152,7 @@ function ShapContent() {
                   setInvoiceNo(pick);
                   loadShap(pick);
                 }}
-                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-mono border border-slate-700"
+                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700"
               >
                 {pick}
               </button>
@@ -175,7 +175,7 @@ function ShapContent() {
           ) : (
             <>
               <div className="p-5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
-                <div className="text-[11px] font-mono text-indigo-400">
+                <div className="text-xs font-mono text-indigo-400">
                   {data.invoice_no} · {data.invoice_date} · {data.party_id} {data.party_name ? `(${data.party_name})` : ""}
                 </div>
                 <div className="text-lg font-bold text-white">
@@ -189,7 +189,7 @@ function ShapContent() {
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">{data.explanation_text}</p>
                 <div
-                  className={`inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded ${
+                  className={`inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded ${
                     data.check.exact ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/10 text-rose-300 border border-rose-500/30"
                   }`}
                   title={data.check.note}
@@ -213,7 +213,7 @@ function ShapContent() {
                 ) : (
                   <div className="text-xs text-slate-400">No risk hits and no customer risk: this invoice scores 0.</div>
                 )}
-                <div className="text-[11px] text-slate-500 flex gap-1.5 pt-2">
+                <div className="text-xs text-slate-500 flex gap-1.5 pt-2">
                   <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <span>
                     {data.method}. The baseline is a clean invoice, so every attribution is ≥ 0: in this model evidence of a
@@ -236,13 +236,13 @@ function ShapContent() {
             <div className="text-xs text-slate-400">No invoice scores ≥ {summary.min_risk} yet.</div>
           ) : (
             <>
-              <div className="text-[11px] text-slate-400">
+              <div className="text-xs text-slate-400">
                 Mean |φ| per risk code over the {summary.invoices} invoices scored ≥ {summary.min_risk}.
               </div>
               <div className="space-y-2">
                 {summary.features.slice(0, 12).map((f) => (
                   <div key={f.feature} className="space-y-0.5">
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="text-slate-200 font-mono truncate">
                         {f.feature === "ENTITY_RISK_E" ? "customer entity risk E" : f.feature}
                         {f.detector && <span className="text-slate-500"> · {f.detector}</span>}

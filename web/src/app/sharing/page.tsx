@@ -121,17 +121,17 @@ export default function SharingPage() {
           <div key={rep.id} className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-xs mb-2">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">
                   {rep.format}
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">{rep.published_at}</span>
+                <span className="text-[11px] text-slate-500 font-mono">{rep.published_at}</span>
               </div>
               <h3 className="font-bold text-white text-sm leading-snug">{rep.title}</h3>
               <div className="mt-3 space-y-1 text-xs">
-                <div className="text-[11px] text-slate-400">Shared with:</div>
+                <div className="text-xs text-slate-400">Shared with:</div>
                 <div className="flex flex-wrap gap-1">
                   {rep.shared_with.map((sw, i) => (
-                    <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
+                    <span key={i} className="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
                       {sw}
                     </span>
                   ))}
@@ -186,7 +186,7 @@ export default function SharingPage() {
                 <span className="font-semibold text-white">{log.report}</span>
                 <span className="text-slate-400 ml-2">by <code className="text-indigo-400">{log.accessed_by}</code></span>
               </div>
-              <div className="flex items-center space-x-3 text-[11px]">
+              <div className="flex items-center space-x-3 text-xs">
                 <span className="font-mono text-emerald-400">{log.fields_viewed}</span>
                 <span className="font-mono text-slate-500">{log.accessed_at}</span>
               </div>
@@ -248,7 +248,7 @@ export default function SharingPage() {
 
                   {!isFullAccess && (
                     <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
-                      <div className="text-[11px] text-slate-400">Selective Field Visibility:</div>
+                      <div className="text-xs text-slate-400">Selective Field Visibility:</div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         {Object.entries(allowedFields).map(([fKey, enabled]) => (
                           <label key={fKey} className="flex items-center space-x-2 text-slate-300 cursor-pointer">
@@ -260,7 +260,7 @@ export default function SharingPage() {
                               }
                               className="rounded border-slate-700 bg-slate-900 text-indigo-600"
                             />
-                            <span className="font-mono text-[11px]">{fKey}</span>
+                            <span className="font-mono text-xs">{fKey}</span>
                           </label>
                         ))}
                       </div>

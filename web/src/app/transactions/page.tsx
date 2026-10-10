@@ -123,7 +123,7 @@ export default function TransactionsPage() {
         <div className="flex items-center space-x-2 text-xs">
           {/* Risk Band Filter */}
           <div className="flex items-center space-x-1 bg-slate-900 border border-slate-700 rounded-lg p-1">
-            <span className="text-[10px] text-slate-400 px-1 font-semibold uppercase">Band:</span>
+            <span className="text-[11px] text-slate-400 px-1 font-semibold uppercase">Band:</span>
             {["", "HIGH", "REVIEW", "LOW"].map((b) => (
               <button
                 key={b}
@@ -169,7 +169,7 @@ export default function TransactionsPage() {
       <div className="glass-panel rounded-xl border border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-900/80 text-[11px] text-slate-400 uppercase font-mono border-b border-slate-800">
+            <thead className="bg-slate-900/80 text-xs text-slate-400 uppercase font-mono border-b border-slate-800">
               <tr>
                 <th className="py-3 px-4">Invoice No</th>
                 <th className="py-3 px-4">Date</th>
@@ -205,11 +205,11 @@ export default function TransactionsPage() {
                     <td className="py-3 px-4 font-mono font-medium text-white flex items-center gap-1.5">
                       <span>{row.invoice_no}</span>
                       {row.irn ? (
-                        <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">
+                        <span className="text-[11px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">
                           IRN
                         </span>
                       ) : (
-                        <span className="text-[9px] px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono">
+                        <span className="text-[11px] px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono">
                           NO IRN
                         </span>
                       )}
@@ -217,7 +217,7 @@ export default function TransactionsPage() {
                     <td className="py-3 px-4 font-mono text-slate-400">{row.invoice_date}</td>
                     <td className="py-3 px-4">
                       <div className="font-medium text-slate-200 truncate max-w-[200px]">{row.party_name}</div>
-                      <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                      <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
                         <span>{row.buyer_gstin}</span>
                         {row.is_related_party && (
                           <span className="px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold">
@@ -231,7 +231,7 @@ export default function TransactionsPage() {
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
+                          className={`text-[11px] px-2 py-0.5 rounded font-mono font-bold ${
                             row.risk_band === "HIGH"
                               ? "badge-high"
                               : row.risk_band === "REVIEW"
@@ -246,12 +246,12 @@ export default function TransactionsPage() {
                     <td className="py-3 px-4">
                       <div className="flex flex-wrap gap-1 max-w-[220px]">
                         {row.detector_hits.length === 0 ? (
-                          <span className="text-[10px] text-slate-500">—</span>
+                          <span className="text-[11px] text-slate-500">—</span>
                         ) : (
                           row.detector_hits.map((h, i) => (
                             <span
                               key={i}
-                              className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 font-mono"
+                              className="text-[11px] px-1.5 py-0.2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 font-mono"
                             >
                               {h.detector}:{h.code}
                             </span>
@@ -307,7 +307,7 @@ export default function TransactionsPage() {
       {/* Slide-over Transaction Inspector Drawer */}
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end">
-          <div className="w-full max-w-2xl bg-[#0b1120] border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+          <div className="w-full max-w-2xl bg-[var(--sidebar)] border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
             {/* Drawer Header */}
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
               <div>
@@ -351,24 +351,24 @@ export default function TransactionsPage() {
                   {/* Top Metadata Box */}
                   <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-[10px] text-slate-500 uppercase font-mono">Invoice Date</div>
+                      <div className="text-[11px] text-slate-500 uppercase font-mono">Invoice Date</div>
                       <div className="font-mono text-slate-200 mt-0.5">{detail.invoice.invoice_date}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-500 uppercase font-mono">Place of Supply</div>
+                      <div className="text-[11px] text-slate-500 uppercase font-mono">Place of Supply</div>
                       <div className="font-mono text-slate-200 mt-0.5">{detail.invoice.place_of_supply}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-500 uppercase font-mono">Buyer GSTIN</div>
+                      <div className="text-[11px] text-slate-500 uppercase font-mono">Buyer GSTIN</div>
                       <div className="font-mono text-slate-200 mt-0.5">{detail.invoice.buyer_gstin}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-500 uppercase font-mono">Invoice Status</div>
+                      <div className="text-[11px] text-slate-500 uppercase font-mono">Invoice Status</div>
                       <div className="font-mono text-emerald-400 mt-0.5">{detail.invoice.status}</div>
                     </div>
                     <div className="col-span-2">
-                      <div className="text-[10px] text-slate-500 uppercase font-mono">Govt IRN (e-Invoice)</div>
-                      <div className="font-mono text-[11px] text-indigo-300 mt-0.5 truncate bg-slate-950 p-1.5 rounded border border-slate-800">
+                      <div className="text-[11px] text-slate-500 uppercase font-mono">Govt IRN (e-Invoice)</div>
+                      <div className="font-mono text-xs text-indigo-300 mt-0.5 truncate bg-slate-950 p-1.5 rounded border border-slate-800">
                         {detail.invoice.irn || "IRN NOT GENERATED ON PORTAL"}
                       </div>
                     </div>
@@ -395,7 +395,7 @@ export default function TransactionsPage() {
                               <span className="font-mono font-bold text-amber-400 text-xs">
                                 {h.detector}: {h.code}
                               </span>
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                              <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
                                 Severity {h.severity}
                               </span>
                             </div>
@@ -414,7 +414,7 @@ export default function TransactionsPage() {
                     </h3>
                     <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/60">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-950 text-[10px] text-slate-400 uppercase font-mono">
+                        <thead className="bg-slate-950 text-[11px] text-slate-400 uppercase font-mono">
                           <tr>
                             <th className="p-2">Item</th>
                             <th className="p-2">HSN</th>
@@ -452,9 +452,9 @@ export default function TransactionsPage() {
                       ) : (
                         detail.ewaybills.map((ewb) => (
                           <div key={ewb.ewb_no} className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-                            <div className="text-[10px] font-mono text-emerald-400">EWB: {ewb.ewb_no}</div>
+                            <div className="text-[11px] font-mono text-emerald-400">EWB: {ewb.ewb_no}</div>
                             <div className="text-slate-300 font-mono text-xs">Vehicle: {ewb.vehicle_no || "N/A"}</div>
-                            <div className="text-slate-400 text-[10px]">Distance: {ewb.distance_km} km</div>
+                            <div className="text-slate-400 text-[11px]">Distance: {ewb.distance_km} km</div>
                           </div>
                         ))
                       )}

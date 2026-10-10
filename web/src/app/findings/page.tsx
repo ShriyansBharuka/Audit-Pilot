@@ -184,7 +184,7 @@ export default function FindingsPage() {
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="font-mono font-bold text-indigo-400">{f.id}</span>
                   <span
-                    className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
+                    className={`text-[11px] font-mono px-1.5 py-0.2 rounded ${
                       f.status === "CONFIRMED"
                         ? "bg-emerald-500/20 text-emerald-300"
                         : f.status === "REJECTED"
@@ -196,7 +196,7 @@ export default function FindingsPage() {
                   </span>
                 </div>
                 <div className="font-semibold text-xs text-white truncate">{f.title}</div>
-                <div className="flex items-center justify-between mt-2 text-[11px]">
+                <div className="flex items-center justify-between mt-2 text-xs">
                   <span className="text-slate-400">{f.category}</span>
                   <span className="font-mono font-bold text-amber-400">{f.gross_impact_formatted}</span>
                 </div>
@@ -214,11 +214,11 @@ export default function FindingsPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono font-bold text-indigo-400">{selectedFinding.id}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                       Detector {selectedFinding.detector} ({selectedFinding.code})
                     </span>
                     <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                      className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                         selectedFinding.status === "CONFIRMED"
                           ? "bg-emerald-500/20 text-emerald-300"
                           : selectedFinding.status === "REJECTED"
@@ -254,19 +254,19 @@ export default function FindingsPage() {
               {/* Impact Banner */}
               <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
                 <div>
-                  <div className="text-[10px] text-slate-500 uppercase font-mono">Gross Impact</div>
+                  <div className="text-[11px] text-slate-500 uppercase font-mono">Gross Impact</div>
                   <div className="text-base font-bold font-mono text-amber-400 mt-0.5">
                     {selectedFinding.gross_impact_formatted}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 uppercase font-mono">Taxable Value</div>
+                  <div className="text-[11px] text-slate-500 uppercase font-mono">Taxable Value</div>
                   <div className="text-base font-bold font-mono text-slate-200 mt-0.5">
                     {selectedFinding.taxable_impact_formatted}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 uppercase font-mono">Confidence Level</div>
+                  <div className="text-[11px] text-slate-500 uppercase font-mono">Confidence Level</div>
                   <div className="text-base font-bold font-mono text-indigo-400 mt-0.5">
                     {selectedFinding.confidence}
                   </div>
@@ -275,20 +275,20 @@ export default function FindingsPage() {
 
               {/* Explanation & Technical Basis */}
               <div className="space-y-2 text-xs">
-                <h3 className="font-semibold text-white uppercase tracking-wider text-[11px]">
+                <h3 className="font-semibold text-white uppercase tracking-wider text-xs">
                   Auditor Substantive Explanation
                 </h3>
                 <p className="text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-xl border border-slate-800">
                   {selectedFinding.explanation}
                 </p>
-                <div className="text-[11px] text-indigo-400 font-mono">
+                <div className="text-xs text-indigo-400 font-mono">
                   Standards Cited: {selectedFinding.standards}
                 </div>
               </div>
 
               {/* Proposed Adjusting Journal Entry (AJE) Table */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-white uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <h3 className="font-semibold text-white uppercase tracking-wider text-xs flex items-center gap-1.5">
                   <FileCheck className="h-3.5 w-3.5 text-emerald-400" />
                   Proposed Adjusting Journal Entry (AJE)
                 </h3>
@@ -299,7 +299,7 @@ export default function FindingsPage() {
                 ) : (
                   <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
                     <table className="w-full text-left text-xs text-slate-300">
-                      <thead className="bg-slate-900 text-[10px] text-slate-400 uppercase font-mono">
+                      <thead className="bg-slate-900 text-[11px] text-slate-400 uppercase font-mono">
                         <tr>
                           <th className="p-2.5">Account Code</th>
                           <th className="p-2.5">Party</th>
@@ -395,7 +395,7 @@ export default function FindingsPage() {
                   Audit Successfully Signed Off!
                 </div>
                 <div>Deliverables locked with cryptographic hash:</div>
-                <div className="font-mono text-[10px] break-all bg-slate-950 p-2 rounded text-slate-300">
+                <div className="font-mono text-[11px] break-all bg-slate-950 p-2 rounded text-slate-300">
                   {signoffResult.signoff_hash}
                 </div>
                 <button

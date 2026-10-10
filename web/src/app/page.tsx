@@ -109,7 +109,7 @@ export default function OverviewPage() {
           <div className="text-xl font-bold text-white font-mono tracking-tight">
             {data?.revenue_formatted ?? "—"}
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+          <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
             <span className="text-emerald-400 font-semibold">{(data?.invoices_count ?? 0).toLocaleString("en-IN")} invoices</span>
             <span>across {data?.customers_count ?? 0} customers</span>
           </div>
@@ -125,7 +125,7 @@ export default function OverviewPage() {
             <span>{data?.findings_counts?.PROPOSED ?? 0} proposed</span>
             <span className="text-xs text-slate-400 font-normal">SA 320</span>
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+          <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
             <span className="text-amber-400">Materiality OM:</span>
             <span>{data?.materiality_paise ? data.materiality_formatted : "set when findings are generated"}</span>
           </div>
@@ -140,7 +140,7 @@ export default function OverviewPage() {
           <div className="text-xl font-bold text-rose-400 font-mono tracking-tight flex items-baseline gap-2">
             <span>{data?.company_risk?.cycles_count ?? 0} flagged cycles</span>
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+          <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
             <span className="text-rose-400 font-medium">₹{((data?.company_risk?.circular_paise ?? 0) / 1e9).toFixed(2)} Cr</span>
             <span>circular turnover flagged</span>
           </div>
@@ -158,7 +158,7 @@ export default function OverviewPage() {
             </span>
             <span className="text-xs text-slate-400 font-normal">AuditGraph</span>
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
+          <div className="text-xs text-slate-400 mt-2 flex items-center justify-between">
             <span>Sampling: Sales TOD</span>
             <span className="text-emerald-400 font-mono">100% Tested</span>
           </div>
@@ -211,8 +211,8 @@ export default function OverviewPage() {
                       {count} hits
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">{meta.desc}</p>
-                  <div className="text-[10px] text-indigo-400/80 font-mono mt-1">{meta.standard}</div>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-1">{meta.desc}</p>
+                  <div className="text-[11px] text-indigo-400/80 font-mono mt-1">{meta.standard}</div>
                 </div>
               );
             })}
@@ -228,7 +228,7 @@ export default function OverviewPage() {
                 <Award className="h-4 w-4 text-indigo-400" />
                 Partner Sign-Off State
               </h3>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
+              <span className="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
                 {data?.status || "IN_PROGRESS"}
               </span>
             </div>

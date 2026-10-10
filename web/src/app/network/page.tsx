@@ -85,12 +85,12 @@ export default function NetworkPage() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-slate-200">Loop #{idx + 1}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">
+                    <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">
                       {c.type}
                     </span>
                   </div>
                   <div className="text-base font-bold text-rose-400 font-mono mt-1">{c.amount_formatted}</div>
-                  <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+                  <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
                     <span>{c.nodes.length} Entities</span>
                     <span>{c.span_days} days turnover</span>
                   </div>
@@ -98,7 +98,7 @@ export default function NetworkPage() {
               ))}
             </div>
 
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 leading-relaxed">
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 leading-relaxed">
               <strong>Statutory Warning:</strong> Circular trading without underlying transfer of control fails Ind AS 115 para 9(d) and constitutes fictitious turnover under SA 240.
             </div>
           </div>
@@ -135,15 +135,15 @@ export default function NetworkPage() {
                     {activeCycle.nodes.map((node, i) => (
                       <React.Fragment key={i}>
                         <div className="p-3 rounded-xl bg-slate-900 border border-slate-700 min-w-[140px] text-center shadow-lg">
-                          <div className="text-[10px] text-indigo-400 font-mono">Entity #{i + 1}</div>
+                          <div className="text-[11px] text-indigo-400 font-mono">Entity #{i + 1}</div>
                           <div className="text-xs font-bold text-white mt-1">{node}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">
+                          <div className="text-[11px] text-slate-400 mt-0.5">
                             {node === "SELF" ? "Audited Entity" : "Accommodation Party"}
                           </div>
                         </div>
                         {i < activeCycle.nodes.length - 1 && (
                           <div className="flex flex-col items-center text-rose-400">
-                            <span className="text-[9px] font-mono text-slate-400">Goods / Inv</span>
+                            <span className="text-[11px] font-mono text-slate-400">Goods / Inv</span>
                             <span className="text-base font-bold">→</span>
                           </div>
                         )}
@@ -151,7 +151,7 @@ export default function NetworkPage() {
                     ))}
                     {/* Closing Arrow */}
                     <div className="flex flex-col items-center text-rose-400">
-                      <span className="text-[9px] font-mono text-rose-400">Return to Origin</span>
+                      <span className="text-[11px] font-mono text-rose-400">Return to Origin</span>
                       <span className="text-base font-bold">↻</span>
                     </div>
                   </div>
@@ -183,7 +183,7 @@ export default function NetworkPage() {
                   </h4>
                   <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/40">
                     <table className="w-full text-left text-xs text-slate-300">
-                      <thead className="bg-slate-950 text-[10px] text-slate-400 uppercase font-mono">
+                      <thead className="bg-slate-950 text-[11px] text-slate-400 uppercase font-mono">
                         <tr>
                           <th className="p-2.5">Party Identifier</th>
                           <th className="p-2.5">Entity Name</th>
@@ -198,11 +198,11 @@ export default function NetworkPage() {
                             <td className="p-2.5 font-medium text-slate-200">{node.name}</td>
                             <td className="p-2.5">
                               {node.is_rp ? (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">
                                   Related Party
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-slate-400">Commercial Third-Party</span>
+                                <span className="text-[11px] text-slate-400">Commercial Third-Party</span>
                               )}
                             </td>
                             <td className="p-2.5 font-mono text-slate-400">{node.state || "27"}</td>

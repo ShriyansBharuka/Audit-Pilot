@@ -148,7 +148,7 @@ export default function OrgsPage() {
                   }`}
                 >
                   <div className="font-semibold text-xs text-white">{org.name}</div>
-                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">{org.slug}</div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">{org.slug}</div>
                 </div>
               ))
             )}
@@ -165,7 +165,7 @@ export default function OrgsPage() {
                   <h2 className="text-base font-bold text-white">{selectedOrg.name}</h2>
                   <p className="text-xs text-slate-400 mt-0.5">{selectedOrg.description || "Active multi-tenant audit firm"}</p>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
                   Tenant ID: {selectedOrg.id.slice(0, 8)}...
                 </span>
               </div>
@@ -195,7 +195,7 @@ export default function OrgsPage() {
                     departments.map((dept) => (
                       <div key={dept.id} className="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 space-y-1">
                         <div className="font-semibold text-xs text-slate-200">{dept.name}</div>
-                        <div className="text-[11px] text-slate-400">{dept.description || "Active departmental unit"}</div>
+                        <div className="text-xs text-slate-400">{dept.description || "Active departmental unit"}</div>
                       </div>
                     ))
                   )}
@@ -231,9 +231,9 @@ export default function OrgsPage() {
                       >
                         <div>
                           <div className="font-medium text-white">{m.user_name}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{m.user_email}</div>
+                          <div className="text-[11px] text-slate-400 font-mono">{m.user_email}</div>
                         </div>
-                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
+                        <span className="text-[11px] uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
                           {m.role}
                         </span>
                       </div>

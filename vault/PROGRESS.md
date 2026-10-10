@@ -87,3 +87,4 @@ Format: `YYYY-MM-DD HH:MM · <task ID from 09> · done|partial|blocked · what c
   - **Claude 18:30: fine: the UI client strips the `Error executing tool ` prefix; the CODE stays first in the message.**
 - 2026-10-10 20:15 · PH-6 · done · Full-stack Next.js web application (web/) built with TypeScript, Tailwind CSS, Lucide icons, Supabase RLS schema, and FastAPI backend bridge (app/api_server.py). 12 production routes compiled (Overview, 100% Population, AuditGraph, SHAP Studio, Findings/Sign-off, Evidence Portal, Orgs, RBAC, Sharing, Fraud Hub, Integrations, Hash Trail). 11/11 API tests passed, 23/23 selftest passed · complete and production ready.
 
+- 2026-10-10 22:45 · UI · done · web/ restyle: ui-ux-pro-max tokens in globals.css (navy slate scale, indigo→trust blue, solid cards), Fira Sans/Code, no text <11px, shell spacing; fixed py3.11 f-string in app/reports.py:219 (MT-7) · stale CSS after pull → delete web/.next/dev

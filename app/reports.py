@@ -216,7 +216,7 @@ def _md_a(r):
     oa = r["open_alerts"]
     L += ["", "## 5. Open alerts", "", f"- Open cases: {oa['open_cases']} "
           f"({', '.join(f'{k} {v}' for k, v in sorted(oa['by_band'].items())) or 'none'}).",
-          f"- Recent alerts: {', '.join(f'{e['kind']} #{e['id']}' for e in oa['events'][:10]) or 'none'}.", "",
+          f"- Recent alerts: {', '.join('{} #{}'.format(e['kind'], e['id']) for e in oa['events'][:10]) or 'none'}.", "",
           "| Case | Title | Band | Risk | Affected |", "|---|---|---|---:|---:|"]
     L += [f"| {c['case_id']} | {c['title']} | {c['band']} | {c['risk_score']} | {_r(c['affected_paise'])} |" for c in oa["top"]]
     L += ["", "## 6. Note", "", r["no_opinion"], ""]

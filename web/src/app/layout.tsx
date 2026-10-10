@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fira_Code, Fira_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { Navigation } from "@/components/Navigation";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Fira Sans + Fira Code: the ui-ux-pro-max pairing for data dashboards (globals.css maps them to font-sans/mono)
+const firaSans = Fira_Sans({
+  variable: "--font-fira-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const firaCode = Fira_Code({
+  variable: "--font-fira-code",
   subsets: ["latin"],
 });
 
@@ -28,9 +30,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${firaSans.variable} ${firaCode.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-[#070b14] text-slate-100">
+      <body className="min-h-full flex flex-col">
         <AuthProvider>
           <Navigation>{children}</Navigation>
         </AuthProvider>

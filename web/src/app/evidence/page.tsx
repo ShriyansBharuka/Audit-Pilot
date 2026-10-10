@@ -86,7 +86,7 @@ export default function EvidencePage() {
         </div>
       </div>
 
-      <div className="flex gap-2 text-[11px] font-mono">
+      <div className="flex gap-2 text-xs font-mono">
         {Object.entries(counts).map(([k, v]) => (
           <span key={k} className={`px-2 py-0.5 rounded ${STATUS_STYLE[k] || "bg-slate-800 text-slate-300"}`}>
             {k} {v}
@@ -99,7 +99,7 @@ export default function EvidencePage() {
 
       <div className="glass-panel rounded-xl border border-slate-800 overflow-hidden">
         <table className="w-full text-xs">
-          <thead className="bg-slate-900/80 text-slate-400 text-[11px]">
+          <thead className="bg-slate-900/80 text-slate-400 text-xs">
             <tr>
               <th className="text-left p-2.5">Sample</th>
               <th className="text-left p-2.5">Document</th>
@@ -118,12 +118,12 @@ export default function EvidencePage() {
                 <td className="p-2.5 font-mono text-slate-400">{r.about_doc_no || "—"}</td>
                 <td className="p-2.5 font-mono text-slate-400">{r.due_on}</td>
                 <td className="p-2.5">
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${STATUS_STYLE[r.status] || ""}`}>{r.status}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${STATUS_STYLE[r.status] || ""}`}>{r.status}</span>
                 </td>
                 <td className="p-2.5 space-y-1">
                   {r.submissions.length === 0 && <span className="text-slate-600">—</span>}
                   {r.submissions.map((s) => (
-                    <div key={s.id} className="flex items-center gap-1.5 text-[11px]">
+                    <div key={s.id} className="flex items-center gap-1.5 text-xs">
                       <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
                       <span className="text-slate-300 truncate max-w-[12rem]" title={s.filename}>
                         {s.filename}
@@ -136,7 +136,7 @@ export default function EvidencePage() {
                 </td>
                 {isClient && (
                   <td className="p-2.5">
-                    <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] cursor-pointer">
+                    <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs cursor-pointer">
                       <FileUp className="h-3 w-3" />
                       {busy === r.id ? "Uploading…" : "Choose file"}
                       <input

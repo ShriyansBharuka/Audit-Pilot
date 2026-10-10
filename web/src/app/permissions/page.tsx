@@ -85,7 +85,7 @@ export default function PermissionsPage() {
 
         <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900/60">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-[10px] text-slate-400 uppercase font-mono border-b border-slate-800">
+            <thead className="bg-slate-950 text-[11px] text-slate-400 uppercase font-mono border-b border-slate-800">
               <tr>
                 <th className="py-3 px-4">Protected Resource</th>
                 <th className="py-3 px-4 text-center">Can View</th>
@@ -173,7 +173,7 @@ export default function PermissionsPage() {
             >
               <div className="flex items-center space-x-3">
                 <span
-                  className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold ${
+                  className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                     log.action.includes("GRANT") || log.action.includes("ENABLE")
                       ? "bg-emerald-500/20 text-emerald-300"
                       : "bg-rose-500/20 text-rose-300"
@@ -184,7 +184,7 @@ export default function PermissionsPage() {
                 <span className="font-mono text-white font-medium">{log.resource_type}</span>
                 <span className="text-slate-400">for {log.target_role}</span>
               </div>
-              <div className="flex items-center space-x-3 text-[11px] text-slate-400">
+              <div className="flex items-center space-x-3 text-xs text-slate-400">
                 <span>By: <code className="text-indigo-400">{log.performed_by}</code></span>
                 <span className="font-mono text-slate-500">{log.performed_at}</span>
               </div>

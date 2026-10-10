@@ -139,7 +139,7 @@ export default function InvestigationsPage() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <span
-                    className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold ${
+                    className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                       item.severity === "CRITICAL"
                         ? "bg-rose-500/20 text-rose-300"
                         : "bg-amber-500/20 text-amber-300"
@@ -147,10 +147,10 @@ export default function InvestigationsPage() {
                   >
                     {item.severity}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">{item.status}</span>
+                  <span className="text-[11px] text-slate-400 font-mono">{item.status}</span>
                 </div>
                 <div className="font-semibold text-xs text-white leading-snug">{item.title}</div>
-                <div className="text-[10px] text-slate-400 mt-2 truncate">{item.created_at}</div>
+                <div className="text-[11px] text-slate-400 mt-2 truncate">{item.created_at}</div>
               </div>
             ))}
           </div>
@@ -164,7 +164,7 @@ export default function InvestigationsPage() {
               <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-rose-400 font-bold uppercase">{selectedCase.id}</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                     Status: {selectedCase.status}
                   </span>
                 </div>
@@ -189,11 +189,11 @@ export default function InvestigationsPage() {
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-indigo-300">{c.author}</span>
-                          <span className="text-[10px] text-slate-400 font-mono px-1.5 py-0.2 rounded bg-slate-900">
+                          <span className="text-[11px] text-slate-400 font-mono px-1.5 py-0.2 rounded bg-slate-900">
                             {c.role}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-500 font-mono">{c.at}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">{c.at}</span>
                       </div>
                       <p className="text-xs text-slate-200 leading-relaxed">{c.text}</p>
                     </div>

@@ -62,10 +62,10 @@ export default function IntegrationsPage() {
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-white">Microsoft Power BI Direct Connector</h2>
-                <div className="text-[11px] text-slate-400">Live JSON Web Data Connector Endpoint</div>
+                <div className="text-xs text-slate-400">Live JSON Web Data Connector Endpoint</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
               Ready
             </span>
           </div>
@@ -75,7 +75,7 @@ export default function IntegrationsPage() {
           </p>
 
           <div className="space-y-1 text-xs">
-            <label className="text-slate-400 font-mono text-[11px]">Power BI Web Data Feed URL:</label>
+            <label className="text-slate-400 font-mono text-xs">Power BI Web Data Feed URL:</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -93,7 +93,7 @@ export default function IntegrationsPage() {
             </div>
           </div>
 
-          <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+          <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-400 space-y-1">
             <div className="font-semibold text-slate-300">How to connect in Power BI:</div>
             <div>1. In Power BI Desktop, click <strong>Get Data</strong> → <strong>Web</strong></div>
             <div>2. Paste the URL above and click <strong>OK</strong></div>
@@ -111,10 +111,10 @@ export default function IntegrationsPage() {
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-white">Model Context Protocol (MCP) Server</h2>
-                <div className="text-[11px] text-slate-400">Streamable HTTP gateway, role-filtered tools</div>
+                <div className="text-xs text-slate-400">Streamable HTTP gateway, role-filtered tools</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
               Port 8000
             </span>
           </div>
@@ -123,14 +123,14 @@ export default function IntegrationsPage() {
             Every tool is exposed over standard MCP with cryptographic token-bound RBAC. External AI agents (Claude Code, Cursor, Windsurf) connect directly with token headers.
           </p>
 
-          <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-2">
-            <div className="text-slate-500 font-sans text-[10px] uppercase font-semibold">Connect via CLI:</div>
+          <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 space-y-2">
+            <div className="text-slate-500 font-sans text-[11px] uppercase font-semibold">Connect via CLI:</div>
             <code className="text-indigo-300 block select-all break-all">
               {`claude mcp add --transport http auditpilot ${mcpUrl} --header "Authorization: Bearer aud_…"`}
             </code>
           </div>
 
-          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+          <div className="text-xs text-slate-400 flex items-center justify-between pt-1">
             <span>Audit Trail Transport: <code className="text-emerald-400">HTTP / Stdio</code></span>
             <span className="text-slate-500">Hash-Chained</span>
           </div>
@@ -146,7 +146,7 @@ export default function IntegrationsPage() {
           </div>
           <div className="flex items-center gap-3">
             <span
-              className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+              className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                 feed?.webhook_configured ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
               }`}
             >
@@ -159,13 +159,13 @@ export default function IntegrationsPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           {(feed?.workflows || []).map((w) => (
-            <div key={w} className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300">
+            <div key={w} className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">
               {w}
             </div>
           ))}
         </div>
         <div className="space-y-1.5">
-          <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Recent events (signed HMAC-SHA256 webhooks)</div>
+          <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Recent events (signed HMAC-SHA256 webhooks)</div>
           {(feed?.events || []).length === 0 && <div className="text-xs text-slate-500">No events yet.</div>}
           {(feed?.events || []).map((ev) => (
             <div key={ev.id} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
@@ -173,9 +173,9 @@ export default function IntegrationsPage() {
                 #{ev.id} {ev.kind}
               </span>
               <span className="flex items-center gap-3">
-                <span className="text-[10px] text-slate-500 font-mono">{ev.at}</span>
+                <span className="text-[11px] text-slate-500 font-mono">{ev.at}</span>
                 <span
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                  className={`text-[11px] font-mono px-2 py-0.5 rounded ${
                     ev.notified_at ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"
                   }`}
                 >

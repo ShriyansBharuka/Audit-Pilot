@@ -50,7 +50,7 @@ function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#070b14] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4">
       <div className="w-full max-w-md glass-panel rounded-xl border border-slate-800 p-6 space-y-5">
         <div className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
@@ -58,7 +58,7 @@ function LoginScreen() {
           </div>
           <div>
             <div className="font-semibold text-white">AuditPilot AI</div>
-            <div className="text-[11px] text-slate-400">Statutory revenue audit · sign in with your token</div>
+            <div className="text-xs text-slate-400">Statutory revenue audit · sign in with your token</div>
           </div>
         </div>
         <form
@@ -68,7 +68,7 @@ function LoginScreen() {
           }}
           className="space-y-2"
         >
-          <label className="text-[11px] text-slate-400 font-mono">Token (from the judge card)</label>
+          <label className="text-xs text-slate-400 font-mono">Token (from the judge card)</label>
           <input
             type="password"
             value={token}
@@ -88,7 +88,7 @@ function LoginScreen() {
         </form>
         {quick.length > 0 && (
           <div className="space-y-2 border-t border-slate-800 pt-4">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Demo personas (local only)</div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Demo personas (local only)</div>
             <div className="grid grid-cols-2 gap-2">
               {quick.map((i) => (
                 <button
@@ -97,14 +97,14 @@ function LoginScreen() {
                   className="p-2 rounded-lg border border-slate-800 bg-slate-900 hover:border-slate-600 text-left text-xs"
                 >
                   <div className="text-slate-200">{i.name}</div>
-                  <div className="text-[10px] text-slate-500 font-mono">{i.role.replace("_", " ")}</div>
+                  <div className="text-[11px] text-slate-500 font-mono">{i.role.replace("_", " ")}</div>
                 </button>
               ))}
             </div>
-            <div className="text-[10px] text-slate-500">The engagement partner always signs in with their own token.</div>
+            <div className="text-[11px] text-slate-500">The engagement partner always signs in with their own token.</div>
           </div>
         )}
-        <div className="text-[11px] text-slate-500 border-t border-slate-800 pt-3">
+        <div className="text-xs text-slate-500 border-t border-slate-800 pt-3">
           AI agents connect over MCP instead: <code className="text-indigo-400">{MCP_URL}</code> with{" "}
           <code className="text-indigo-400">Authorization: Bearer &lt;token&gt;</code>.
         </div>
@@ -152,8 +152,8 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   const allowed = navItems.some((i) => i.href === pathname);
 
   return (
-    <div className="flex h-screen bg-[#070b14] text-slate-100 antialiased overflow-hidden">
-      <aside className="w-64 flex flex-col border-r border-slate-800/80 bg-[#0b1120] shrink-0 z-20">
+    <div className="flex h-screen bg-[var(--background)] text-slate-100 antialiased overflow-hidden">
+      <aside className="w-64 flex flex-col border-r border-slate-800/80 bg-[var(--sidebar)] shrink-0 z-20">
         <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
           <Link href={isAudit ? "/" : "/evidence"} className="flex items-center space-x-2.5">
             <div className="h-8 w-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-bold shadow-lg shadow-indigo-500/10">
@@ -161,15 +161,15 @@ export function Navigation({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <div className="font-semibold text-sm tracking-tight text-white flex items-center gap-1.5">
-                AuditPilot <span className="text-xs px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-mono">AI</span>
+                AuditPilot <span className="text-xs px-1.5 py-px rounded bg-indigo-500/20 text-indigo-300 font-mono">AI</span>
               </div>
-              <div className="text-[10px] text-slate-400 font-mono">Statutory Revenue Audit</div>
+              <div className="text-[11px] text-slate-400 font-mono">Statutory Revenue Audit</div>
             </div>
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-          <div className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase px-2 mb-2">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+          <div className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase px-2 mb-2">
             {isAudit ? "Audit Workspace" : "Client Portal"}
           </div>
           {navItems.map((item) => {
@@ -179,10 +179,10 @@ export function Navigation({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-2.5 py-2 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                   isActive
-                    ? "bg-indigo-600/15 text-indigo-400 border border-indigo-500/30"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                    ? "bg-indigo-500/10 text-indigo-300 ring-1 ring-inset ring-indigo-500/30"
+                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
                 }`}
               >
                 <div className="flex items-center space-x-2.5">
@@ -191,7 +191,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                 </div>
                 {item.badge && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                    className={`text-[11px] px-1.5 py-0.5 rounded font-mono ${
                       isActive ? "bg-indigo-500/30 text-indigo-200" : "bg-slate-800 text-slate-400"
                     }`}
                   >
@@ -204,8 +204,8 @@ export function Navigation({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-3 border-t border-slate-800/80 bg-slate-900/40">
-          <div className="text-[11px] font-medium text-slate-300 truncate">{ov?.entity_name || "Konkan Marine Controls Ltd"}</div>
-          <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+          <div className="text-xs font-medium text-slate-300 truncate">{ov?.entity_name || "Konkan Marine Controls Ltd"}</div>
+          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
             <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
               {ov ? `${ov.period_start} → ${ov.period_end}` : "FY 2025-26"}
@@ -216,7 +216,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-14 border-b border-slate-800/80 bg-[#0b1120]/90 backdrop-blur px-6 flex items-center justify-between shrink-0 z-10">
+        <header className="h-14 border-b border-slate-800/80 bg-[var(--sidebar)]/90 backdrop-blur px-8 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center space-x-3 text-xs">
             {isAudit && ov?.has_engagement && (
               <>
@@ -225,7 +225,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                   100% of {n(ov.invoices_count)} invoices tested
                 </span>
                 {!!ov.materiality_paise && (
-                  <span className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[11px]">
+                  <span className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-xs">
                     Materiality {ov.materiality_formatted}
                   </span>
                 )}
@@ -246,12 +246,12 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center space-x-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-md text-xs font-medium text-slate-200 transition"
               >
-                <div className="h-5 w-5 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-[10px]">
+                <div className="h-5 w-5 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-[11px]">
                   {user.role === "engagement_partner" ? "EP" : user.role.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="text-left">
                   <div className="leading-tight font-medium">{user.name || user.principal}</div>
-                  <div className="text-[10px] text-slate-400 leading-tight">{user.role.replace("_", " ")}</div>
+                  <div className="text-[11px] text-slate-400 leading-tight">{user.role.replace("_", " ")}</div>
                 </div>
                 <ChevronDown className="h-3 w-3 text-slate-400 ml-1" />
               </button>
@@ -272,9 +272,9 @@ export function Navigation({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 bg-[#070b14]">
+        <main className="flex-1 overflow-y-auto bg-[var(--background)]">
           {allowed ? (
-            children
+            <div className="mx-auto w-full max-w-[1600px] px-8 py-7">{children}</div>
           ) : (
             <div className="max-w-lg mx-auto mt-20 text-center space-y-3">
               <div className="text-sm text-slate-300">This page is for the audit team.</div>
@@ -302,7 +302,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
               Every tool call is bound to the caller&apos;s token and written to the hash-chained trail. Your agent gets
               exactly your role&apos;s tools. The partner token is never given to an agent.
             </p>
-            <code className="block p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-indigo-300 break-all select-all">
+            <code className="block p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-indigo-300 break-all select-all">
               {`claude mcp add --transport http auditpilot ${MCP_URL} --header "Authorization: Bearer ${
                 user.role === "engagement_partner" ? "<an auditor token>" : user.token
               }"`}
