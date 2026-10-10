@@ -136,7 +136,7 @@ def run():
     @step("SH-2 init_all(reset=True): 4 databases, every 03 table, WAL")
     def _():
         db.init_all(reset=True)
-        want = {"erp": 22, "ext": 6, "pbc": 3, "audit": 13}
+        want = {"erp": 22, "ext": 6, "pbc": 3, "audit": 15}
         for name, n in want.items():
             c = sqlite3.connect(str(config.DB_PATHS[name]))
             tables = c.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0]

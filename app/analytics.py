@@ -1078,6 +1078,8 @@ def run_all(engagement_id, detectors=None, incremental=False):
         save_hits(engagement_id, run_id, hits, det)
     from app import risk_graph                       # full run: D10 cycles + re-baselined scores and snapshots (19.6)
     company = risk_graph.build(engagement_id, persist=True)["company"]
+    from app import cases                            # vault/13 MT-4: one case per root of serious hits (idempotent)
+    case_info = cases.rebuild(engagement_id)
     with db.borrow("audit", "system") as a:
         counts = defaultdict(dict)
         for d, c, n in a.execute("SELECT detector, code, count(*) FROM risk_hits WHERE engagement_id = ? GROUP BY"
@@ -1085,4 +1087,4 @@ def run_all(engagement_id, detectors=None, incremental=False):
             counts[d][c] = n
         top = [dict(r) for r in a.execute("SELECT * FROM risk_hits WHERE engagement_id = ? ORDER BY severity DESC,"
                                           " impact_paise DESC, id LIMIT 20", (engagement_id,))]
-    return {"run_id": run_id, "counts": dict(counts), "top": top, "company": company}
+    return {"run_id": run_id, "counts": dict(counts), "top": top, "company": company, "cases": case_info}

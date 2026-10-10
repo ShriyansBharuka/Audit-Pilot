@@ -113,6 +113,30 @@ CREATE TABLE IF NOT EXISTS risk_snapshots (
   reasons_json TEXT,
   PRIMARY KEY (run_id, object_type, object_id));
 
+-- 45 [A] cases (vault/13 MT-4): one per root object (invoice / PO / settlement / party / ...) of severity >= 4 hits.
+-- Rebuilt idempotently after every analytics run: numbers and hits refresh, id and status are kept; a case whose
+-- serious hits are gone is kept with active = 0. Status changes only with a case_events row. confidence x1000.
+CREATE TABLE IF NOT EXISTS cases (
+  id TEXT PRIMARY KEY, engagement_id TEXT NOT NULL,
+  root_type TEXT NOT NULL, root_id TEXT NOT NULL, title TEXT NOT NULL, counterparty_id TEXT,
+  codes_json TEXT NOT NULL, hit_ids_json TEXT NOT NULL, top_severity INTEGER NOT NULL,
+  recorded_paise INTEGER NOT NULL DEFAULT 0 CHECK (recorded_paise >= 0),
+  verified_paise INTEGER NOT NULL DEFAULT 0 CHECK (verified_paise >= 0),
+  received_paise INTEGER,
+  affected_paise INTEGER NOT NULL DEFAULT 0 CHECK (affected_paise >= 0),
+  risk_score INTEGER NOT NULL DEFAULT 0, confidence INTEGER NOT NULL DEFAULT 0,
+  band TEXT NOT NULL DEFAULT 'LOW' CHECK (band IN ('LOW','REVIEW','HIGH')),
+  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','EXPLAINED','EVIDENCE_REQUESTED','ESCALATED','ADJUSTMENT_PROPOSED')),
+  active INTEGER NOT NULL DEFAULT 1, opened_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  UNIQUE (engagement_id, root_type, root_id));
+
+-- 46 [A] case_events: the case history (append-only). action OPENED / EXPLAINED / REQUEST_EVIDENCE / ESCALATE /
+-- PROPOSE_ADJUSTMENT / AI_INVESTIGATION (PROPOSED output of the investigator, never a decision)
+CREATE TABLE IF NOT EXISTS case_events (
+  id INTEGER PRIMARY KEY, case_id TEXT NOT NULL REFERENCES cases(id), at TEXT NOT NULL, by TEXT NOT NULL, role TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (action IN ('OPENED','EXPLAINED','REQUEST_EVIDENCE','ESCALATE','PROPOSE_ADJUSTMENT','AI_INVESTIGATION')),
+  note TEXT, payload_json TEXT);
+
 CREATE INDEX IF NOT EXISTS ix_hits_eng ON risk_hits(engagement_id, detector, code);
 CREATE INDEX IF NOT EXISTS ix_hits_obj ON risk_hits(object_type, object_id);
 CREATE INDEX IF NOT EXISTS ix_find_eng ON findings(engagement_id, status);
@@ -121,6 +145,8 @@ CREATE INDEX IF NOT EXISTS ix_samples_doc ON samples(doc_type, doc_id);
 CREATE INDEX IF NOT EXISTS ix_anchors_eng ON anchors(engagement_id, label);
 CREATE INDEX IF NOT EXISTS ix_events_eng ON events(engagement_id, kind);
 CREATE INDEX IF NOT EXISTS ix_snap_obj ON risk_snapshots(object_type, object_id, at);
+CREATE INDEX IF NOT EXISTS ix_case_eng ON cases(engagement_id, status);
+CREATE INDEX IF NOT EXISTS ix_case_ev ON case_events(case_id, id);
 
 -- [A] guards: register_rows, rp_list_rows, sample_runs, audit_trail, risk_snapshots
 CREATE TRIGGER IF NOT EXISTS register_rows_no_update BEFORE UPDATE ON register_rows BEGIN SELECT RAISE(ABORT, 'append-only: register_rows'); END;
@@ -133,6 +159,9 @@ CREATE TRIGGER IF NOT EXISTS audit_trail_no_update BEFORE UPDATE ON audit_trail 
 CREATE TRIGGER IF NOT EXISTS audit_trail_no_delete BEFORE DELETE ON audit_trail BEGIN SELECT RAISE(ABORT, 'append-only: audit_trail'); END;
 CREATE TRIGGER IF NOT EXISTS risk_snapshots_no_update BEFORE UPDATE ON risk_snapshots BEGIN SELECT RAISE(ABORT, 'append-only: risk_snapshots'); END;
 CREATE TRIGGER IF NOT EXISTS risk_snapshots_no_delete BEFORE DELETE ON risk_snapshots BEGIN SELECT RAISE(ABORT, 'append-only: risk_snapshots'); END;
+CREATE TRIGGER IF NOT EXISTS case_events_no_update BEFORE UPDATE ON case_events BEGIN SELECT RAISE(ABORT, 'append-only: case_events'); END;
+CREATE TRIGGER IF NOT EXISTS case_events_no_delete BEFORE DELETE ON case_events BEGIN SELECT RAISE(ABORT, 'append-only: case_events'); END;
+CREATE TRIGGER IF NOT EXISTS cases_no_delete BEFORE DELETE ON cases BEGIN SELECT RAISE(ABORT, 'cases are never deleted (active = 0)'); END;
 
 -- after sign-off the engagement's findings and samples are frozen; later work is an addendum (06 §9.4, SA 230)
 CREATE TRIGGER IF NOT EXISTS findings_signed_off BEFORE UPDATE ON findings

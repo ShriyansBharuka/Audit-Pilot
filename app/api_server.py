@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, risk_graph, sampling, trail, workpaper
+from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, risk_graph, sampling, trail, workpaper
 
 app = FastAPI(
     title="AuditPilot AI API",
@@ -556,6 +556,45 @@ def get_money_trail(object_id: str, hops: int = Query(2, ge=1, le=3)):
         return money_trail.trace(object_id, hops=hops)
     except LookupError as ex:
         raise HTTPException(status_code=404, detail=str(ex))
+
+
+class CaseAction(BaseModel):
+    action: str
+    note: Optional[str] = None
+    doc_kind: Optional[str] = None
+    aje_lines: Optional[List[Dict[str, Any]]] = None      # paise: [{account_code, party_id?, dr_paise, cr_paise}]
+
+
+@app.get("/api/cases", dependencies=[AUDIT])
+def get_cases(status: Optional[str] = None, band: Optional[str] = None, limit: int = Query(25, ge=1, le=100),
+              offset: int = Query(0, ge=0)):
+    """vault/13 §6: risk-ranked audit cases with the three numbers (recorded / verified / potentially affected)."""
+    return cases.list_cases(status=status, band=band, limit=limit, offset=offset)
+
+
+@app.get("/api/cases/{case_id}", dependencies=[AUDIT])
+def get_case_detail(case_id: str):
+    try:
+        return cases.get_case(case_id)
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+
+
+@app.post("/api/cases/{case_id}/action")
+def post_case_action(case_id: str, body: CaseAction, who: Dict[str, Any] = Depends(require("audit_staff"))):
+    """audit_staff only; identity from the token. PROPOSE_ADJUSTMENT creates a PROPOSED finding (the partner decides)."""
+    try:
+        out = cases.act(case_id, body.action, body.note, who["principal"], who["role"], doc_kind=body.doc_kind,
+                        aje_lines=body.aje_lines)
+        trail.trail(who["principal"], who["role"], "cases.act", {"case_id": case_id, "action": body.action}, "OK",
+                    {"event": out["event"]["id"]}, transport="UI")
+        return out
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+    except PermissionError as ex:
+        raise HTTPException(status_code=403, detail=str(ex))
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
 
 
 # ---------------------------------------------------------------- Deliverables & Exports

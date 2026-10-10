@@ -10,7 +10,7 @@ import sqlite3
 from collections import Counter
 from datetime import datetime, timedelta
 
-from app import (analytics, config, db, evidence, findings, intake, ledger, memo, money_trail, register, risk_graph,
+from app import (analytics, cases, config, db, evidence, findings, intake, ledger, memo, money_trail, register, risk_graph,
                  sampling, workpaper)
 from app import gateway
 from app.gateway import ToolError, tool
@@ -485,6 +485,65 @@ def trace_money(object_id: str, hops: int = 2, limit: int = 50, cursor: str | No
                              "the hits behind affected_basis"),
                             ("trace_sale", {"invoice": "G2/0001/25"}, "the document chain of one sale")),
                       nodes=[scrub(n, ("label",)) for n in r["nodes"]])
+    return call(go)
+
+def _case_out(c):
+    return scrub(c, ("counterparty_name",))
+
+
+@tool(*AUD, read_only=True)
+def list_cases(status: str | None = None, band: str | None = None, limit: int = 25, cursor: str | None = None) -> dict:
+    """Audit cases (vault/13): one per root object of severity >= 4 hits, ranked by risk score. Each carries the three
+    separate numbers (recorded, bank-verified, potentially affected: not a loss), confidence and status
+    OPEN | EXPLAINED | EVIDENCE_REQUESTED | ESCALATED | ADJUSTMENT_PROPOSED. Example: list_cases(band='HIGH')"""
+    def go(who, role):
+        off = offset_of(cursor)
+        r = cases.list_cases(EID(), status=status, band=band, limit=limit_of(limit), offset=off)
+        nxt = str(off + limit_of(limit)) if off + limit_of(limit) < r["total"] else None
+        return result({"total": r["total"]}, [_case_out(c) for c in r["items"]], nxt,
+                      steps(("get_case", {"case_id": "AUD-0001"}, "hits, documents, money trail and history of one case")))
+    return call(go)
+
+
+@tool(*AUD, read_only=True)
+def get_case(case_id: str) -> dict:
+    """One case: its hits (codes, severities, reasons), the documents and the money trail (VERIFIED / CLAIMED /
+    INFERRED edges), the numbers, a deterministic explanation, a suggested action, the history and the latest
+    AI investigation (PROPOSED). Example: get_case(case_id='AUD-0001')"""
+    def go(who, role):
+        try:
+            r = cases.get_case(case_id)
+        except LookupError as ex:
+            raise ToolError(str(ex)) from None
+        trail = r["money_trail"]
+        return result({"case": _case_out(r["case"]), "numbers": r["numbers"], "explanation": r["explanation"],
+                       "suggested_action": r["suggested_action"]}, None, None,
+                      steps(("act_on_case", {"case_id": case_id, "action": "REQUEST_EVIDENCE", "doc_kind": "OTHER"},
+                             "ask the client for what is missing (they see only the case id)"),
+                            ("trace_money", {"object_id": r["case"]["root_id"]}, "the full money trail")),
+                      hits=r["hits"], documents=r["documents"], history=r["history"],
+                      money_trail={"nodes": [scrub(n, ("label",)) for n in trail["nodes"]], "edges": trail["edges"][:100],
+                                   "cycles": trail["cycles"]},
+                      investigation=r["investigation"])
+    return call(go)
+
+
+@tool(*AUD)
+def act_on_case(case_id: str, action: str, note: str | None = None, doc_kind: str | None = None,
+                aje_lines: list[dict] | None = None) -> dict:
+    """Act on a case (audit staff): EXPLAINED (note required: why it is not a misstatement), REQUEST_EVIDENCE
+    (doc_kind INVOICE|EWAY_BILL|LR|POD|CREDIT_NOTE|RETURN_PROOF|CONTRACT|OTHER; the client sees only the case id),
+    ESCALATE (note required), PROPOSE_ADJUSTMENT (balanced aje_lines [{account_code, party_id?, debit | credit}] in
+    rupees, or omit for the detector's standard AJE: creates a PROPOSED finding the partner decides). Every action
+    appends to the case history. Example: act_on_case(case_id='AUD-0001', action='ESCALATE', note='beneficiary unknown')"""
+    def go(who, role):
+        lines = money_in(aje_lines) if aje_lines else None
+        try:
+            r = cases.act(case_id, action, note, who, role, doc_kind=doc_kind, aje_lines=lines)
+        except LookupError as ex:
+            raise ToolError(str(ex)) from None
+        return result({"case": _case_out(r["case"]), "event": r["event"]},
+                      next_steps=steps(("get_case", {"case_id": case_id}, "the updated case")))
     return call(go)
 
 # ---------------------------------------------------------------- /files/<key> (one-time deliverable downloads)
