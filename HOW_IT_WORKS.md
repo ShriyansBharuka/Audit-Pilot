@@ -114,6 +114,21 @@ The seed is recorded, so anyone can re-run the selection and get the identical p
 
 **L. Human sign-off.** The partner reviews in the web app and confirms or rejects each finding, then signs off. The workpaper, memo and trail are regenerated as FINAL, and anyone can verify the trail offline with `scripts/verify_trail.py`.
 
+## 5b. The web app and the Audit Investigation Explorer
+
+The Streamlit app (`ui/app.py`) is **just another MCP client**: every client and auditor click calls the same MCP tools with the logged-in user's token. It gets exactly that identity's permissions, and every click lands in the audit trail. Only the partner's decisions bypass MCP (`app/partner.py`), on purpose, because the partner token is refused by the MCP server.
+
+| Role | Pages |
+|---|---|
+| Client roles | **Client portal**: upload the register / RP list; see evidence requests; upload a file or attach the system's official copy |
+| `audit_staff` | **Overview** (company risk band, counts, one-click audit steps) · **Investigation Explorer** · **Workpaper** (the 4 sheets, deliverables, submit for review) |
+| `engagement_partner` | **Partner review**: confirm / reject / modify each finding (a comment is mandatory), then sign off. Blocked while anything is PROPOSED, stale or failing integrity |
+
+**Audit Investigation Explorer** (Aarav's design). Start from a suspicious company, follow its connections, open a transaction, see its documents and exactly why it's risky, and trace every change, all in one place:
+1. **🕸 Network View.** The AuditGraph neighbourhood as a graph: colour = risk band, solid edges = transactions, dashed = identity links (shared PAN/bank/phone/director). It shows circular flows with their ₹ circular value. Select an entity to focus on it, or a transaction to open it.
+2. **🧾 Transaction Timeline.** The full paper trail of one sale in date order: enquiry → order → invoice → IRN → e-way bill → dispatch/LR → POD → GSTR-1 → payment → credit notes → ledger postings, with missing links shown as gaps. AuditGraph's risk history is overlaid (R, A, E over time, with the trigger and reasons for each change).
+3. **📎 Evidence & Change History.** Why it's risky (every detector hit with code, severity, ₹ impact and a plain-language reason); the supporting documents the client uploaded (with SHA-256, who and when); the system's official copies; the hash-chained edit log for the invoice, its dispatches and its order, with field-level before → after; and any changes after testing began, with the stale samples.
+
 ## 6. Tech we use, and why
 
 | Need | Choice | Why |
