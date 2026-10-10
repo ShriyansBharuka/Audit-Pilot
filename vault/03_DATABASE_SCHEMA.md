@@ -47,7 +47,9 @@ Flags: **[H]** hash-chained by `chain.py` · **[A]** append-only (BEFORE UPDATE/
 | 12 | `credit_notes` | F T1 | id PK, cn_no UNIQUE, cn_date, party_id, reason `SALES_RETURN\|RATE_DIFF\|SCHEME_REBATE\|QUALITY\|OTHER`, reason_text?, scheme_id?, return_movement_id?, irn?, status |
 | 13 | `cn_lines` | T1 | cn_id, line_no, invoice_id? (**nullable**, because an unlinked CN is itself a flag), item_id?, qty?, taxable_paise, igst/cgst/sgst_paise. One CN may credit many invoices (s.34(1)). |
 | 14 | `settlements` | F T1 | id PK, direction `RECEIPT\|PAYMENT`, settled_on, party_id, doc_type `INVOICE\|PURCHASE\|ADVANCE\|OTHER`, doc_id?, amount_paise, bank_txn_id? (→ ext.bank_txns), mode. One row per (bank txn, document). |
-| 15 | `purchase_bills` | F T2 | id PK, vendor_id, bill_no, bill_date, item_id, qty, taxable_paise, tax_paise. This is enough to close round-trip cycles (D10). |
+| 15 | `purchase_bills` | F T2 | id PK, vendor_id, bill_no, bill_date, item_id, qty, taxable_paise, tax_paise, po_id? (→ purchase_orders; nullable: a bill without a PO is itself a flag). Closes round-trip cycles (D10) and purchase-to-pay (D15). |
+| 43 | `purchase_orders` | A T1 | id PK, po_no UNIQUE, vendor_id, po_date, item_id, qty > 0, rate_paise, payment_terms `ADVANCE\|ON_DELIVERY\|CREDIT_30\|CREDIT_60`, status `OPEN\|CLOSED\|CANCELLED` (set at creation; a change is a new PO). `vault/13` MT-1 |
+| 44 | `goods_receipts` | A T1 | id PK, grn_no UNIQUE, po_id → purchase_orders, received_on, item_id, qty > 0, kind `RECEIPT\|RETURN` (a return to the vendor is a new row), received_by. `vault/13` MT-1 |
 | 16 | `accounts` | V T1 | code PK, name, type `ASSET\|LIABILITY\|EQUITY\|INCOME\|EXPENSE`, is_revenue 0/1 |
 | 17 | `journals` | A T1 | no INTEGER PK, voucher_date, voucher_type `OPENING\|SALES\|CREDIT_NOTE\|RECEIPT\|PURCHASE\|PAYMENT\|JOURNAL\|REVERSAL`, source_type?, source_id?, reverses_no?, aje_ref?, narration NOT NULL, posted_by, recorded_at |
 | 18 | `journal_lines` | A T1 | journal_no, line_no, account_code → accounts, party_id?, dr_paise, cr_paise · CHECK single-sided · PK(journal_no, line_no) |

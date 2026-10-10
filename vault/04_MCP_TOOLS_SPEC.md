@@ -150,7 +150,7 @@ Gotchas:
 |---|---|---|---|---|
 | **Common** |||||
 | 1 | `whoami` | all MCP roles | T1 | START HERE: identity, role, allowed tools, engagement/FY, playbook, the untrusted-text rule |
-| 2 | `query_records` | sales, warehouse, accounts, client_admin, audit_staff | T1 | Paged, filtered read of an SoR or portal entity: `entity` ∈ parties, party_links, items, schemes, sales_orders, movements, invoices, credit_notes, settlements, journals, journal_lines, accounts, erp_log, einvoices, ewaybills, gstr1_docs, gstr3b, bank_txns; plus `filters{}`, `fields[]`, `limit`, `cursor`. Audit roles read through the read-only handle. |
+| 2 | `query_records` | sales, warehouse, accounts, client_admin, audit_staff | T1 | Paged, filtered read of an SoR or portal entity: `entity` ∈ parties, party_links, items, schemes, sales_orders, movements, invoices, credit_notes, settlements, purchase_bills, purchase_orders, goods_receipts, journals, journal_lines, accounts, erp_log, einvoices, ewaybills, gstr1_docs, gstr3b, bank_txns; plus `filters{}`, `fields[]`, `limit`, `cursor`. Audit roles read through the read-only handle. |
 | 3 | `trace_sale` | sales, warehouse, accounts, client_admin, audit_staff | T1 | One sale end to end: enquiry → SO/pricing/scheme → movements/LR/POD → invoice/IRN → EWB → GSTR-1 line → settlements/bank → CNs → journals. Missing links are listed as `gaps` |
 | 4 | `list_evidence_requests` | client roles, audit_staff, orchestrator | T1 | The requests sent to the client (sample_ref, doc kinds, due date, status). **No reasons or strata** |
 | **Client: business** |||||
@@ -167,7 +167,9 @@ Gotchas:
 | 15 | `issue_credit_note` | accounts | T1 | Lines [{invoice_no?, item?, qty?, taxable}], cn_date, reason, scheme_id?, return_movement_id?; posts CREDIT_NOTE, registers the CRN IRN |
 | 16 | `record_receipt` | accounts | T1 | Bank receipt: amount, invoice_nos[], payer_name/payer_account/ifsc/utr; writes ext.bank_txns + settlements, posts RECEIPT |
 | 17 | `record_payment` | accounts | T2 | Vendor payment (closes cash round trips, D10) |
-| 18 | `record_purchase` | accounts | T2 | Purchase bill (closes goods round trips, D10) |
+| 18 | `record_purchase` | accounts | T2 | Purchase bill (closes goods round trips, D10), normally against a PO: `po_id` (vendor and item default from it) |
+| 47 | `create_purchase_order` | accounts | T1 | Purchase order: vendor, item, qty, rate (rupees), payment_terms `ADVANCE\|ON_DELIVERY\|CREDIT_30\|CREDIT_60` (`vault/13` MT-1) |
+| 48 | `record_goods_receipt` | warehouse | T1 | Goods receipt (GRN) against a PO: qty, received_on, received_by; `kind=RETURN` for a return to the vendor (MT-1) |
 | 19 | `post_journal_entry` | accounts | T1 | A balanced manual JV (narration mandatory). Also how management posts an accepted AJE (`aje_ref`) |
 | 20 | `file_gstr1` | accounts | T1 | Files a month to the mock GSTN from the books; `omit_doc_nos[]` / `changes[]` let the filing differ (plantable) |
 | 21 | `file_gstr3b` | accounts | T2 | Monthly 3B totals (default = books; `figures` override) |

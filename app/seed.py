@@ -566,9 +566,11 @@ def _network(parties, items):
     ]
     purchases = [
         {"key": "PB-N1", "vendor_id": "P-NET2", "bill_no": "ZES/25-26/0412", "bill_date": "2026-02-28", "item_id": "IT-007",
-         "qty": 390, "taxable_paise": 390 * rate["IT-007"], "tax_paise": _tax_paise(390 * rate["IT-007"], 1800)},
+         "qty": 390, "taxable_paise": 390 * rate["IT-007"], "tax_paise": _tax_paise(390 * rate["IT-007"], 1800),
+         "po_date": "2026-02-16", "grn_date": "2026-02-27", "rate_paise": rate["IT-007"], "terms": "CREDIT_30"},
         {"key": "PB-N2", "vendor_id": "P-VEN2", "bill_no": "PVC/JW/0917", "bill_date": "2025-09-24", "item_id": "IT-003",
-         "qty": 50, "taxable_paise": 50 * rate["IT-003"], "tax_paise": _tax_paise(50 * rate["IT-003"], 1800)},
+         "qty": 50, "taxable_paise": 50 * rate["IT-003"], "tax_paise": _tax_paise(50 * rate["IT-003"], 1800),
+         "po_date": "2025-09-12", "grn_date": "2025-09-23", "rate_paise": rate["IT-003"], "terms": "CREDIT_30"},
     ]
     payments = [
         {"vendor_id": "P-NET2", "settled_on": "2026-03-05", "amount_paise": 39_50_000_00, "purchase": None,
@@ -597,9 +599,14 @@ def _routine_purchases(rng, items):
             qty = _int(rng, 5, 40)
             t = qty * it["cost_paise"]
             day = date(y, mo, _int(rng, 2, 26))
+            pay = _int(rng, 30, 45)
+            po = day - timedelta(days=_int(rng, 5, 15))
+            grn = max(po, day - timedelta(days=_int(rng, 0, 2)))        # goods arrive on or just before the bill
             out.append({"key": f"PB-{n:04d}", "vendor_id": _pick(rng, vendors), "bill_no": f"VB/{y % 100}/{n:04d}",
                         "bill_date": day.isoformat(), "item_id": it["id"], "qty": qty, "taxable_paise": t,
-                        "tax_paise": _tax_paise(t, 1800), "pay_on": (day + timedelta(days=_int(rng, 30, 45))).isoformat()})
+                        "tax_paise": _tax_paise(t, 1800), "pay_on": (day + timedelta(days=pay)).isoformat(),
+                        "po_date": po.isoformat(), "grn_date": grn.isoformat(), "rate_paise": it["cost_paise"],
+                        "terms": "CREDIT_30" if pay <= 35 else "CREDIT_60"})
     return out
 
 # ---------------------------------------------------------------- events (what load() replays, in entry order)
@@ -617,9 +624,20 @@ def _events(rng, sales, leads, purchases=(), payments=()):
     evs = []
     for pb in purchases:
         d = date.fromisoformat(pb["bill_date"])
-        evs.append(_ev(_ts(d, _int(rng, 600, 960)), "accounts", "record_purchase",
+        refs = {}
+        if pb.get("po_date"):                          # purchase to pay (MT-1): PO -> GRN -> bill -> payment
+            evs.append(_ev(_ts(date.fromisoformat(pb["po_date"]), _int(rng, 570, 630)), "accounts",
+                           "create_purchase_order", {"vendor_id": pb["vendor_id"], "item_id": pb["item_id"],
+                                                     "qty": pb["qty"], "rate_paise": pb["rate_paise"],
+                                                     "po_date": pb["po_date"], "payment_terms": pb["terms"]},
+                           out={f"{pb['key']}/po": "id"}))
+            evs.append(_ev(_ts(date.fromisoformat(pb["grn_date"]), _int(rng, 640, 700)), "warehouse",
+                           "record_goods_receipt", {"qty": pb["qty"], "received_on": pb["grn_date"],
+                                                    "received_by": "Stores"}, refs={"po_id": f"{pb['key']}/po"}))
+            refs = {"po_id": f"{pb['key']}/po"}
+        evs.append(_ev(_ts(d, _int(rng, 720, 960)), "accounts", "record_purchase",
                        {k: pb[k] for k in ("vendor_id", "bill_no", "bill_date", "item_id", "qty", "taxable_paise",
-                                           "tax_paise")}, out={f"{pb['key']}/pb": "id"}))
+                                           "tax_paise")}, refs=refs, out={f"{pb['key']}/pb": "id"}))
         if pb.get("pay_on"):
             pay = date.fromisoformat(pb["pay_on"])
             evs.append(_ev(_ts(pay, _int(rng, 600, 960)), "accounts", "record_payment",

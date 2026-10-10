@@ -136,7 +136,7 @@ def run():
     @step("SH-2 init_all(reset=True): 4 databases, every 03 table, WAL")
     def _():
         db.init_all(reset=True)
-        want = {"erp": 20, "ext": 6, "pbc": 3, "audit": 13}
+        want = {"erp": 22, "ext": 6, "pbc": 3, "audit": 13}
         for name, n in want.items():
             c = sqlite3.connect(str(config.DB_PATHS[name]))
             tables = c.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0]
@@ -145,7 +145,7 @@ def run():
             assert tables == n, f"{name}.db has {tables} tables, 03 lists {n}"
             assert mode == "wal", f"{name}.db journal_mode={mode}"
         db.init_all(reset=False)                               # idempotent re-run
-        return "erp 20 · ext 6 · pbc 3 · audit 13"
+        return "erp 22 · ext 6 · pbc 3 · audit 13"
 
     @step("SH-2 independence: audit role cannot write erp/ext (readonly database)")
     def _():

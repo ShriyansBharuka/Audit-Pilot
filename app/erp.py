@@ -36,6 +36,8 @@ DOCS = {
     "credit_note": ("credit_notes", "id", (("cn_lines", "cn_id", "line_no"),)),
     "settlement": ("settlements", "id", ()),
     "purchase_bill": ("purchase_bills", "id", ()),
+    "purchase_order": ("purchase_orders", "id", ()),
+    "goods_receipt": ("goods_receipts", "id", ()),
     "account": ("accounts", "code", ()),
     "journal": ("journals", "no", (("journal_lines", "journal_no", "line_no"),)),
 }
@@ -164,7 +166,8 @@ def _diff(before, after):
 SERVICES = ("create_party", "link_parties", "create_item", "create_lead", "create_scheme", "create_sales_order",
             "issue_invoice", "generate_eway_bill", "record_dispatch", "record_delivery", "issue_credit_note",
             "record_receipt", "record_payment", "record_purchase", "post_journal_entry", "file_gstr1", "file_gstr3b",
-            "amend_record", "cancel_document", "import_records", "export_sales_register", "render_document")
+            "amend_record", "cancel_document", "import_records", "export_sales_register", "render_document",
+            "create_purchase_order", "record_goods_receipt")
 
 TAGS = {"SELF", "CUSTOMER", "VENDOR", "TRANSPORTER", "DIRECTOR", "KMP", "RELATIVE"}
 keep_open = db.keep_open          # bulk loads (the seeder, replay): one connection per (db, role)
@@ -242,11 +245,14 @@ def _next_no(c, series, d):
 _REFS = {"invoice": ("invoices", "id", "invoice_no"), "credit_note": ("credit_notes", "id", "cn_no"),
          "sales_order": ("sales_orders", "id", "so_no"), "movement": ("movements", "id", "lr_no"),
          "party": ("parties", "id", None), "item": ("items", "id", None), "scheme": ("schemes", "id", None),
-         "purchase_bill": ("purchase_bills", "id", "bill_no")}
+         "purchase_bill": ("purchase_bills", "id", "bill_no"), "purchase_order": ("purchase_orders", "id", "po_no"),
+         "goods_receipt": ("goods_receipts", "id", "grn_no")}
 _FIND = {"invoice": "query_records(entity='invoices')", "credit_note": "query_records(entity='credit_notes')",
          "sales_order": "query_records(entity='sales_orders')", "movement": "query_records(entity='movements')",
          "party": "query_records(entity='parties')", "item": "query_records(entity='items')",
-         "scheme": "query_records(entity='schemes')", "purchase_bill": "query_records(entity='purchase_bills')"}
+         "scheme": "query_records(entity='schemes')", "purchase_bill": "query_records(entity='purchase_bills')",
+         "purchase_order": "query_records(entity='purchase_orders')",
+         "goods_receipt": "query_records(entity='goods_receipts')"}
 
 
 def _get(c, kind, ref):
@@ -720,19 +726,64 @@ def record_receipt(actor, role, amount_paise=None, invoice_nos=None, settled_on=
     return _ok({"bank_txn_id": bt, "settlements": ids, "journal_no": jno, "unallocated_paise": left})
 
 
+_PAY_TERMS = ("ADVANCE", "ON_DELIVERY", "CREDIT_30", "CREDIT_60")
+
+
+def create_purchase_order(actor, role, vendor_id=None, item_id=None, qty=None, rate_paise=None, po_date=None,
+                          payment_terms="CREDIT_30", id=None):
+    """A purchase order (vault/13 MT-1): what was ordered from a vendor, at what price, on what payment terms.
+    Append-only: a change is a new PO."""
+    _one_of(payment_terms, "payment_terms", _PAY_TERMS)
+    po_date = _date(po_date, "po_date", default=config.today())
+    with _session(role) as c:
+        v = _get(c, "party", vendor_id)
+        it = _get(c, "item", item_id)
+        q = _int(qty, "qty", minimum=1)
+        rate = _int(rate_paise, "rate_paise", default=it["cost_paise"])
+        pid = id or _next_id(c, "purchase_orders", "id", "PO-", 6)
+        c.execute("INSERT INTO purchase_orders(id, po_no, vendor_id, po_date, item_id, qty, rate_paise, payment_terms)"
+                  " VALUES (?,?,?,?,?,?,?,?)", (pid, pid, v["id"], po_date, it["id"], q, rate, payment_terms))
+        write_doc(c, actor, role, "create_purchase_order", "CREATE", "purchase_order", pid)
+    return _ok({"id": pid, "po_no": pid, "value_paise": q * rate},
+               ("record_goods_receipt", {"po_id": pid, "qty": q}, "record what physically arrives (GRN)"))
+
+
+def record_goods_receipt(actor, role, po_id=None, qty=None, received_on=None, received_by=None, grn_no=None,
+                         kind="RECEIPT", item_id=None, id=None):
+    """A goods receipt (GRN) against a purchase order. A return to the vendor is a new row with kind RETURN."""
+    _one_of(kind, "kind", ("RECEIPT", "RETURN"))
+    received_on = _date(received_on, "received_on", default=config.today())
+    with _session(role) as c:
+        po = _get(c, "purchase_order", po_id)
+        it = _get(c, "item", item_id)["id"] if item_id else po["item_id"]
+        q = _int(qty, "qty", minimum=1)
+        gid = id or _next_id(c, "goods_receipts", "id", "GRN-", 6)
+        if grn_no and c.execute("SELECT 1 FROM goods_receipts WHERE grn_no = ?", (grn_no,)).fetchone():
+            raise ValueError("CONFLICT: a goods receipt with that GRN number already exists")
+        c.execute("INSERT INTO goods_receipts(id, grn_no, po_id, received_on, item_id, qty, kind, received_by)"
+                  " VALUES (?,?,?,?,?,?,?,?)", (gid, grn_no or gid, po["id"], received_on, it, q, kind, received_by))
+        write_doc(c, actor, role, "record_goods_receipt", "CREATE", "goods_receipt", gid)
+    return _ok({"id": gid, "grn_no": grn_no or gid, "po_id": po["id"], "kind": kind},
+               ("record_purchase", {"po_id": po["id"], "bill_no": "VB/26/0001", "taxable": "…"},
+                "book the vendor's bill against the PO"))
+
+
 def record_purchase(actor, role, vendor_id=None, bill_no=None, bill_date=None, taxable_paise=None, tax_paise=0,
-                    item_id=None, qty=None, id=None):
-    """A purchase bill (T2; closes goods round trips for D10). Posts PURCHASE."""
+                    item_id=None, qty=None, po_id=None, id=None):
+    """A purchase bill (closes goods round trips for D10; purchase-to-pay for D15). With po_id the vendor and item
+    default to the PO's. Posts PURCHASE."""
     bill_date = _date(bill_date, "bill_date", default=config.today())
     if not bill_no:
         _bad("bill_no is required (the vendor's bill number)")
     t, x = _int(taxable_paise, "taxable_paise", minimum=1), _int(tax_paise, "tax_paise")
     with _session(role) as c:
-        v = _get(c, "party", vendor_id)
-        it = _get(c, "item", item_id)["id"] if item_id else None
+        po = _get(c, "purchase_order", po_id) if po_id else None
+        v = _get(c, "party", vendor_id or (po["vendor_id"] if po else None))
+        it = _get(c, "item", item_id)["id"] if item_id else (po["item_id"] if po else None)
         pid = id or _next_id(c, "purchase_bills", "id", "PB-", 6)
-        c.execute("INSERT INTO purchase_bills(id, vendor_id, bill_no, bill_date, item_id, qty, taxable_paise, tax_paise)"
-                  " VALUES (?,?,?,?,?,?,?,?)", (pid, v["id"], bill_no, bill_date, it, qty, t, x))
+        c.execute("INSERT INTO purchase_bills(id, vendor_id, bill_no, bill_date, item_id, qty, taxable_paise, tax_paise,"
+                  " po_id) VALUES (?,?,?,?,?,?,?,?,?)", (pid, v["id"], bill_no, bill_date, it, qty, t, x,
+                                                         po["id"] if po else None))
         write_doc(c, actor, role, "record_purchase", "CREATE", "purchase_bill", pid)
         jl = [{"account_code": "PURCHASES", "dr_paise": t}] + ([{"account_code": "INPUT_IGST", "dr_paise": x}] if x else [])
         jl.append({"account_code": "CREDITORS", "party_id": v["id"], "cr_paise": t + x})
@@ -813,7 +864,7 @@ _AMENDABLE = {"parties": "party", "party_links": "party_link", "items": "item", 
               "sales_orders": "sales_order", "movements": "movement", "invoice_movements": "movement", "accounts": "account"}
 _FINANCIAL = {"invoices": "invoice", "invoice_lines": "invoice", "credit_notes": "credit_note", "cn_lines": "credit_note",
               "settlements": "settlement", "purchase_bills": "purchase bill", "journals": "journal",
-              "journal_lines": "journal"}
+              "journal_lines": "journal", "purchase_orders": "purchase order", "goods_receipts": "goods receipt"}
 _OWNER = {"sales": {"parties", "sales_orders", "schemes"}, "warehouse": {"movements", "invoice_movements"}}
 
 
@@ -824,6 +875,9 @@ def amend_record(actor, role, entity=None, id=None, changes=None, reason=None):
             raise ValueError("PRECONDITION_FAILED: invoices and credit notes are financial documents and are never edited. "
                              "Cancel and re-issue with cancel_document(doc_type='invoice', id=...) then issue_invoice(...), "
                              "or reduce the sale with issue_credit_note(...).")
+        if entity in ("purchase_orders", "goods_receipts"):
+            raise ValueError("PRECONDITION_FAILED: purchase orders and goods receipts are never edited. Raise a new "
+                             "purchase order, or record a return with record_goods_receipt(kind='RETURN', ...).")
         raise ValueError("PRECONDITION_FAILED: ledger and settlement records are never edited; post a reversal or a new "
                          "voucher with post_journal_entry(...).")
     if entity not in _AMENDABLE:
@@ -899,7 +953,8 @@ def cancel_document(actor, role, doc_type=None, id=None, reason=None, cancelled_
 
 _IMPORTABLE = {"parties": create_party, "party_links": link_parties, "items": create_item, "schemes": create_scheme,
                "leads": create_lead, "sales_orders": create_sales_order, "invoices": issue_invoice,
-               "credit_notes": issue_credit_note, "receipts": record_receipt, "purchases": record_purchase}
+               "credit_notes": issue_credit_note, "receipts": record_receipt, "purchases": record_purchase,
+               "purchase_orders": create_purchase_order, "goods_receipts": record_goods_receipt}
 
 
 def import_records(actor, role, entity=None, rows=None):

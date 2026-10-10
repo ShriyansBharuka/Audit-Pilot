@@ -137,11 +137,27 @@ CREATE TABLE IF NOT EXISTS settlements (
   amount_paise INTEGER NOT NULL CHECK (amount_paise >= 0),
   bank_txn_id TEXT, mode TEXT);
 
--- 15 [F] purchase_bills (T2: closes round-trip cycles, D10)
+-- 15 [F] purchase_bills (closes round-trip cycles for D10; purchase-to-pay for D15). po_id is nullable on purpose:
+-- a bill with no purchase order is itself something to look at
 CREATE TABLE IF NOT EXISTS purchase_bills (
   id TEXT PRIMARY KEY, vendor_id TEXT NOT NULL REFERENCES parties(id), bill_no TEXT NOT NULL, bill_date TEXT NOT NULL,
   item_id TEXT REFERENCES items(id), qty INTEGER CHECK (qty IS NULL OR qty >= 0),
-  taxable_paise INTEGER NOT NULL CHECK (taxable_paise >= 0), tax_paise INTEGER NOT NULL DEFAULT 0 CHECK (tax_paise >= 0));
+  taxable_paise INTEGER NOT NULL CHECK (taxable_paise >= 0), tax_paise INTEGER NOT NULL DEFAULT 0 CHECK (tax_paise >= 0),
+  po_id TEXT REFERENCES purchase_orders(id));
+
+-- 43 [A] purchase_orders (vault/13 MT-1): what was ordered, at what price, on what payment terms
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  id TEXT PRIMARY KEY, po_no TEXT NOT NULL UNIQUE, vendor_id TEXT NOT NULL REFERENCES parties(id), po_date TEXT NOT NULL,
+  item_id TEXT NOT NULL REFERENCES items(id), qty INTEGER NOT NULL CHECK (qty > 0),
+  rate_paise INTEGER NOT NULL CHECK (rate_paise >= 0),
+  payment_terms TEXT NOT NULL DEFAULT 'CREDIT_30' CHECK (payment_terms IN ('ADVANCE','ON_DELIVERY','CREDIT_30','CREDIT_60')),
+  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','CLOSED','CANCELLED')));
+
+-- 44 [A] goods_receipts: what physically arrived (GRN). A return to the vendor is a new row, kind RETURN, qty > 0
+CREATE TABLE IF NOT EXISTS goods_receipts (
+  id TEXT PRIMARY KEY, grn_no TEXT NOT NULL UNIQUE, po_id TEXT NOT NULL REFERENCES purchase_orders(id),
+  received_on TEXT NOT NULL, item_id TEXT NOT NULL REFERENCES items(id), qty INTEGER NOT NULL CHECK (qty > 0),
+  kind TEXT NOT NULL DEFAULT 'RECEIPT' CHECK (kind IN ('RECEIPT','RETURN')), received_by TEXT);
 
 -- 16-19: key DDL copied exactly from 03 §2
 CREATE TABLE IF NOT EXISTS accounts (code TEXT PRIMARY KEY, name TEXT NOT NULL,
@@ -180,6 +196,9 @@ CREATE INDEX IF NOT EXISTS ix_settle_doc ON settlements(doc_type, doc_id);
 CREATE INDEX IF NOT EXISTS ix_jrn_source ON journals(source_type, source_id);
 CREATE INDEX IF NOT EXISTS ix_jl_account ON journal_lines(account_code);
 CREATE INDEX IF NOT EXISTS ix_log_doc ON erp_log(doc_type, doc_id);
+CREATE INDEX IF NOT EXISTS ix_po_vendor ON purchase_orders(vendor_id);
+CREATE INDEX IF NOT EXISTS ix_grn_po ON goods_receipts(po_id);
+CREATE INDEX IF NOT EXISTS ix_pb_po ON purchase_bills(po_id);
 
 -- [A] guards (03 §2): journals, journal_lines, erp_log. Guards, not proof: proof is erp_log + anchors (03 §6).
 CREATE TRIGGER IF NOT EXISTS erp_log_no_update BEFORE UPDATE ON erp_log BEGIN SELECT RAISE(ABORT, 'append-only: erp_log'); END;
@@ -206,3 +225,8 @@ CREATE TRIGGER IF NOT EXISTS settlements_f BEFORE UPDATE ON settlements BEGIN SE
 CREATE TRIGGER IF NOT EXISTS settlements_no_delete BEFORE DELETE ON settlements BEGIN SELECT RAISE(ABORT, 'financial document: never deleted'); END;
 CREATE TRIGGER IF NOT EXISTS purchase_bills_f BEFORE UPDATE ON purchase_bills BEGIN SELECT RAISE(ABORT, 'financial document: post a reversal'); END;
 CREATE TRIGGER IF NOT EXISTS purchase_bills_no_delete BEFORE DELETE ON purchase_bills BEGIN SELECT RAISE(ABORT, 'financial document: never deleted'); END;
+-- [A] purchase orders and goods receipts (MT-1): corrections are new rows (a RETURN receipt, a new PO), never edits
+CREATE TRIGGER IF NOT EXISTS purchase_orders_no_update BEFORE UPDATE ON purchase_orders BEGIN SELECT RAISE(ABORT, 'append-only: purchase_orders'); END;
+CREATE TRIGGER IF NOT EXISTS purchase_orders_no_delete BEFORE DELETE ON purchase_orders BEGIN SELECT RAISE(ABORT, 'append-only: purchase_orders'); END;
+CREATE TRIGGER IF NOT EXISTS goods_receipts_no_update BEFORE UPDATE ON goods_receipts BEGIN SELECT RAISE(ABORT, 'append-only: goods_receipts'); END;
+CREATE TRIGGER IF NOT EXISTS goods_receipts_no_delete BEFORE DELETE ON goods_receipts BEGIN SELECT RAISE(ABORT, 'append-only: goods_receipts'); END;

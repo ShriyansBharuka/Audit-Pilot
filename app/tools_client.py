@@ -51,7 +51,7 @@ def whoami() -> dict:
 
 ERP_ENTITIES = ("parties", "party_links", "items", "schemes", "sales_orders", "so_lines", "movements", "movement_lines",
                 "invoice_movements", "invoices", "invoice_lines", "credit_notes", "cn_lines", "settlements",
-                "purchase_bills", "journals", "journal_lines", "accounts", "erp_log")
+                "purchase_bills", "purchase_orders", "goods_receipts", "journals", "journal_lines", "accounts", "erp_log")
 EXT_ENTITIES = ("einvoices", "ewaybills", "gstr1_docs", "gstr3b", "bank_txns", "mca_appointments")
 TEXT = {"parties": ("name", "address"), "items": ("name",), "schemes": ("name",),
         "sales_orders": ("contact_name", "customer_po_no", "bill_and_hold_json"), "movements": ("received_by",),
@@ -87,7 +87,8 @@ def query_records(entity: str, filters: dict | None = None, fields: list[str] | 
                   cursor: str | None = None) -> dict:
     """Paged, filtered read of a system-of-record or portal table. entity: parties, party_links, items, schemes,
     sales_orders, so_lines, movements, movement_lines, invoice_movements, invoices, invoice_lines, credit_notes,
-    cn_lines, settlements, purchase_bills, journals, journal_lines, accounts, erp_log (books) or einvoices, ewaybills,
+    cn_lines, settlements, purchase_bills, purchase_orders, goods_receipts, journals, journal_lines, accounts, erp_log
+    (books) or einvoices, ewaybills,
     gstr1_docs, gstr3b, bank_txns, mca_appointments (portals). filters: {column: value} or {column: {op: value}} with
     op in eq, ne, gt, gte, lt, lte, like, in. Money columns are integer paise. Example: query_records(entity='invoices',
     filters={'invoice_date': {'gte': '2026-03-25'}}, limit=50)"""
@@ -300,14 +301,35 @@ def record_payment(amount: str, vendor_id: str, settled_on: str | None = None, p
 
 
 @tool("accounts", "client_admin")
-def record_purchase(vendor_id: str, bill_no: str, taxable: str, bill_date: str | None = None, tax: str = "0",
-                    item_id: str | None = None, qty: int | None = None) -> dict:
-    """A purchase bill (posts PURCHASE). Example: record_purchase(vendor_id='P-VEN1', bill_no='VB/26/0012',
-    bill_date='2026-03-20', item_id='IT-007', qty=50, taxable='217500.00', tax='39150.00')"""
+def create_purchase_order(vendor_id: str, item_id: str, qty: int, rate: str | None = None, po_date: str | None = None,
+                          payment_terms: str = "CREDIT_30") -> dict:
+    """A purchase order to a vendor: item, qty, rate (rupees; default the item's cost) and payment_terms ADVANCE,
+    ON_DELIVERY, CREDIT_30 or CREDIT_60. Example: create_purchase_order(vendor_id='P-VEN1', item_id='IT-007',
+    qty=100, rate='5000.00', payment_terms='ADVANCE')"""
+    return call(lambda who, role: from_service(erp.create_purchase_order(
+        who, role, vendor_id=vendor_id, item_id=item_id, qty=qty, rate_paise=paise(rate, "rate"), po_date=po_date,
+        payment_terms=payment_terms)))
+
+
+@tool("warehouse", "client_admin")
+def record_goods_receipt(po_id: str, qty: int, received_on: str | None = None, received_by: str | None = None,
+                         grn_no: str | None = None, kind: str = "RECEIPT") -> dict:
+    """A goods receipt note (GRN): what physically arrived against a purchase order. A return to the vendor is
+    kind='RETURN'. Example: record_goods_receipt(po_id='PO-000012', qty=60, received_on='2026-03-28')"""
+    return call(lambda who, role: from_service(erp.record_goods_receipt(
+        who, role, po_id=po_id, qty=qty, received_on=received_on, received_by=received_by, grn_no=grn_no, kind=kind)))
+
+
+@tool("accounts", "client_admin")
+def record_purchase(vendor_id: str | None = None, bill_no: str = "", taxable: str = "", bill_date: str | None = None,
+                    tax: str = "0", item_id: str | None = None, qty: int | None = None, po_id: str | None = None) -> dict:
+    """A purchase bill (posts PURCHASE), normally against a purchase order (po_id: vendor and item default from it).
+    Example: record_purchase(po_id='PO-000012', bill_no='VB/26/0012', bill_date='2026-03-20', qty=50,
+    taxable='217500.00', tax='39150.00')"""
     return call(lambda who, role: from_service(erp.record_purchase(
         who, role, vendor_id=vendor_id, bill_no=bill_no, bill_date=bill_date, taxable_paise=paise(taxable, "taxable",
                                                                                                     required=True),
-        tax_paise=paise(tax, "tax") or 0, item_id=item_id, qty=qty)))
+        tax_paise=paise(tax, "tax") or 0, item_id=item_id, qty=qty, po_id=po_id)))
 
 
 @tool("accounts", "client_admin")
