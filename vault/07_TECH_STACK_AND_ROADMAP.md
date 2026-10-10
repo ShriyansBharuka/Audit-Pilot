@@ -98,6 +98,29 @@ config.use_tenant(settings | None) -> token; config.reset_tenant(token); config.
 REST: `GET /api/tenants` (any signed-in identity: the tenants it may see), `POST /api/tenants` (audit roles), and every
 endpoint honours `X-Tenant` (403 when the token's principal may not see that tenant; ignored without a Bearer token).
 
+### 3b. Web sign-in with Supabase (added 2026-10-11)
+
+The web app signs people in with Supabase Auth (e-mail + password). The Bearer token is then the Supabase session
+token; agent/judge tokens from `identities.json` keep working everywhere, and the MCP gateway is unchanged.
+
+- `partner.identity(token)`: `identities.json` first; otherwise a JWT goes to `accounts.identity`, which asks Supabase
+  (`GET /auth/v1/user`, anon key) whether the session is valid and caches the answer until the token expires. The
+  project signs sessions with ES256, so the legacy HS256 JWT secret is **not** used or stored.
+- Principal `sb:<user id>`; role per tenant from `tenant.json.roles` only (03 §0a). No role -> 403 `NO_ROLE`.
+- Settings: `SUPABASE_URL`, `SUPABASE_ANON_KEY` in `.env` (the anon key is public). Never the service-role key.
+
+```text
+GET  /api/auth/memberships                    signed-in web account -> [{slug, name, role}] (accepts pending invites)
+POST /api/onboarding/organization             {name, pan, gstin, fy, membership_no?} -> new tenant; creator = engagement_partner
+GET  /api/tenants/{slug}/members              that tenant's engagement partner -> members + pending invites
+POST /api/tenants/{slug}/invites              that tenant's engagement partner -> {email, role} (client or audit roles)
+POST /api/client/sales-register               accounts, client_admin: multipart file -> intake.submit SALES_REGISTER
+POST /api/client/related-parties              client_admin: multipart file -> intake.submit RP_LIST
+POST /api/client/records/{kind}               party | invoice | credit-note | journal -> erp.* (same roles and
+                                              parameters as the client MCP tools; money as rupee strings)
+GET  /api/client/lookups                      client roles: parties, items, recent invoices, chart of accounts
+```
+
 ## 4. Module contracts (code against these; stubs first)
 
 All money is paise; all dates are ISO strings; every function opens connections via `db.connect(db, role)`; every client write goes through `erp.write_doc`.

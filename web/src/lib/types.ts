@@ -9,13 +9,36 @@ export type UserRole =
   | "sales"
   | "orchestrator";
 
+export interface Membership {
+  slug: string;
+  name: string;
+  role: UserRole;
+}
+
 export interface UserSession {
   token: string;
   principal: string;
-  role: UserRole;
+  role: UserRole | null; // null: a web account with no role in the active organisation yet (onboarding)
   name: string;
   membership_no?: string;
   org_id?: string;
+  account?: "token" | "supabase";
+  email?: string;
+  memberships?: Membership[];
+}
+
+export interface UploadResult {
+  submission_id: string;
+  sha256: string;
+  rows_received?: number;
+  status: string;
+}
+
+export interface Lookups {
+  parties: { id: string; name: string; tags: string }[];
+  items: { id: string; name: string; hsn: string }[];
+  invoices: { invoice_no: string; party_id: string; invoice_date: string }[];
+  accounts: { code: string; name: string }[];
 }
 
 export interface AuditOverview {

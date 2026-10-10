@@ -16,9 +16,12 @@ def identity(token):
     """token -> {principal, role, name, ...}; LookupError when unknown."""
     ids = json.loads(config.IDENTITIES.read_text(encoding="utf-8")) if config.IDENTITIES.exists() else {}
     rec = ids.get((token or "").strip())
-    if not rec:
-        raise LookupError("UNAUTHENTICATED: unknown token")
-    return rec
+    if rec:
+        return rec
+    from app import accounts                      # web sign-in: a Supabase session token (vault/07 §3b)
+    if accounts.looks_like_jwt(token):
+        return accounts.identity(token.strip())
+    raise LookupError("UNAUTHENTICATED: unknown token")
 
 
 def _partner(token):

@@ -2,7 +2,10 @@ import {
   AuditOverview,
   ChartsData,
   CsvCheckResult,
+  Lookups,
+  Membership,
   NewTenantInput,
+  UploadResult,
   TenantItem,
   TrailResponse,
   StatutoryMemo,
@@ -174,6 +177,43 @@ export const api = {
   // Organisations (EX-4): each is its own data directory + engagement
   getTenants: () => request<{ items: TenantItem[] }>("/api/tenants"),
   createTenant: (body: NewTenantInput) => request<TenantItem>("/api/tenants", { method: "POST", body: JSON.stringify(body) }),
+
+  // Web accounts (Supabase) + onboarding
+  getMemberships: () => request<{ email: string; items: Membership[] }>("/api/auth/memberships"),
+  createOrganisation: (body: NewTenantInput & { membership_no?: string }) =>
+    request<TenantItem & { role: string }>("/api/onboarding/organization", { method: "POST", body: JSON.stringify(body) }),
+  getMembers: (slug: string) =>
+    request<{ members: { email: string; role: string }[]; invites: { email: string; role: string }[] }>(
+      `/api/tenants/${encodeURIComponent(slug)}/members`,
+    ),
+  invite: (slug: string, email: string, role: string) =>
+    request<{ email: string; role: string; status: string }>(`/api/tenants/${encodeURIComponent(slug)}/invites`, {
+      method: "POST",
+      body: JSON.stringify({ email, role }),
+    }),
+
+  // Client input: register / related-party uploads (stored byte-for-byte, server SHA-256) and manual ERP entry
+  uploadClientFile: async (kind: "sales-register" | "related-parties", file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/api/client/${kind}`, { method: "POST", body: form, headers: authHeaders() });
+    } catch {
+      throw reportApiError(`Can't reach the AuditPilot API at ${API_BASE} (or it hit an internal error on the upload).`);
+    }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.detail || `Upload failed (${res.status})`);
+    }
+    return (await res.json()) as UploadResult;
+  },
+  getLookups: () => request<Lookups>("/api/client/lookups"),
+  createRecord: (kind: "party" | "invoice" | "credit-note" | "journal", body: Record<string, unknown>) =>
+    request<{ result: Record<string, unknown>; next_steps: unknown[] }>(`/api/client/records/${kind}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   // CSV verification agent (LangGraph): does the file hold data, and does it match the books?
   verifyCsv: async (file: File, ai = false) => {

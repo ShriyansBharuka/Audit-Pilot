@@ -35,6 +35,11 @@ its own four files and its own engagement:
   tenant unchanged.
 - **Resolution:** server-side, per request (REST header `X-Tenant: <slug>`), through a ContextVar (`app.tenants.scope`),
   so concurrent requests never share a tenant. The MCP server serves the default tenant only.
+- **Web accounts (Supabase, added 2026-10-11, 07 §3b):** `tenant.json` may also hold `roles {principal: role}`,
+  `emails {principal: email}`, `invites {email: role}` and `membership_no {principal: no}`. A web principal is
+  `sb:<supabase user id>`; its role in a tenant comes **only** from that tenant's `roles` (never from Supabase metadata,
+  which the user can edit). It holds no role in the default tenant (the demo company stays token-only). An invite is
+  turned into a role the first time that e-mail's verified session is seen in the tenant.
 
 ## 1. Conventions (all files)
 

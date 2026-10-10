@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import cases, charts, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, tenants, trail, workpaper, yearend
+from app import accounts, cases, charts, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, tenants, trail, workpaper, yearend
 
 async def tenant_scope(x_tenant: Optional[str] = Header(None, alias="X-Tenant"),
                        authorization: Optional[str] = Header(None, alias="Authorization")):
@@ -82,6 +82,9 @@ def require(*roles):
     """Dependency: the Bearer token's role must be one of `roles` (identity comes only from the token)."""
     def dep(auth_header: Optional[str] = Header(None, alias="Authorization")) -> Dict[str, Any]:
         who = _get_identity(auth_header)
+        if who.get("role") is None:
+            raise HTTPException(status_code=403, detail="NO_ROLE: you have no role in this organisation. Create your "
+                                "own (onboarding) or ask its engagement partner to invite your e-mail")
         if who.get("role") not in roles:
             raise HTTPException(status_code=403, detail=f"PERMISSION_DENIED: role {who.get('role')} may not use this endpoint")
         return who
@@ -143,6 +146,8 @@ def token_login(req: TokenLoginRequest):
             "role": rec.get("role"),
             "name": rec.get("name", rec.get("principal")),
             "membership_no": rec.get("membership_no"),
+            "account": rec.get("account", "token"),
+            "email": rec.get("email"),
         }
     except LookupError:
         raise HTTPException(status_code=401, detail="Unknown or invalid token.")
@@ -759,7 +764,12 @@ def get_tenants(who: Dict[str, Any] = Depends(require(*AUDIT_ROLES, *CLIENT_ROLE
     """EX-4: the organisations this identity may open (the default for everyone; others by membership) + the active one."""
     active = (config.active_tenant() or {}).get("ENGAGEMENT_ID")
     items = []
+    mine = None
+    if who.get("account") == "supabase":            # web accounts see only the organisations they hold a role in
+        mine = {m["slug"] for m in accounts.memberships(who["token"])}
     for t in tenants.visible(who["principal"]):
+        if mine is not None and t["slug"] not in mine:
+            continue
         items.append({**tenants.public(t), **tenants.counts(t),
                       "active": (t["engagement_id"] == active) if active else t["default"]})
     return {"items": items}
@@ -776,6 +786,161 @@ def post_tenant(body: NewTenant, who: Dict[str, Any] = Depends(require(*AUDIT_RO
     trail.trail(who["principal"], who["role"], "tenants.create", {"slug": t["slug"]}, "OK", {"slug": t["slug"]},
                 transport="UI")
     return {**tenants.public(t), **tenants.counts(t)}
+
+
+# ---------------------------------------------------------------- Web accounts (Supabase) + onboarding (vault/07 §3b)
+
+def _signed_in(auth_header: Optional[str] = Header(None, alias="Authorization")) -> Dict[str, Any]:
+    """Any verified Supabase account, with or without a role (onboarding happens before the first role)."""
+    who = _get_identity(auth_header)
+    if who.get("account") != "supabase":
+        raise HTTPException(status_code=403, detail="PERMISSION_DENIED: this needs a signed-in web account, not an agent token")
+    return who
+
+
+class NewOrganisation(BaseModel):
+    name: str
+    pan: str
+    gstin: str
+    fy: str
+    membership_no: Optional[str] = None
+
+
+class Invite(BaseModel):
+    email: str
+    role: str
+
+
+@app.get("/api/auth/memberships")
+def get_memberships(who: Dict[str, Any] = Depends(_signed_in)):
+    """The organisations this web account holds a role in (pending invites for its e-mail are accepted here)."""
+    return {"email": who["email"], "items": accounts.memberships(who["token"])}
+
+
+@app.post("/api/onboarding/organization")
+def post_onboarding(body: NewOrganisation, who: Dict[str, Any] = Depends(_signed_in)):
+    """Create your organisation: an empty tenant (four databases, FY engagement). You become its engagement partner."""
+    try:
+        t = accounts.create_org(who["token"], body.name, body.pan, body.gstin, body.fy, body.membership_no)
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+    with tenants.scope(t["slug"]):
+        trail.trail(who["principal"], "engagement_partner", "onboarding.create_org", {"slug": t["slug"]}, "OK",
+                    {"slug": t["slug"]}, transport="UI")
+    return {**tenants.public(t), "role": "engagement_partner"}
+
+
+@app.get("/api/tenants/{slug}/members")
+def get_members(slug: str, who: Dict[str, Any] = Depends(_signed_in)):
+    try:
+        t = tenants.get(slug)
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+    if accounts.role_in(t, accounts.verify(who["token"])) != "engagement_partner":
+        raise HTTPException(status_code=403, detail="PERMISSION_DENIED: only the engagement partner sees the member list")
+    return accounts.members(slug)
+
+
+@app.post("/api/tenants/{slug}/invites")
+def post_invite(slug: str, body: Invite, who: Dict[str, Any] = Depends(_signed_in)):
+    """The engagement partner invites an e-mail with a role; it applies when that person signs in."""
+    try:
+        out = accounts.invite(who["token"], slug, body.email, body.role)
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+    except PermissionError as ex:
+        raise HTTPException(status_code=403, detail=str(ex))
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+    with tenants.scope(slug):
+        trail.trail(who["principal"], "engagement_partner", "tenants.invite", {"role": body.role}, "OK", out, transport="UI")
+    return out
+
+
+# ---------------------------------------------------------------- Client input (same services as the MCP client tools)
+
+def _client_upload(kind, content, filename, who):
+    if not content:
+        raise HTTPException(status_code=400, detail="INVALID_ARGUMENT: the file is empty")
+    sid = intake.submit(kind, content, filename, who["principal"])
+    out = intake.on_client_upload(sid)
+    return {"submission_id": sid, "sha256": out["sha256"], "rows_received": out.get("rows"),
+            "status": "received; the auditor has been notified"}
+
+
+@app.post("/api/client/sales-register")
+async def post_sales_register(file: UploadFile = File(...),
+                              who: Dict[str, Any] = Depends(require("accounts", "client_admin"))):
+    """The client's sales register (.xlsx or .csv), stored byte-for-byte with a server SHA-256, then reconciled (D0)."""
+    from starlette.concurrency import run_in_threadpool
+    content = await file.read()
+    return await run_in_threadpool(_client_upload, "SALES_REGISTER", content, file.filename or "sales_register.xlsx", who)
+
+
+@app.post("/api/client/related-parties")
+async def post_related_parties(file: UploadFile = File(...), who: Dict[str, Any] = Depends(require("client_admin"))):
+    """The related-party list (Ind AS 24 / s.2(76)), .csv or .xlsx, stored exactly as sent (D1/D2 run on it)."""
+    from starlette.concurrency import run_in_threadpool
+    content = await file.read()
+    return await run_in_threadpool(_client_upload, "RP_LIST", content, file.filename or "related_parties.csv", who)
+
+
+# kind -> (roles, erp service, accepted fields): the same roles and parameters as the client MCP tools (tools_client.py);
+# internal service arguments (id, invoice_no override, round-off) are not accepted from the web
+_RECORDS = {
+    "party": (("sales", "client_admin"), "create_party",
+              ("name", "tags", "kind", "pan", "gstin", "state_code", "address", "pincode", "phone", "email",
+               "bank_account", "ifsc")),
+    "invoice": (("accounts", "client_admin"), "issue_invoice",
+                ("so_id", "series", "invoice_date", "party_id", "lines", "place_of_supply", "irn", "register_irn",
+                 "tax_mode")),
+    "credit-note": (("accounts", "client_admin"), "issue_credit_note",
+                    ("lines", "cn_date", "reason", "reason_text", "scheme_id", "return_movement_id", "party_id")),
+    "journal": (("accounts", "client_admin"), "post_journal_entry", ("lines", "narration", "voucher_date", "aje_ref")),
+}
+
+
+@app.post("/api/client/records/{kind}")
+def post_record(kind: str, body: Dict[str, Any], who: Dict[str, Any] = Depends(require(*CLIENT_ROLES))):
+    """Manual ERP entry from the web forms: a party, invoice, credit note or journal, through erp.* (-> erp_log)."""
+    from app.toolkit import money_in, scrub
+    if kind not in _RECORDS:
+        raise HTTPException(status_code=404, detail=f"NOT_FOUND: kind is one of {', '.join(_RECORDS)}")
+    roles, fn, fields = _RECORDS[kind]
+    if who["role"] not in roles:
+        raise HTTPException(status_code=403, detail=f"PERMISSION_DENIED: role {who['role']} may not create a {kind}")
+    extra = sorted(set(body) - set(fields))
+    if extra:
+        raise HTTPException(status_code=400, detail=f"INVALID_ARGUMENT: unknown field(s) {', '.join(extra)} for a {kind}")
+    args = {k: v for k, v in body.items() if v not in (None, "")}
+    try:
+        if "lines" in args:
+            args["lines"] = money_in(args["lines"])     # rupee strings -> integer paise
+        res = getattr(erp, fn)(who["principal"], who["role"], **args)
+    except TypeError as ex:
+        raise HTTPException(status_code=400, detail=f"INVALID_ARGUMENT: {ex}")
+    except (ValueError, LookupError) as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+    except PermissionError as ex:
+        raise HTTPException(status_code=403, detail=str(ex))
+    except Exception as ex:  # noqa: BLE001 - ToolError from money_in carries a coded message
+        if type(ex).__name__ == "ToolError":
+            raise HTTPException(status_code=400, detail=str(ex))
+        raise
+    return {"result": scrub(res["result"]), "next_steps": res.get("next_steps", [])}
+
+
+@app.get("/api/client/lookups")
+def get_lookups(who: Dict[str, Any] = Depends(require(*CLIENT_ROLES))):
+    """Pick-lists for the entry forms: parties, items, recent invoices and the chart of accounts (ids + names)."""
+    with db.borrow("erp", who["role"]) as e:
+        q = lambda sql: [dict(r) for r in e.execute(sql).fetchall()]  # noqa: E731
+        return {
+            "parties": q("SELECT id, name, tags FROM parties ORDER BY name LIMIT 500"),
+            "items": q("SELECT id, name, hsn FROM items ORDER BY name LIMIT 500"),
+            "invoices": q("SELECT invoice_no, party_id, invoice_date FROM invoices ORDER BY invoice_date DESC LIMIT 200"),
+            "accounts": q("SELECT code, name FROM accounts ORDER BY code"),
+        }
 
 
 @app.post("/api/agents/csv-verify")

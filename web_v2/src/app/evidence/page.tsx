@@ -15,7 +15,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function EvidencePage() {
   const { user } = useAuth();
-  const isClient = !!user && ["sales", "warehouse", "accounts", "client_admin"].includes(user.role);
+  const isClient = !!user?.role && ["sales", "warehouse", "accounts", "client_admin"].includes(user.role);
   const [items, setItems] = useState<EvidenceRequestItem[]>([]);
   const [status, setStatus] = useState<string>("");
   const [loading, setLoading] = useState(true);

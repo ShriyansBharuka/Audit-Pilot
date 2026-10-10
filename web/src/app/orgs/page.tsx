@@ -4,10 +4,14 @@ import React, { useEffect, useState } from "react";
 import { api, getActiveTenant, setActiveTenant } from "@/lib/api";
 import { TenantItem } from "@/lib/types";
 import { AlertOctagon, Plus, RefreshCw } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { MembersPanel } from "@/components/MembersPanel";
 
 const EMPTY = { name: "", pan: "", gstin: "", fy: "2026-27" };
 
 export default function OrgsPage() {
+  const { user, refresh } = useAuth();
+  const web = user?.account === "supabase"; // e-mail accounts: roles live in the organisation, not the token
   const [orgs, setOrgs] = useState<TenantItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +44,8 @@ export default function OrgsPage() {
     e.preventDefault();
     setSaving(true);
     setFormError(null);
-    api
-      .createTenant({ ...form, pan: form.pan.toUpperCase(), gstin: form.gstin.toUpperCase() })
+    const body = { ...form, pan: form.pan.toUpperCase(), gstin: form.gstin.toUpperCase() };
+    (web ? api.createOrganisation(body).then(() => refresh()) : api.createTenant(body))
       .then(() => {
         setOpen(false);
         setForm(EMPTY);
@@ -173,6 +177,7 @@ export default function OrgsPage() {
           </form>
         </div>
       )}
+      {web && user?.role === "engagement_partner" && active !== "konkan" && <MembersPanel slug={active} />}
     </div>
   );
 }

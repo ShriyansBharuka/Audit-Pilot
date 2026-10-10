@@ -6,98 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { API_ERROR_EVENT, api } from "@/lib/api";
 import { AuditOverview } from "@/lib/types";
-import { AlertTriangle, ChevronDown, ChevronRight, KeyRound, LogOut, Shield, UserCheck, X } from "lucide-react";
-import { NAV, PRINTABLE, allHrefs, groupForPath, itemHrefs, type BadgeKey, type NavItem } from "@/lib/nav";
+import { AlertTriangle, ChevronDown, ChevronRight, LogOut, Shield, UserCheck, X } from "lucide-react";
+import { CLIENT_NAV, NAV, PRINTABLE, allHrefs, groupForPath, itemHrefs, type BadgeKey, type NavItem } from "@/lib/nav";
 import { SectionTabs } from "@/components/SectionTabs";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
 import { Landing } from "@/components/Landing";
+import { OnboardingScreen, SignInScreen, SignUpScreen } from "@/components/AuthScreens";
 
 const AUDIT_ROLES = ["audit_staff", "engagement_partner"];
+const AUTH_ROUTES = ["/signin", "/signup"];
 const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL || "http://localhost:8000/mcp";
-
-function LoginScreen() {
-  const { loginWithToken, identities } = useAuth();
-  const [token, setToken] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const quick = identities.filter((i) => i.token && i.role !== "orchestrator"); // orchestrator = n8n over MCP only
-
-  const submit = async (t: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await loginWithToken(t.trim());
-    } catch (e: any) {
-      setError(e.message || "Unknown token");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4">
-      <div className="w-full max-w-md glass-panel rounded-lg border border-slate-800 p-6 space-y-5">
-        <Link href="/" className="text-xs text-slate-500 hover:text-slate-300">← Back to home</Link>
-        <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
-            <Shield className="h-4 w-4 text-indigo-400" />
-          </div>
-          <div>
-            <div className="font-semibold text-slate-50">AuditPilot AI</div>
-            <div className="text-xs text-slate-400">Statutory revenue audit · sign in with your token</div>
-          </div>
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (token.trim()) submit(token);
-          }}
-          className="space-y-2"
-        >
-          <label className="text-xs text-slate-400 font-mono">Token (from the judge card)</label>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="aud_… / adm_… / ptn_…"
-            className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-sm font-mono text-slate-200"
-          />
-          <button
-            type="submit"
-            disabled={busy || !token.trim()}
-            className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/60 disabled:opacity-50 text-white text-sm font-medium flex items-center justify-center gap-2"
-          >
-            <KeyRound className="h-4 w-4" />
-            {busy ? "Checking…" : "Sign in"}
-          </button>
-          {error && <div className="text-xs text-rose-400">{error}</div>}
-        </form>
-        {quick.length > 0 && (
-          <div className="space-y-2 border-t border-slate-800 pt-4">
-            <div className="text-[11px]  text-slate-500 font-semibold">Demo personas (local only)</div>
-            <div className="grid grid-cols-2 gap-2">
-              {quick.map((i) => (
-                <button
-                  key={i.principal}
-                  onClick={() => submit(i.token)}
-                  className="p-2 rounded-lg border border-slate-800 bg-slate-900 hover:border-slate-600 text-left text-xs"
-                >
-                  <div className="text-slate-200">{i.name}</div>
-                  <div className="text-[11px] text-slate-500 font-mono">{i.role.replace("_", " ")}</div>
-                </button>
-              ))}
-            </div>
-            <div className="text-[11px] text-slate-500">The engagement partner always signs in with their own token.</div>
-          </div>
-        )}
-        <div className="text-xs text-slate-500 border-t border-slate-800 pt-3">
-          AI agents connect over MCP instead: <code className="text-indigo-400">{MCP_URL}</code> with{" "}
-          <code className="text-indigo-400">Authorization: Bearer &lt;token&gt;</code>.
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function Navigation({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -123,9 +41,9 @@ export function Navigation({ children }: { children: React.ReactNode }) {
 
   // signed in and on /signin: go to the workspace
   useEffect(() => {
-    if (user && pathname === "/signin") router.replace(AUDIT_ROLES.includes(user.role) ? "/" : "/evidence");
+    if (user && AUTH_ROUTES.includes(pathname)) router.replace(user.role && AUDIT_ROLES.includes(user.role) ? "/" : "/evidence");
   }, [user, pathname, router]);
-  const isAudit = !!user && AUDIT_ROLES.includes(user.role);
+  const isAudit = !!user && !!user.role && AUDIT_ROLES.includes(user.role);
 
   // auto-open the group (and the item) that holds the current page
   useEffect(() => {
@@ -142,8 +60,10 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Loading…</div>;
   }
-  if (!user) return pathname === "/" ? <Landing /> : <LoginScreen />;
-  if (pathname === "/signin") {
+  if (!user) return pathname === "/" ? <Landing /> : pathname === "/signup" ? <SignUpScreen /> : <SignInScreen />;
+  // a web account that belongs to no organisation yet: create one, or wait for an invite
+  if (user.account === "supabase" && !user.memberships?.length) return <OnboardingScreen />;
+  if (AUTH_ROUTES.includes(pathname)) {
     return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Signing in…</div>;
   }
 
@@ -162,8 +82,8 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   // the client only ever sees its evidence requests, never the audit's reasons (vault 05 sampling)
   const groups = isAudit
     ? NAV
-    : [{ key: "client", label: "Client portal", defaultOpen: true, items: NAV[0].items.filter((i) => i.href === "/evidence") }];
-  const allowed = isAudit ? allHrefs().includes(pathname) : pathname === "/evidence";
+    : [{ key: "client", label: "Client portal", defaultOpen: true, items: CLIENT_NAV }];
+  const allowed = isAudit ? allHrefs().includes(pathname) : CLIENT_NAV.some((i) => i.href === pathname);
 
   const navLink = (item: NavItem) => {
     const Icon = item.icon;
@@ -293,11 +213,11 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                 className="h-8 flex items-center space-x-2 hover:bg-slate-800 px-2 rounded-md text-xs text-slate-200 transition"
               >
                 <div className="h-6 w-6 rounded-full bg-slate-700 text-slate-200 flex items-center justify-center font-medium text-[11px]">
-                  {user.role === "engagement_partner" ? "EP" : user.role.slice(0, 2).toUpperCase()}
+                  {user.role === "engagement_partner" ? "EP" : (user.role || user.name).slice(0, 2).toUpperCase()}
                 </div>
                 <div className="text-left">
                   <div className="leading-tight font-medium">{user.name || user.principal}</div>
-                  <div className="text-[11px] text-slate-400 leading-tight">{user.role.replace("_", " ")}</div>
+                  <div className="text-[11px] text-slate-400 leading-tight">{(user.role || "no role").replace("_", " ")}</div>
                 </div>
                 <ChevronDown className="h-3 w-3 text-slate-400 ml-1" />
               </button>

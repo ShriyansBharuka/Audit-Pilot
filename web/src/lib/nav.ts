@@ -7,7 +7,9 @@ import {
   GitCommit,
   Layers,
   LineChart,
+  PencilLine,
   Sliders,
+  Upload,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -71,6 +73,13 @@ export const NAV: NavGroup[] = [
       { href: "/trail", label: "Audit trail", icon: GitCommit },
     ],
   },
+];
+
+/** The client's portal: its evidence requests and its own data (never the audit's reasons, vault 05). */
+export const CLIENT_NAV: NavItem[] = [
+  { href: "/evidence", label: "Evidence", icon: FolderOpen, badge: "requests" },
+  { href: "/upload", label: "Upload data", icon: Upload },
+  { href: "/records", label: "Enter records", icon: PencilLine },
 ];
 
 /** Every route an item covers: its own href plus its tab routes. */

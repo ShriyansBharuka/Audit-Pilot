@@ -88,7 +88,7 @@ export function Landing() {
           </nav>
           <div className="flex items-center gap-2">
             <Link href="/signin" className="h-8 px-3 text-[13px] text-slate-300 hover:text-slate-50 flex items-center">Sign in</Link>
-            <Link href="/signin" className="h-8 px-3.5 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 text-[13px] font-medium text-white flex items-center">
+            <Link href="/signup" className="h-8 px-3.5 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 text-[13px] font-medium text-white flex items-center">
               Get started
             </Link>
           </div>
@@ -109,7 +109,7 @@ export function Landing() {
               rules, and hands the partner a draft memo with proposed entries. The software does the testing. People sign off.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/signin" className="h-10 px-5 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 text-sm font-medium text-white flex items-center gap-2">
+              <Link href="/signup" className="h-10 px-5 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 text-sm font-medium text-white flex items-center gap-2">
                 Get started <ArrowRight className="h-4 w-4" />
               </Link>
               <a href="#how" className="h-10 px-5 rounded-md border border-slate-700 hover:bg-slate-800 text-sm text-slate-200 flex items-center">
@@ -230,7 +230,7 @@ export function Landing() {
           <div className="mx-auto max-w-6xl rounded-2xl border border-slate-800 bg-[radial-gradient(ellipse_at_bottom,rgba(62,207,142,0.12),transparent_65%)] bg-slate-900 px-6 py-16 text-center">
             <h2 className="text-2xl font-medium tracking-tight text-slate-50 md:text-4xl">Run your next revenue audit on 100% of the books</h2>
             <p className="mx-auto mt-4 max-w-xl text-[15px] text-slate-400">Upload the client&apos;s register and related-party list, and see the first findings in minutes.</p>
-            <Link href="/signin" className="mt-8 inline-flex h-10 items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 px-5 text-sm font-medium text-white">
+            <Link href="/signup" className="mt-8 inline-flex h-10 items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 px-5 text-sm font-medium text-white">
               Get started <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -249,7 +249,7 @@ export function Landing() {
           {[
             { h: "Product", l: [["Overview", "#product"], ["How it works", "#how"], ["Integrations", "#integrations"]] },
             { h: "Trust", l: [["Controls", "#trust"], ["Standards", "#trust"]] },
-            { h: "Account", l: [["Sign in", "/signin"], ["Get started", "/signin"]] },
+            { h: "Account", l: [["Sign in", "/signin"], ["Get started", "/signup"]] },
           ].map((c) => (
             <div key={c.h}>
               <div className="text-[13px] font-medium text-slate-300">{c.h}</div>
