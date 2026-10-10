@@ -147,40 +147,23 @@ SERVICES = ("create_party", "link_parties", "create_item", "create_lead", "creat
             "amend_record", "cancel_document", "import_records", "export_sales_register", "render_document")
 
 TAGS = {"SELF", "CUSTOMER", "VENDOR", "TRANSPORTER", "DIRECTOR", "KMP", "RELATIVE"}
-_KEEP = {}            # role -> open connection while keep_open() is active (bulk loads: the seeder, replay)
-
-
-@contextmanager
-def keep_open():
-    """Reuse one erp connection per role for many service calls (the seeder's ~36k calls); closes them after."""
-    _KEEP["active"] = True
-    try:
-        yield
-    finally:
-        _KEEP.pop("active", None)
-        for k in [k for k in _KEEP]:
-            _KEEP.pop(k).close()
+keep_open = db.keep_open          # bulk loads (the seeder, replay): one connection per (db, role)
 
 
 @contextmanager
 def _session(role):
     """One erp transaction for one service call; AuditGraph events fire only after COMMIT."""
-    cached = _KEEP.get(role) if _KEEP.get("active") else None
-    c = cached or db.connect("erp", role)
-    if _KEEP.get("active") and cached is None:
-        _KEEP[role] = c
-    ok = False
-    try:
-        with db.tx(c):
-            yield c
-        ok = True
-    finally:
-        if ok:
-            flush_events(c)
-        else:
-            discard_events(c)
-        if c is not _KEEP.get(role):
-            c.close()
+    with db.borrow("erp", role) as c:
+        ok = False
+        try:
+            with db.tx(c):
+                yield c
+            ok = True
+        finally:
+            if ok:
+                flush_events(c)
+            else:
+                discard_events(c)
 
 
 def _ok(result, *steps):
@@ -216,9 +199,11 @@ def _one_of(v, name, allowed):
 
 
 def _next_id(c, table, col, prefix, width):
-    r = c.execute(f"SELECT MAX(CAST(substr({col}, ?) AS INTEGER)) FROM {table} WHERE {col} LIKE ?",
-                  (len(prefix) + 1, prefix + "%")).fetchone()[0]
-    return f"{prefix}{(r or 0) + 1:0{width}d}"
+    """Next zero-padded id after the highest numeric one (a primary-key range seek; 'P-DIR1' style ids are skipped)."""
+    r = c.execute(f"SELECT {col} FROM {table} WHERE {col} >= ? AND {col} < ? ORDER BY {col} DESC LIMIT 1",
+                  (prefix + "0", prefix + ":")).fetchone()
+    n = int(re.match(r"\d*", r[0][len(prefix):]).group() or 0) if r else 0
+    return f"{prefix}{n + 1:0{width}d}"
 
 
 def fy_start(d):
@@ -524,15 +509,12 @@ def generate_eway_bill(actor, role, invoice_id=None, vehicle_no=None, distance_k
     """Register an e-way bill on the mock portal for an invoice. value_override_paise plants a value mismatch."""
     _one_of(reason, "reason", ("SUPPLY", "JOB_WORK", "SKD", "LINE_SALES", "OWN_USE", "EXHIBITION", "RETURN", "OTHERS"))
     distance_km = _int(distance_km, "distance_km")
-    c = db.connect("erp", role)
-    try:
+    with db.borrow("erp", role) as c:
         inv = _get(c, "invoice", invoice_id)
         party = _get(c, "party", inv["party_id"])
         taxable, tax = _invoice_totals(c, inv["id"])
         hsn = c.execute("SELECT hsn FROM invoice_lines WHERE invoice_id = ? AND hsn NOT LIKE '99%' ORDER BY line_no LIMIT 1",
                         (inv["id"],)).fetchone()
-    finally:
-        c.close()
     value = taxable + tax if value_override_paise is None else _int(value_override_paise, "value_override_paise")
     ewb = portal.generate_eway_bill(
         supplier_gstin=inv["supplier_gstin"], doc_type="INV", doc_no=inv["invoice_no"], doc_date=inv["invoice_date"],

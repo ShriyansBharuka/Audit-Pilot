@@ -104,6 +104,7 @@ UNITS = {
 
 # ---------------------------------------------------------------- engagement defaults (audit.engagements)
 
+ENGAGEMENT_ID = "ENG-2025-26"                   # one engagement per FY; created on the first client upload
 FRAMEWORK = "IND_AS"
 PERIOD_START = "2025-04-01"
 PERIOD_END = "2026-03-31"                       # drives every date default (04 §3.5); configure_engagement overrides

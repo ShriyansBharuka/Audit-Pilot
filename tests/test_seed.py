@@ -33,9 +33,11 @@ def test_same_seed_same_company(plan):
 
 def test_masters(plan):
     parties = plan["parties"]
-    tags = Counter(p["tags"] for p in parties)
+    core = [p for p in parties if not p["id"].startswith("P-NET")]
+    tags = Counter(p["tags"] for p in core)
     assert tags["SELF"] == 1 and tags["CUSTOMER"] == 150
     assert tags["DIRECTOR"] == 4 and tags["KMP"] == 2 and tags["RELATIVE"] == 4
+    assert tags["VENDOR,CUSTOMER"] == 1                        # the job-work partner (05 §19.10 control)
     assert tags["TRANSPORTER"] >= 3 and tags["VENDOR"] >= 3
     ids = {it["id"] for it in plan["items"]}
     assert {"CHG-PACKING", "CHG-FREIGHT", "CHG-INSURANCE"} <= ids
@@ -78,7 +80,7 @@ def test_sales_clean_and_in_range(plan):
     fy_end = date(2026, 3, 31)
     fy = [s for s in plan["sales"] if date.fromisoformat(s["invoice_date"]) <= fy_end]
     post = [s for s in plan["sales"] if date.fromisoformat(s["invoice_date"]) > fy_end]
-    assert len(fy) == 300 and len(post) >= 15                      # cut-off needs the first 15 after
+    assert len(fy) == 300 + 3 and len(post) >= 15                  # + 3 network sales; cut-off needs 15 after
     units = Counter(s["unit"] for s in plan["sales"])
     assert units["G2"] and units["G11"]
     for s in plan["sales"]:
@@ -106,10 +108,26 @@ def test_events_replay_in_dependency_order(plan):
     for e in evs:
         for ref in e["refs"].values():
             assert ref in produced, (e["service"], ref)
-        if e["out"]:
-            produced.add(e["out"][0])
-    assert Counter(e["service"] for e in evs)["issue_invoice"] == len(plan["sales"])
+        produced |= set(e["out"])
+    n = Counter(e["service"] for e in evs)
+    assert n["issue_invoice"] == len(plan["sales"]) == n["record_receipt"]     # clean year: every sale is paid
+    assert n["file_gstr1"] == len({s["invoice_date"][:7] for s in plan["sales"]})
+    assert n["record_purchase"] == len(plan["purchases"]) and n["record_payment"] >= 3
     assert min(e["at"] for e in evs) > seed.MASTERS_AT
+
+
+def test_network_closes_cycles_through_self(plan):
+    by = {s["key"]: s for s in plan["sales"]}
+    pb = {p["key"]: p for p in plan["purchases"]}
+    cyc, cash, ctrl = plan["network"]
+    a, b = by["S-N0001"], pb["PB-N1"]                                         # goods cycle within 20 days, qty within 10%
+    assert a["lines"][0]["item_id"] == b["item_id"] and abs(a["lines"][0]["qty"] - b["qty"]) <= 0.1 * b["qty"]
+    assert (date.fromisoformat(b["bill_date"]) - date.fromisoformat(a["invoice_date"])).days <= 20
+    s = by["S-N0002"]                                                         # cash: paid out, then 'repaid' within 2%
+    assert abs(s["total_paise"] - cash["amount_paise"]) <= 0.02 * cash["amount_paise"] and s["pay_on"] == "2026-03-14"
+    links = {l["id"]: l for l in plan["links"]}
+    assert all(v in links for v in cyc["via"] + cash["via"]) and ctrl["code"] is None
+    assert not any(l["to_party"] == "SELF" for l in plan["links"] if l["id"].startswith("L-9"))   # not an RP of SELF
 
 
 def test_identities_cover_every_role():

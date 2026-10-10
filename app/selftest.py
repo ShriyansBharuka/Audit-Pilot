@@ -279,23 +279,56 @@ def run():
         return inv["invoice_no"]
 
     # 07 §8.6 end to end, in order; each step needs the listed modules to be real
-    e2e = [("seed 300 invoices through erp services", ("erp", "ledger", "portal", "chain")),
-           ("export register (Fig. 1) + doctored upload", ("erp", "intake")),
-           ("D0 reconcile + D1/D2 on the frozen register", ("intake",)),
-           ("run_analytics", ("analytics",)),
-           ("select_samples x3 + reproduce identical", ("sampling", "trail")),
-           ("render/upload evidence (one forged) -> test_sample flags it", ("evidence",)),
-           ("amend LR date after testing -> check_for_changes names the sample", ("evidence", "erp")),
-           ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain")),
-           ("findings + AJEs, workpaper xlsx, memo", ("findings", "workpaper", "memo")),
-           ("risk graph: company band", ("risk_graph",)),
-           ("partner confirm + sign-off; verify_trail OK", ("trail", "findings"))]
-    for name, owners in e2e:
+    W = {}                                       # state shared by the E2E steps
+
+    def e2e_seed():
+        import time
+        from app import seed
+        t0 = time.perf_counter()
+        W["plan"] = seed.build_plan(300, 7)
+        seed.load(W["plan"], reset=True)
+        config.set_clock("2026-10-05T10:00:00+05:30")
+        from app import chain, erp
+        with db.borrow("erp", "audit_staff") as e:
+            assert chain.verify(e, "erp_log")["valid"] and erp.out_of_band(e) == []
+            n = e.execute("SELECT count(*) FROM invoices").fetchone()[0]
+        return f"{n} invoices in {time.perf_counter() - t0:.1f}s"
+
+    def e2e_upload():
+        from app import erp, intake
+        exp = erp.export_sales_register("acc.neha", "accounts")["result"]
+        content, name = intake.build_register(exp["export_id"], edits=[{"row_no": 2, "column": "Total Cost", "value": 1}],
+                                              drop_rows=[5], add_rows=[{"Bill no.": "G2/9999/25", "Date": "15-01-2026",
+                                                                        "Customer": "Ghost Traders", "Total Cost": 5000}])
+        W["upload"] = intake.on_client_upload(intake.submit("SALES_REGISTER", content, name, "acc.neha"))
+        return f"{W['upload']['rows']} rows, {W['upload']['d0_hits']} D0 hits"
+
+    def e2e_d0():
+        with db.borrow("audit", "audit_staff") as a:
+            codes = {r[0] for r in a.execute("SELECT code FROM risk_hits WHERE detector = 'D0'")}
+            rp = a.execute("SELECT count(*) FROM risk_hits WHERE detector IN ('D1','D2')").fetchone()[0]
+        assert {"NOT_IN_SOR", "MISSING_FROM_REGISTER", "TAXABLE_DIFF"} <= codes, codes
+        return f"D0 codes {sorted(codes)}; {rp} D1/D2 hits (no RP list uploaded: group companies undisclosed)"
+
+    e2e = [("seed 300 invoices through erp services", ("erp", "ledger", "portal", "chain"), e2e_seed),
+           ("export register (Fig. 1) + doctored upload", ("erp", "intake"), e2e_upload),
+           ("D0 reconcile + D1/D2 on the frozen register", ("intake",), e2e_d0),
+           ("run_analytics", ("analytics",), None),
+           ("select_samples x3 + reproduce identical", ("sampling", "trail"), None),
+           ("render/upload evidence (one forged) -> test_sample flags it", ("evidence",), None),
+           ("amend LR date after testing -> check_for_changes names the sample", ("evidence", "erp"), None),
+           ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain"), None),
+           ("findings + AJEs, workpaper xlsx, memo", ("findings", "workpaper", "memo"), None),
+           ("risk graph: company band", ("risk_graph",), None),
+           ("partner confirm + sign-off; verify_trail OK", ("trail", "findings"), None)]
+    for name, owners, fn in e2e:
         stubs = [o for o in owners if is_stub(o)]
 
         @step(f"E2E: {name}")
-        def _(stubs=stubs):
-            return f"SKIP (stub: {', '.join(stubs)})" if stubs else "SKIP (SH-6 wires this step)"
+        def _(stubs=stubs, fn=fn):
+            if stubs:
+                return f"SKIP (stub: {', '.join(stubs)})"
+            return fn() if fn else "SKIP (SH-6 wires this step)"
 
 
 def main():

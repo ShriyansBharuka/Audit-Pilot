@@ -15,8 +15,21 @@ class Refused(ValueError):
     """The portal said no (24 h cancellation window, duplicate IRN, already filed): the caller decides."""
 
 
+class _Conn:
+    """db.borrow as a plain object, so the functions below keep their simple open / try / finally close shape."""
+    def __init__(self, name, role):
+        self._cm = db.borrow(name, role)
+        self.c = self._cm.__enter__()
+
+    def __getattr__(self, k):
+        return getattr(self.c, k)
+
+    def close(self):
+        self._cm.__exit__(None, None, None)
+
+
 def _conn():
-    return db.connect("ext", "portal")
+    return _Conn("ext", "portal")
 
 
 def fy_label(iso_date):
@@ -142,7 +155,7 @@ def _books_for(gstin, period):
         raise Refused("INVALID_ARGUMENT: gstin is not one of the company's registrations "
                       f"({', '.join(v['gstin'] for v in config.UNITS.values())})")
     month = f"{period[:4]}-{period[4:6]}"
-    e = db.connect("erp", "portal")
+    e = _Conn("erp", "portal")
     try:
         docs = []
         for r in e.execute(

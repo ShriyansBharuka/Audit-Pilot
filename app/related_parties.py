@@ -377,9 +377,120 @@ def status_on(r, on):
     return "NRP", ""
 
 
+# ---------------------------------------------------------------- the client's RP list (rp_list_rows)
+
+RP_SYNONYMS = {
+    "name": ["name", "party", "partyname", "relatedparty", "nameofrelatedparty", "nameoftherelatedparty", "entity",
+             "person"],
+    "pan": ["pan", "panno", "pannumber"],
+    "gstin": ["gstin", "gstno", "gstnumber", "gstinno"],
+    "relation": ["relation", "relationship", "natureofrelationship", "nature", "category"],
+    "effective_from": ["effectivefrom", "from", "fromdate", "since", "startdate", "relatedfrom", "datefrom"],
+    "effective_to": ["effectiveto", "to", "todate", "till", "enddate", "relatedto", "dateto", "ceasedon"],
+}
+
+
+def map_rp_rows(headers, rows):
+    """RP-list rows (register.parse_verbatim output) -> mapped_json dicts with row_no. Unknown columns are ignored;
+    a list without a name column can't be traced and raises INVALID_ARGUMENT."""
+    from app.register import _norm_header, to_iso_date
+    look = {s: f for f, ss in RP_SYNONYMS.items() for s in ss}
+    idx = {}
+    for i, h in enumerate(headers):
+        f = look.get(_norm_header(h))
+        if f and f not in idx:
+            idx[f] = i
+    if "name" not in idx:
+        raise ValueError("INVALID_ARGUMENT: the related-party list needs a 'Name' column (plus PAN/GSTIN, Relation, "
+                         "Effective From/To where known)")
+    out = []
+    for r in rows:
+        v = lambda f: r["cells"][idx[f]]["v"] if f in idx else None
+        if v("name") in (None, ""):
+            continue
+        out.append({"row_no": r["row_no"], "name": str(v("name")), "pan": v("pan"), "gstin": v("gstin"),
+                    "relation": v("relation"), "effective_from": to_iso_date(v("effective_from")),
+                    "effective_to": to_iso_date(v("effective_to"))})
+    return out
+
+# ---------------------------------------------------------------- DB wiring
+
+_FIELD_KIND = {"pan": "PAN", "gstin": "PAN", "bank_account": "BANK", "phone": "PHONE", "email": "EMAIL",
+               "address": "ADDRESS"}
+_CACHE = {}           # engagement_id -> (erp head seq, rp map)
+
+
+def identifier_since(e):
+    """{(party_id, kind): 'YYYY-MM-DD'} when each party's current identifier first appeared (erp_log), so a bank
+    account switched to a director's on 15 Oct dates the relationship from 15 Oct (B4), not from the party's creation."""
+    import json
+    first = {}
+    for r in e.execute("SELECT doc_id, recorded_at, after_json FROM erp_log WHERE doc_type = 'party' ORDER BY seq"):
+        h = json.loads(r["after_json"])["header"]
+        for field, kind in _FIELD_KIND.items():
+            key = (r["doc_id"], field)
+            val = h.get(field)
+            if key not in first or first[key][0] != val:
+                first[key] = (val, r["recorded_at"][:10])
+    out = {}
+    for (pid, field), (_val, since) in first.items():
+        k = (pid, _FIELD_KIND[field])
+        out[k] = max(out.get(k, since), since)
+    return out
+
+
 def run_d1_d2(engagement_id):
-    raise NotImplementedError("related_parties.run_d1_d2: waiting for app.db (SH-2); pure core is analyse()")
+    """D1 + D2 over the whole population (+ the [REG] GSTIN checks on the frozen register). Writes risk_hits for
+    D1/D2 and caches the RP map for rp_status / Sheet 1 / sampling. Returns the hits."""
+    import json
+
+    from app import analytics, chain, config, db
+    with db.borrow("audit", "system") as a:
+        eng = a.execute("SELECT * FROM engagements WHERE id = ?", (engagement_id,)).fetchone()
+        if eng is None:
+            raise ValueError("PRECONDITION_FAILED: no engagement yet; it starts with the client's first upload")
+        rp_rows = [json.loads(r[0]) for r in a.execute("SELECT mapped_json FROM rp_list_rows WHERE submission_id = ?"
+                                                       " ORDER BY row_no", (eng["rp_submission_id"] or "",))]
+        reg = [json.loads(r[0]) for r in a.execute("SELECT mapped_json FROM register_rows WHERE submission_id = ?"
+                                                   " ORDER BY row_no", (eng["register_submission_id"] or "",))]
+    with db.borrow("erp", "system") as e:
+        parties = [dict(r) for r in e.execute("SELECT * FROM parties")]
+        links = [dict(r) for r in e.execute("SELECT * FROM party_links")]
+        invoices = _invoice_population(e)
+        since = identifier_since(e)
+        head = chain.head(e, "erp_log")[0]
+    res = analyse(parties, links, rp_rows, eng["period_start"], eng["period_end"], invoices, since)
+    hits = res["hits"] + gstin_hits_register(reg)
+    analytics.save_hits(engagement_id, f"D1-{config.now()}", hits, {"D1", "D2"})
+    _CACHE[engagement_id] = (head, res["rp"])
+    return hits
+
+
+def _invoice_population(e):
+    """[{id, party_id, control_date, taxable_paise}] for ISSUED invoices. control_date comes from D3 when the
+    analytics module provides it, else the invoice date (05 D2 tags RP status on the control date)."""
+    try:
+        from app.analytics import control_dates
+        cd = control_dates(e)
+    except ImportError:
+        cd = {}
+    return [{"id": r[0], "party_id": r[1], "control_date": cd.get(r[0]) or r[2], "taxable_paise": r[3]}
+            for r in e.execute("SELECT i.id, i.party_id, i.invoice_date, COALESCE(SUM(l.taxable_paise), 0)"
+                               " FROM invoices i LEFT JOIN invoice_lines l ON l.invoice_id = i.id"
+                               " WHERE i.status = 'ISSUED' GROUP BY i.id")]
+
+
+def rp_map(engagement_id=None):
+    """The current {party_id: windows} map (recomputed when the books moved since the last run)."""
+    from app import chain, config, db
+    eid = engagement_id or config.ENGAGEMENT_ID
+    with db.borrow("erp", "system") as e:
+        head = chain.head(e, "erp_log")[0]
+    if _CACHE.get(eid, (None,))[0] != head:
+        run_d1_d2(eid)
+    return _CACHE[eid][1]
 
 
 def rp_status(party_id, on_date):
-    raise NotImplementedError("related_parties.rp_status: waiting for app.db (SH-2); pure core is status_on()")
+    """(status, basis) for a party on a date, for the current engagement (05 D2)."""
+    return status_on(rp_map().get(party_id), on_date)

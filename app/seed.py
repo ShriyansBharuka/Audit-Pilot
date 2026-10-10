@@ -2,11 +2,12 @@
 
     python -m app.seed --reset [--invoices 7000] [--seed 7] [--plan-only]
 
-DA-1a (today): SELF + units G2 (Maharashtra, 27) and G11 (Goa, 30); ~150 customers incl. declared group
-companies, unregistered buyers and exporters; ~40 items + service lines + CHG items; directors / KMP /
-relatives with MBP-1 / DIR-12 links; transporters, vendors; clean sale lifecycles (enquiry -> SO ->
-invoice -> e-way bill -> dispatch -> POD) for the FY plus Apr-May 2026; identities.json + judge card.
-DA-1 adds receipts + bank, schemes, CNs, GST filings, plants and data/answer_key.json.
+SELF + units G2 (Maharashtra, 27) and G11 (Goa, 30); ~150 customers incl. declared group companies,
+unregistered buyers and exporters; ~40 items + service lines + CHG items; directors / KMP / relatives with
+MBP-1 / DIR-12 links; transporters, vendors; clean sale lifecycles (enquiry -> SO -> invoice -> e-way bill
+-> dispatch -> POD -> receipt) for the FY plus Apr-May 2026; monthly GSTR-1; routine purchases + payments;
+the synthetic trading network of 05 §19.10 (goods cycle, 3-hop cash round trip, job-work control);
+identities.json + judge card. Plants (DA-1, 08 §5) and data/answer_key.json come on top of this clean year.
 
 The plan is pure data from one recorded seed, so it is testable without a database. load() pushes it
 through the erp services (07 §4) in entry-time order, so erp_log seq follows the order a real client
@@ -22,6 +23,8 @@ import sys
 import time
 from datetime import date, timedelta
 from pathlib import Path
+
+from app import config
 
 FY_START, FY_END = date(2025, 4, 1), date(2026, 3, 31)
 POST_END = date(2026, 5, 31)                  # post-period docs for cut-off (first 15 after) and D9
@@ -93,13 +96,8 @@ def _ts(d, minutes):
 
 # ---------------------------------------------------------------- the company
 
-SELF_PAN = "AAKCK4821M"                       # 4th char C = company, 5th K = Konkan
-UNITS = {
-    "G2": {"name": "Ratnagiri works", "state_code": "27", "gstin": make_gstin("27", SELF_PAN),
-           "address": "Plot B-21, MIDC Mirjole, Ratnagiri", "pincode": "415639", "vehicle_rto": "MH08"},
-    "G11": {"name": "Verna works", "state_code": "30", "gstin": make_gstin("30", SELF_PAN),
-            "address": "Plot L-54, Verna Industrial Estate, Salcete", "pincode": "403722", "vehicle_rto": "GA08"},
-}
+SELF_PAN = config.SELF_PAN                    # 4th char C = company, 5th K = Konkan
+UNITS = config.UNITS                          # the unit master lives in config (app code must not import seed)
 SELF_DOMAIN = "konkanmarine.in"
 
 # (city, pincodes, streets) per state; addresses are fictional
@@ -500,18 +498,149 @@ def _lost_leads(rng, n, parties):
                       "contact_email": p["email"]})
     return leads
 
+# ---------------------------------------------------------------- synthetic trading network (05 §19.10)
+
+# External fictional group: Mandovi Valve Traders (customer B) and Zuari Engineering Supplies (vendor C) share a
+# director; Sal Marine Agencies (customer) is run by his relative. Not related to SELF, so nothing here is an RP.
+NETWORK_PARTIES = [
+    ("P-NET1", "ENTITY", "CUSTOMER", "Mandovi Valve Traders Pvt Ltd", "AANCM6611Q", "30",
+     "Plot 18, Kundaim Industrial Estate, Ponda", "403115", "7000000101", "purchase@mandovivalves.in", "770011223344", "UTIB0000881"),
+    ("P-NET2", "ENTITY", "VENDOR", "Zuari Engineering Supplies Pvt Ltd", "AAKCZ7720R", "30",
+     "Shed 7, Sancoale Industrial Estate, Zuarinagar", "403726", "7000000102", "sales@zuarieng.in", "770022334455", "UTIB0000882"),
+    ("P-NET3", "ENTITY", "CUSTOMER", "Sal Marine Agencies LLP", "ABFFS4410K", "27",
+     "Unit 41, Turbhe MIDC, Navi Mumbai", "400705", "7000000103", "accounts@salmarine.in", "770033445566", "KKBK0000883"),
+    ("P-NETD1", "PERSON", "DIRECTOR", "Sanjay Kerkar", "BQKPK5521D", "30",
+     "House 12, Altinho, Panaji", "403001", "7000000104", "sanjay.kerkar@mailbox.in", "770044556677", "HDFC0000884"),
+    ("P-NETD2", "PERSON", "RELATIVE", "Rhea Kerkar", "CRMPK6632E", "30",
+     "House 12A, Altinho, Panaji", "403001", "7000000105", None, "770055667788", "HDFC0000885"),
+]
+NETWORK_LINKS = [("L-901", "P-NETD1", "P-NET1", "DIRECTOR_OF", "2019-06-01"),
+                 ("L-902", "P-NETD1", "P-NET2", "DIRECTOR_OF", "2018-01-15"),
+                 ("L-903", "P-NETD2", "P-NETD1", "RELATIVE_OF", "2000-01-01"),
+                 ("L-904", "P-NETD2", "P-NET3", "PARTNER_OF", "2021-07-01")]
+
+
+def _manual_sale(key, cust, unit, inv_date, lines, credit_days, trn, vehicle, km, lr_no, enquired_days=20):
+    taxable = sum(ln["qty"] * ln["rate_paise"] - ln["discount_paise"] for ln in lines)
+    tax = sum(_tax_paise(ln["qty"] * ln["rate_paise"] - ln["discount_paise"], 1800) for ln in lines)
+    d = date.fromisoformat(inv_date)
+    s = {"key": key, "unit": unit, "party_id": cust["id"], "invoice_date": inv_date, "place_of_supply": cust["state_code"],
+         "is_service": False, "lines": lines, "taxable_paise": taxable, "tax_paise": tax, "total_paise": taxable + tax,
+         "so": {"party_id": cust["id"], "channel": "EMAIL", "enquired_on": (d - timedelta(days=enquired_days)).isoformat(),
+                "quoted_on": (d - timedelta(days=enquired_days - 3)).isoformat(),
+                "confirmed_on": (d - timedelta(days=enquired_days - 6)).isoformat(), "contact_name": "Purchase desk",
+                "contact_phone": cust["phone"], "contact_email": cust["email"], "customer_po_no": f"PO/{key}",
+                "delivery_terms": "FOR_DISPATCH", "credit_days": credit_days,
+                "lines": [{k: ln[k] for k in ("item_id", "qty", "rate_paise", "discount_paise")} for ln in lines]},
+         "dispatch": {"moved_on": inv_date, "transporter_id": trn, "vehicle_no": vehicle, "lr_no": lr_no, "lr_date": inv_date,
+                      "from_pincode": UNITS[unit]["pincode"], "to_pincode": cust["pincode"], "distance_km": km,
+                      "lines": [{"item_id": ln["item_id"], "qty": ln["qty"]} for ln in lines]},
+         "delivery": {"delivered_on": (d + timedelta(days=0 if km < 120 else (km + 349) // 350)).isoformat(),
+                      "received_by": "Stores", "recorded_lag_days": 0},
+         "ewb": taxable + tax > EWB_THRESHOLD_PAISE}
+    return s
+
+
+def _network(parties, items):
+    """05 §19.10: parties + links + the sales, purchases and payments that close cycles through SELF.
+    Returns (parties, links, sales, purchases, payments, expectations)."""
+    by_id = {p["id"]: p for p in parties}
+    new = [_party(i, k, t, n, pan, make_gstin(st, pan) if k == "ENTITY" else None, st, a, pin, ph, em, acct, ifsc)
+           for i, k, t, n, pan, st, a, pin, ph, em, acct, ifsc in NETWORK_PARTIES]
+    links = [{"id": i, "from_party": f, "to_party": t, "relation": r, "pct_bp": None, "effective_from": since,
+              "effective_to": None, "source": "OTHER"} for i, f, t, r, since in NETWORK_LINKS]
+    net = {p["id"]: p for p in new}
+    by_id["P-VEN2"]["tags"] = "VENDOR,CUSTOMER"          # job-work partner: buys repair kits, sells machined bodies
+    rate = {it["id"]: it["list_rate_paise"] for it in items}
+    ln = lambda item, qty: {"item_id": item, "qty": qty, "rate_paise": rate[item], "discount_paise": 0}
+    sales = [
+        # goods cycle: SELF -> B (sale of ball valves) ... B ~ C (common director) ... C -> SELF (same item, 18 days)
+        _manual_sale("S-N0001", net["P-NET1"], "G11", "2026-02-10", [ln("IT-007", 400)], 30, "P-TRN4", "GA08NT4401", 25,
+                     "GCR/26/90001"),
+        # cash round trip, 3 hops: SELF pays C (advance) -> C ~ NETD1 ~ NETD2 ~ Sal Marine -> Sal Marine pays SELF
+        _manual_sale("S-N0002", net["P-NET3"], "G2", "2026-03-06", [ln("IT-020", 4), ln("IT-022", 2)], 7, "P-TRN1",
+                     "MH08NT5502", 260, "SRL/26/90002"),
+        # legitimate reciprocal job work (false-positive control)
+        _manual_sale("S-N0003", by_id["P-VEN2"], "G2", "2025-09-10", [ln("IT-014", 30)], 30, "P-TRN2", "MH08NT6603", 60,
+                     "RRW/25/90003"),
+    ]
+    purchases = [
+        {"key": "PB-N1", "vendor_id": "P-NET2", "bill_no": "ZES/25-26/0412", "bill_date": "2026-02-28", "item_id": "IT-007",
+         "qty": 390, "taxable_paise": 390 * rate["IT-007"], "tax_paise": _tax_paise(390 * rate["IT-007"], 1800)},
+        {"key": "PB-N2", "vendor_id": "P-VEN2", "bill_no": "PVC/JW/0917", "bill_date": "2025-09-24", "item_id": "IT-003",
+         "qty": 50, "taxable_paise": 50 * rate["IT-003"], "tax_paise": _tax_paise(50 * rate["IT-003"], 1800)},
+    ]
+    payments = [
+        {"vendor_id": "P-NET2", "settled_on": "2026-03-05", "amount_paise": 39_50_000_00, "purchase": None,
+         "narration": "advance against order"},
+        {"vendor_id": "P-NET2", "settled_on": "2026-03-25", "purchase": "PB-N1"},
+        {"vendor_id": "P-VEN2", "settled_on": "2025-10-20", "purchase": "PB-N2"},
+    ]
+    expect = [{"kind": "GOODS_CYCLE", "code": "ROUND_TRIP_GOODS", "members": ["SELF", "P-NET1", "P-NET2"],
+               "docs": ["S-N0001", "PB-N1"], "via": ["L-901", "L-902"]},
+              {"kind": "CASH_ROUND_TRIP", "code": "ROUND_TRIP_CASH", "members": ["SELF", "P-NET2", "P-NET3"],
+               "docs": ["S-N0002"], "via": ["L-902", "L-903", "L-904"], "amount_paise": 39_50_000_00},
+              {"kind": "RECIPROCAL_EXPLAINED", "code": None, "members": ["SELF", "P-VEN2"], "docs": ["S-N0003", "PB-N2"]}]
+    return new, links, sales, purchases, payments, expect
+
+
+def _routine_purchases(rng, items):
+    """Two bills a month from the regular vendors, each paid 30-45 days later."""
+    goods = [it for it in items if it["id"].startswith("IT-") and not it["hsn"].startswith("99")]
+    vendors = [v[0] for v in VENDORS if v[0] != "P-VEN2"]
+    out, n = [], 0
+    for m in range(12):
+        y, mo = (2025, 4 + m) if m < 9 else (2026, m - 8)
+        for _ in range(2):
+            n += 1
+            it = _pick(rng, goods)
+            qty = _int(rng, 5, 40)
+            t = qty * it["cost_paise"]
+            day = date(y, mo, _int(rng, 2, 26))
+            out.append({"key": f"PB-{n:04d}", "vendor_id": _pick(rng, vendors), "bill_no": f"VB/{y % 100}/{n:04d}",
+                        "bill_date": day.isoformat(), "item_id": it["id"], "qty": qty, "taxable_paise": t,
+                        "tax_paise": _tax_paise(t, 1800), "pay_on": (day + timedelta(days=_int(rng, 30, 45))).isoformat()})
+    return out
+
 # ---------------------------------------------------------------- events (what load() replays, in entry order)
 
 # principal per role (identities.json uses the same principals, so erp_log actors are real users)
 PEOPLE = {"sales": "sales.priya", "warehouse": "whs.ganesh", "accounts": "acc.neha", "client_admin": "adm.kiran"}
 
 def _ev(at, role, service, args, refs=None, out=None):
+    """refs: {arg: key} filled from earlier results; out: {key: result field} published for later events."""
     return {"at": at, "actor": PEOPLE[role], "role": role, "service": service, "args": args,
-            "refs": refs or {}, "out": out}
+            "refs": refs or {}, "out": out or {}}
 
-def _events(rng, sales, leads):
+def _events(rng, sales, leads, purchases=(), payments=()):
     """Each sale's events have strictly increasing times, so a stable sort keeps every dependency in order."""
     evs = []
+    for pb in purchases:
+        d = date.fromisoformat(pb["bill_date"])
+        evs.append(_ev(_ts(d, _int(rng, 600, 960)), "accounts", "record_purchase",
+                       {k: pb[k] for k in ("vendor_id", "bill_no", "bill_date", "item_id", "qty", "taxable_paise",
+                                           "tax_paise")}, out={f"{pb['key']}/pb": "id"}))
+        if pb.get("pay_on"):
+            pay = date.fromisoformat(pb["pay_on"])
+            evs.append(_ev(_ts(pay, _int(rng, 600, 960)), "accounts", "record_payment",
+                           {"vendor_id": pb["vendor_id"], "settled_on": pb["pay_on"],
+                            "amount_paise": pb["taxable_paise"] + pb["tax_paise"]},
+                           refs={"purchase_ids": f"{pb['key']}/pb"}))
+    by_key = {pb["key"]: pb for pb in purchases}
+    for py in payments:
+        d = date.fromisoformat(py["settled_on"])
+        pb = by_key.get(py.get("purchase"))
+        args = {"vendor_id": py["vendor_id"], "settled_on": py["settled_on"],
+                "amount_paise": py.get("amount_paise") or pb["taxable_paise"] + pb["tax_paise"]}
+        if py.get("narration"):
+            args["narration"] = py["narration"]
+        evs.append(_ev(_ts(d, 660), "accounts", "record_payment", args,
+                       refs={"purchase_ids": f"{pb['key']}/pb"} if pb else None))
+    months = sorted({s["invoice_date"][:7] for s in sales})
+    for ym in months:                                   # GSTR-1 for every month, on the 11th of the next month
+        y, m = int(ym[:4]), int(ym[5:7])
+        due = date(y + (m == 12), m % 12 + 1, 11)
+        evs.append(_ev(_ts(due, 600), "accounts", "file_gstr1", {"period": f"{y}{m:02d}"}))
     for ld in leads:
         d = date.fromisoformat(ld["enquired_on"])
         evs.append(_ev(_ts(d, _int(rng, 600, 1080)), "sales", "create_lead",
@@ -521,14 +650,19 @@ def _events(rng, sales, leads):
         conf = date.fromisoformat(s["so"]["confirmed_on"])
         inv = date.fromisoformat(s["invoice_date"])
         seq = [_ev(_ts(conf, _int(rng, 570, 660)), "sales", "create_sales_order", dict(s["so"]),
-                   out=(f"{k}/so", "id"))]
+                   out={f"{k}/so": "id"})]
         t_inv = _int(rng, 660, 900)
         seq.append(_ev(_ts(inv, t_inv), "accounts", "issue_invoice",
                        {"series": s["unit"], "invoice_date": s["invoice_date"], "party_id": s["party_id"],
                         "place_of_supply": s["place_of_supply"],
                         "lines": [{k2: ln[k2] for k2 in ("item_id", "qty", "rate_paise", "discount_paise")}
                                   for ln in s["lines"]]},
-                       refs={"so_id": f"{k}/so"}, out=(f"{k}/inv", "id")))
+                       refs={"so_id": f"{k}/so"}, out={f"{k}/inv": "id", f"{k}/total": "total_paise"}))
+        # the customer pays around its due date (clean year: every invoice is settled in full)
+        pay = (date.fromisoformat(s["pay_on"]) if s.get("pay_on") else
+               max(inv + timedelta(days=15), inv + timedelta(days=s["so"]["credit_days"] + _int(rng, -10, 10))))
+        receipt = _ev(_ts(pay, _int(rng, 780, 960)), "accounts", "record_receipt", {"settled_on": pay.isoformat()},
+                      refs={"invoice_nos": f"{k}/inv", "amount_paise": f"{k}/total"})
         if s["dispatch"]:
             dp = s["dispatch"]
             moved = date.fromisoformat(dp["moved_on"])
@@ -537,7 +671,7 @@ def _events(rng, sales, leads):
                 seq.append(_ev(_ts(moved, t), "warehouse", "generate_eway_bill",
                                {"vehicle_no": dp["vehicle_no"], "distance_km": dp["distance_km"], "reason": "SUPPLY",
                                 "transport_doc_no": dp["lr_no"]},
-                               refs={"invoice_id": f"{k}/inv"}, out=(f"{k}/ewb", "ewb_no")))
+                               refs={"invoice_id": f"{k}/inv"}, out={f"{k}/ewb": "ewb_no"}))
                 t += _int(rng, 10, 40)
             args = {kk: dp[kk] for kk in ("moved_on", "transporter_id", "vehicle_no", "lr_no", "lr_date",
                                           "from_pincode", "to_pincode", "lines")}
@@ -545,13 +679,13 @@ def _events(rng, sales, leads):
             refs = {"invoice_nos": f"{k}/inv"}
             if s["ewb"]:
                 refs["ewb_no"] = f"{k}/ewb"
-            seq.append(_ev(_ts(moved, t), "warehouse", "record_dispatch", args, refs=refs, out=(f"{k}/mov", "id")))
+            seq.append(_ev(_ts(moved, t), "warehouse", "record_dispatch", args, refs=refs, out={f"{k}/mov": "id"}))
             dv = s["delivery"]
             rec = date.fromisoformat(dv["delivered_on"]) + timedelta(days=dv["recorded_lag_days"])
             seq.append(_ev(_ts(rec, _int(rng, 1050, 1170)), "warehouse", "record_delivery",
                            {"delivered_on": dv["delivered_on"], "received_by": dv["received_by"]},
                            refs={"movement_id": f"{k}/mov"}))
-        evs += seq
+        evs += seq + [receipt]
     evs.sort(key=lambda e: e["at"])
     return evs
 
@@ -563,9 +697,15 @@ def build_plan(n_invoices=7000, seed=7):
     items = _items(rng)
     sales = _sales(rng, n_invoices, parties, meta, items)
     leads = _lost_leads(rng, max(10, n_invoices // 8), parties)
+    net_parties, net_links, net_sales, net_purchases, net_payments, network = _network(parties, items)
+    net_sales[0]["pay_on"], net_sales[1]["pay_on"] = "2026-03-12", "2026-03-14"
+    parties, links = parties + net_parties, links + net_links
+    sales = sorted(sales + net_sales, key=lambda s: (s["invoice_date"], s["key"]))
+    purchases = _routine_purchases(rng, items) + net_purchases
     return {"seed": seed, "n_invoices": n_invoices, "fy": ["2025-04-01", "2026-03-31"], "post_end": POST_END.isoformat(),
-            "units": UNITS, "parties": parties, "links": links, "items": items, "sales": sales,
-            "events": _events(rng, sales, leads), "regressions": regressions}
+            "units": UNITS, "parties": parties, "links": links, "items": items, "sales": sales, "purchases": purchases,
+            "events": _events(rng, sales, leads, purchases, net_payments), "regressions": regressions,
+            "network": network}
 
 # ---------------------------------------------------------------- identities (04 §1) + judge card
 
@@ -603,28 +743,33 @@ def judge_card(ids, url=None):
 
 # ---------------------------------------------------------------- load into the DBs (needs SH-1/SH-2/SH-4)
 
-def load(plan, reset):
-    """Replays the plan through the erp services. Each service is (actor, role, **args) -> {result, next_steps}
-    (07 §4); kwargs are 03 column names, money in paise. The clock is set per event so recorded_at, IRN ack_at
-    and EWB generated_at fall on the business date instead of today (needs config.set_clock, see PROGRESS)."""
-    from app import config, db, erp
+def load(plan, reset, progress=None):
+    """Replays the plan through the erp services in entry order. Each service is (actor, role, **args) ->
+    {result, next_steps} (07 §4); kwargs are 03 column names, money in paise. The clock is set per event so
+    recorded_at, IRN ack_at and EWB generated_at fall on the business date, not today."""
+    from app import db, erp
     db.init_all(reset=reset)
-    config.set_clock(MASTERS_AT)
-    for service, rows, role in (("create_party", plan["parties"], "client_admin"),
-                                ("link_parties", plan["links"], "client_admin"),
-                                ("create_item", plan["items"], "client_admin")):
-        for row in rows:
-            _call(erp, service, PEOPLE[role], role, row, row["id"])
     ids = {}
-    for ev in plan["events"]:
-        config.set_clock(ev["at"])
-        args = dict(ev["args"])
-        for arg, ref in ev["refs"].items():
-            args[arg] = [ids[ref]] if arg.endswith("_nos") else ids[ref]
-        res = _call(erp, ev["service"], ev["actor"], ev["role"], args, ev["at"])
-        if ev["out"]:
-            ids[ev["out"][0]] = res["result"][ev["out"][1]]
-    config.set_clock(None)
+    try:
+        with erp.keep_open():
+            config.set_clock(MASTERS_AT)
+            for service, rows, role in (("create_party", plan["parties"], "client_admin"),
+                                        ("link_parties", plan["links"], "client_admin"),
+                                        ("create_item", plan["items"], "client_admin")):
+                for row in rows:
+                    _call(erp, service, PEOPLE[role], role, row, row["id"])
+            for n, ev in enumerate(plan["events"], 1):
+                config.set_clock(ev["at"])
+                args = dict(ev["args"])
+                for arg, ref in ev["refs"].items():
+                    args[arg] = [ids[ref]] if arg.endswith(("_nos", "_ids")) else ids[ref]
+                res = _call(erp, ev["service"], ev["actor"], ev["role"], args, ev["at"])
+                for key, field in ev["out"].items():
+                    ids[key] = res["result"][field]
+                if progress and n % 5000 == 0:
+                    progress(n, len(plan["events"]))
+    finally:
+        config.set_clock(None)
     return ids
 
 def _call(erp, service, actor, role, args, where):

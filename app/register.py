@@ -287,15 +287,8 @@ STANDARDS = "SA 500 (inconsistent evidence from different sources must be resolv
 
 
 def _inr(paise):
-    """Indian grouping for server-written reasons. ponytail: local copy — switch to money.fmt_inr (IB-1)."""
-    sign, p = ("-" if paise < 0 else ""), abs(paise)
-    r, ps = divmod(p, 100)
-    s = str(r)
-    if len(s) > 3:
-        head, tail = s[:-3], s[-3:]
-        head = ",".join([head[max(0, i - 2):i] for i in range(len(head), 0, -2)][::-1])
-        s = head + "," + tail
-    return f"{sign}Rs {s}.{ps:02d}"
+    from app.money import fmt_inr
+    return fmt_inr(paise)
 
 
 def _hit(code, otype, oid, impact, reason, evidence):
@@ -425,6 +418,61 @@ def tie_out(mapped, sor_docs, period_start, period_end, ledger_revenue_paise=Non
     return table, out
 
 
+def sor_documents(e):
+    """Every invoice and credit note in the books with header sums (the D0 'system of record' side)."""
+    docs = [{"id": r["id"], "doc_no": r["invoice_no"], "doc_type": "INVOICE", "doc_date": r["invoice_date"],
+             "party_id": r["party_id"], "party_name": r["name"], "gstin": r["buyer_gstin"], "status": r["status"],
+             "taxable_paise": r["t"], "tax_paise": r["x"], "total_paise": r["t"] + r["x"] + r["round_off_paise"]}
+            for r in e.execute("SELECT i.*, p.name, COALESCE(SUM(l.taxable_paise), 0) t,"
+                               " COALESCE(SUM(l.igst_paise + l.cgst_paise + l.sgst_paise), 0) x FROM invoices i"
+                               " JOIN parties p ON p.id = i.party_id LEFT JOIN invoice_lines l ON l.invoice_id = i.id"
+                               " GROUP BY i.id")]
+    docs += [{"id": r["id"], "doc_no": r["cn_no"], "doc_type": "CN", "doc_date": r["cn_date"], "party_id": r["party_id"],
+              "party_name": r["name"], "gstin": r["gstin"], "status": r["status"], "taxable_paise": r["t"],
+              "tax_paise": r["x"], "total_paise": r["t"] + r["x"]}
+             for r in e.execute("SELECT n.*, p.name, p.gstin, COALESCE(SUM(l.taxable_paise), 0) t,"
+                                " COALESCE(SUM(l.igst_paise + l.cgst_paise + l.sgst_paise), 0) x FROM credit_notes n"
+                                " JOIN parties p ON p.id = n.party_id LEFT JOIN cn_lines l ON l.cn_id = n.id GROUP BY n.id")]
+    return docs
+
+
+def _ledger_revenue(e, start, end):
+    """Net revenue per the books: credits - debits on every is_revenue account, vouchers dated in the period."""
+    return e.execute("SELECT COALESCE(SUM(l.cr_paise - l.dr_paise), 0) FROM journal_lines l JOIN journals j"
+                     " ON j.no = l.journal_no JOIN accounts a ON a.code = l.account_code WHERE a.is_revenue = 1"
+                     " AND j.voucher_date BETWEEN ? AND ?", (start, end)).fetchone()[0]
+
+
+def _gstr1_taxable(x, start, end):
+    from app import config
+    gstins = [u["gstin"] for u in config.UNITS.values()]
+    r = x.execute(f"SELECT COALESCE(SUM(CASE WHEN section = 'CDNR' THEN -taxable_paise ELSE taxable_paise END), 0)"
+                  f" FROM gstr1_docs WHERE gstin IN ({','.join('?' * len(gstins))}) AND doc_no IS NOT NULL"
+                  f" AND period BETWEEN ? AND ?", (*gstins, start[:4] + start[5:7], end[:4] + end[5:7])).fetchone()
+    return r[0]
+
+
 def reconcile(engagement_id):
-    """D0 over the frozen register (audit.register_rows) and erp.db. Wired once db.py lands (SH-2)."""
-    raise NotImplementedError("register.reconcile: waiting for app.db (SH-2); the pure core is diff_register + tie_out")
+    """D0 over the frozen register (audit.register_rows of the engagement's current register submission) vs the
+    books: every difference is a risk hit, plus the totals tie-out. Writes risk_hits; returns the hits."""
+    import json
+
+    from app import analytics, config, db
+    with db.borrow("audit", "system") as a:
+        eng = a.execute("SELECT * FROM engagements WHERE id = ?", (engagement_id,)).fetchone()
+        if eng is None or not eng["register_submission_id"]:
+            raise ValueError("PRECONDITION_FAILED: no sales register has been uploaded for this engagement yet. "
+                             "The client uploads it with upload_sales_register; check get_engagement_status.")
+        mapped = [json.loads(r[0]) for r in a.execute("SELECT mapped_json FROM register_rows WHERE submission_id = ?"
+                                                      " ORDER BY row_no", (eng["register_submission_id"],))]
+    start, end = eng["period_start"], eng["period_end"]
+    with db.borrow("erp", "system") as e:
+        docs = sor_documents(e)
+        ledger_rev = _ledger_revenue(e, start, end)
+    with db.borrow("ext", "system") as x:
+        gstr1 = _gstr1_taxable(x, start, end)
+    hits, _pairs = diff_register(mapped, docs, start, end)
+    _table, tie = tie_out(mapped, docs, start, end, ledger_rev, gstr1)
+    hits += tie
+    analytics.save_hits(engagement_id, f"D0-{config.now()}", hits, {"D0"})
+    return hits

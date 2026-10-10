@@ -45,6 +45,41 @@ def connect(db, role):
     return c
 
 
+_POOL = {}            # (db, role) -> connection, only while keep_open() is active (single-threaded bulk loads)
+_POOLING = [0]
+
+
+@contextmanager
+def keep_open():
+    """Reuse one connection per (db, role) for many calls: the seeder and replay make ~36k service calls, and
+    opening/closing a WAL database (with its checkpoint on last close) would dominate. Same-thread use only."""
+    _POOLING[0] += 1
+    try:
+        yield
+    finally:
+        _POOLING[0] -= 1
+        if not _POOLING[0]:
+            for c in _POOL.values():
+                c.close()
+            _POOL.clear()
+
+
+@contextmanager
+def borrow(db, role):
+    """A connection for the duration of a block: pooled under keep_open(), otherwise opened and closed here."""
+    if _POOLING[0]:
+        c = _POOL.get((db, role))
+        if c is None:
+            c = _POOL[(db, role)] = connect(db, role)
+        yield c
+        return
+    c = connect(db, role)
+    try:
+        yield c
+    finally:
+        c.close()
+
+
 @contextmanager
 def tx(conn):
     """One BEGIN IMMEDIATE transaction (03 §1). Nested use joins the outer transaction, which commits."""
