@@ -53,6 +53,25 @@ def trail(principal, role, tool, args, outcome, result=None, transport="HTTP"):
     return None
 
 
+def export(out_dir, engagement_id=None):
+    """06 §8: audit_trail.jsonl (every row as canonical JSON incl. prev_hash/hash) + erp_log_head.json (both heads and
+    the anchor list), verifiable offline with scripts/verify_trail.py. -> {file: sha256}."""
+    from pathlib import Path
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    with db.borrow("audit", "system") as a:
+        lines = [chain.canon(dict(r)) for r in a.execute("SELECT * FROM audit_trail ORDER BY seq")]
+        anchors = [dict(r) for r in a.execute("SELECT * FROM anchors" + (" WHERE engagement_id = ?" if engagement_id else "")
+                                              + " ORDER BY id", (engagement_id,) if engagement_id else ())]
+        t_head = chain.head(a, "audit_trail")
+    e_head = erp_head()
+    (out / "audit_trail.jsonl").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    (out / "erp_log_head.json").write_text(json.dumps({"erp_log_head": {"seq": e_head[0], "hash": e_head[1]},
+                                                       "audit_trail_head": {"seq": t_head[0], "hash": t_head[1]},
+                                                       "anchors": anchors}, indent=2), encoding="utf-8")
+    return {name: hashlib.sha256((out / name).read_bytes()).hexdigest() for name in ("audit_trail.jsonl", "erp_log_head.json")}
+
+
 def anchor(engagement_id, label):
     """An explicit checkpoint: both chain heads, stored in audit.anchors. -> the anchor row."""
     erp_seq, erp_hash = erp_head()

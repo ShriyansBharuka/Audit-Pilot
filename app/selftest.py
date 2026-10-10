@@ -341,8 +341,11 @@ def run():
         from app import analytics
         r = analytics.run_all(config.ENGAGEMENT_ID)
         W["counts"] = r["counts"]
-        serious = sum(n for d, codes in r["counts"].items() for c, n in codes.items() if d not in ("D0", "D1", "D2", "D5"))
-        return f"detectors {sorted(r['counts'])}; {serious} D3-D14 hits on the clean year"
+        serious = sum(n for d, codes in r["counts"].items() for c, n in codes.items()
+                      if d not in ("D0", "D1", "D2", "D5", "D10"))
+        d10 = sum(r["counts"].get("D10", {}).values())
+        return (f"detectors {sorted(r['counts'])}; {serious} D3-D14 hits on the clean year; {d10} D10 hits = the seed's "
+                f"planted trading network")
 
     def e2e_samples():
         from app import sampling
@@ -356,8 +359,54 @@ def run():
                     continue
                 raise
             assert sampling.reproduce(r["run_id"])["identical"], kind
+            W.setdefault("runs", {})[kind] = r
             out.append(f"{kind} {r['size']} ({r['requests_sent']} requests)")
         return "; ".join(out) + "; reproduce identical"
+
+    def e2e_evidence():
+        from app import erp, evidence, intake
+        run = W["runs"]["sales_tod"]
+        with db.borrow("erp", "audit_staff") as e, db.borrow("ext", "audit_staff") as x:
+            nos = {r[0]: r[1] for r in e.execute("SELECT id, invoice_no FROM invoices")}
+            pick = next(i for i in run["items"] if x.execute("SELECT 1 FROM ewaybills WHERE doc_no = ?",
+                                                             (nos[i["doc_id"]],)).fetchone())
+        no = nos[pick["doc_id"]]
+        with db.borrow("pbc", "accounts") as p:
+            reqs = {r[1]: r[0] for r in p.execute("SELECT id, doc_kind FROM evidence_requests WHERE about_doc_no = ?", (no,))}
+        for kind, rid in reqs.items():
+            text = erp.render_document("acc.neha", "accounts", doc_type=kind, id=no)["result"]["text"]
+            if kind == "EWAY_BILL":                   # the client "improves" the e-way bill copy
+                text = "\n".join("Value: 1.00" if ln.startswith("Value:") else ln for ln in text.splitlines())
+            intake.on_client_upload(intake.submit("EVIDENCE", text.encode(), f"{kind}.txt", "acc.neha", request_id=rid))
+        r = evidence.test_sample(run["run_id"], pick["sample_no"], "aud.judge")
+        assert "DOC_FIELD_MISMATCH" in {x["code"] for x in r["exceptions"]}, r["exceptions"]
+        W["tested"] = (run["run_id"], pick["sample_no"], pick["doc_id"])
+        return f"sample {pick['sample_no']} ({no}): forged EWB copy -> DOC_FIELD_MISMATCH; conclusion {r['conclusion_proposed']}"
+
+    def e2e_stale():
+        from app import erp, evidence
+        run_id, n, inv = W["tested"]
+        with db.borrow("erp", "audit_staff") as e:
+            mv = e.execute("SELECT movement_id FROM invoice_movements WHERE invoice_id = ?", (inv,)).fetchone()[0]
+        erp.amend_record("whs.ganesh", "warehouse", entity="movements", id=mv, changes={"lr_date": "2026-04-02"},
+                         reason="LR date corrected")
+        ch = evidence.check_for_changes(config.ENGAGEMENT_ID)
+        item = next(c for c in ch["changes"] if c["kind"] == "EVIDENCE_FIELD_CHANGED" and c["pk"] == mv)
+        assert f"{run_id}#{n}" in item["affected_samples"] and item["by"] == "whs.ganesh"
+        return f"{run_id}#{n} STALE: lr_date {item['fields']['header.lr_date']} by {item['by']} via {item['tool']}"
+
+    def e2e_integrity():
+        import sqlite3
+        from app import evidence, trail
+        trail.anchor(config.ENGAGEMENT_ID, "PERIODIC")
+        assert evidence.verify_integrity(config.ENGAGEMENT_ID)["ok"]
+        raw = sqlite3.connect(str(config.DB_PATHS["erp"]), isolation_level=None)
+        raw.execute("DROP TRIGGER invoices_f")
+        raw.execute("UPDATE invoices SET invoice_date = '2026-04-02' WHERE id = 'INV-000002'")
+        raw.close()
+        v = evidence.verify_integrity(config.ENGAGEMENT_ID)
+        assert not v["ok"] and "OUT_OF_BAND_EDIT" in {p["code"] for p in v["problems"]}
+        return "clean -> OK; direct SQLite edit -> OUT_OF_BAND_EDIT"
 
     def e2e_risk():
         from app import risk_graph
@@ -376,11 +425,11 @@ def run():
             ("gateway", "trail"), e2e_mcp),
            ("run_analytics", ("analytics",), e2e_analytics),
            ("select_samples x3 + reproduce identical", ("sampling", "trail"), e2e_samples),
-           ("render/upload evidence (one forged) -> test_sample flags it", ("evidence",), None),
-           ("amend LR date after testing -> check_for_changes names the sample", ("evidence", "erp"), None),
-           ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain"), None),
+           ("render/upload evidence (one forged) -> test_sample flags it", ("evidence",), e2e_evidence),
+           ("amend LR date after testing -> check_for_changes names the sample", ("evidence", "erp"), e2e_stale),
            ("findings + AJEs, workpaper xlsx, memo", ("findings", "workpaper", "memo"), None),
            ("risk graph: cycles by minimum-span decomposition, company band", ("risk_graph",), e2e_risk),
+           ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain"), e2e_integrity),
            ("partner confirm + sign-off; verify_trail OK", ("trail", "findings"), None)]
     for name, owners, fn in e2e:
         stubs = [o for o in owners if is_stub(o)]

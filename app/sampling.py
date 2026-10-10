@@ -298,11 +298,11 @@ def select(engagement_id, kind, size=30, seed=None, actor=""):
                    pop_json, hashlib.sha256(pop_json.encode()).hexdigest(), ALGO, actor or "system", config.now()))
         for i, p in enumerate(picks, 1):
             doc_type = "credit_note" if run_kind == "CN_TOD" else "invoice"
-            b = evidence.bundle(p["id"]) if doc_type == "invoice" else []
+            bundle_json, snap_hash = evidence.snapshot(p["id"])          # D11: what this conclusion depends on, now
             a.execute("INSERT INTO samples(run_id, sample_no, doc_type, doc_id, register_row_no, stratum, reason, risk_points,"
                       " snapshot_seq, bundle_json, snapshot_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                       (run_id, i, doc_type, p["id"], p.get("row"), p["stratum"], p["reason"], p.get("points", 0), head_seq,
-                       json.dumps(b), hashlib.sha256(json.dumps(b, sort_keys=True).encode()).hexdigest()))
+                       bundle_json, snap_hash))
     sent = _requests(engagement_id, run_kind, picks)
     notify.emit("SAMPLES_SELECTED", {"run_id": run_id, "kind": run_kind, "samples": len(picks), "requests": sent},
                 engagement_id)

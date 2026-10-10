@@ -94,26 +94,46 @@ def discard_events(conn):
 
 # ---------------------------------------------------------------- integrity helpers (used by evidence.verify_integrity)
 
-def out_of_band(conn):
+def all_images(conn, doc_types=None):
+    """{(doc_type, doc_id): image} for every document, built in one pass per table (same shape as image())."""
+    out = {}
+    for doc_type, (table, pk, children) in DOCS.items():
+        if doc_types and doc_type not in doc_types:
+            continue
+        imgs = {}
+        for r in conn.execute(f"SELECT * FROM {table}"):
+            imgs[r[pk]] = {"header": dict(r), **{ctab: [] for ctab, _f, _o in children}}
+        for ctab, fk, order in children:
+            for r in conn.execute(f"SELECT * FROM {ctab} ORDER BY {fk}, {order}"):
+                if r[fk] in imgs:
+                    imgs[r[fk]][ctab].append(dict(r))
+        for k, v in imgs.items():
+            out[(doc_type, str(k))] = v
+    return out
+
+
+def out_of_band(conn, docs=None):
     """Documents whose current rows differ from their latest erp_log after-image (03 §6 check 2): an edit made
-    outside the application (direct SQLite). kind = CHANGED | MISSING (logged, now gone) | UNLOGGED (no log row)."""
+    outside the application (direct SQLite). kind = CHANGED | MISSING (logged, now gone) | UNLOGGED (no log row).
+    docs: optional set of (doc_type, doc_id) to check (a sample's bundle); default every document."""
     latest = {}
     for r in conn.execute("SELECT doc_type, doc_id, seq, after_json, actor FROM erp_log WHERE seq IN "
                           "(SELECT MAX(seq) FROM erp_log GROUP BY doc_type, doc_id)"):
-        latest[(r[0], r[1])] = (r[2], r[3], r[4])
+        if docs is None or (r[0], r[1]) in docs:
+            latest[(r[0], r[1])] = (r[2], r[3], r[4])
+    current = all_images(conn, {d for d, _i in docs} if docs is not None else None)
     out = []
-    for doc_type, (table, pk, _c) in DOCS.items():
-        ids = [str(r[0]) for r in conn.execute(f"SELECT {pk} FROM {table}")]
-        for doc_id in ids:
-            got = latest.pop((doc_type, doc_id), None)
-            if got is None:
-                out.append({"doc_type": doc_type, "doc_id": doc_id, "kind": "UNLOGGED", "seq": None})
-                continue
-            seq, after, actor = got
-            now = image(conn, doc_type, doc_id)
-            if chain.canon(now) != after:
-                out.append({"doc_type": doc_type, "doc_id": doc_id, "kind": "CHANGED", "seq": seq,
-                            "last_logged_by": actor, "fields": _diff(json.loads(after), now)})
+    for (doc_type, doc_id), now in current.items():
+        if docs is not None and (doc_type, doc_id) not in docs:
+            continue
+        got = latest.pop((doc_type, doc_id), None)
+        if got is None:
+            out.append({"doc_type": doc_type, "doc_id": doc_id, "kind": "UNLOGGED", "seq": None})
+            continue
+        seq, after, actor = got
+        if chain.canon(now) != after:
+            out.append({"doc_type": doc_type, "doc_id": doc_id, "kind": "CHANGED", "seq": seq,
+                        "last_logged_by": actor, "fields": _diff(json.loads(after), now)})
     for (doc_type, doc_id), (seq, _a, actor) in latest.items():
         out.append({"doc_type": doc_type, "doc_id": doc_id, "kind": "MISSING", "seq": seq, "last_logged_by": actor})
     return out
