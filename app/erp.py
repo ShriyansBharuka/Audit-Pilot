@@ -988,15 +988,15 @@ def export_sales_register(actor, role, fy_start="2025-04-01"):
     ws.title = "Sales Register"
     ws.append(FIG1)
     money_cols = range(7, 18)
-    for r in rows:
+    for rn, r in enumerate(rows, start=2):    # ws.max_row rescans every cell: O(n^2) on 7k rows (115 s)
         out = list(r)
         out[1] = datetime.fromisoformat(r[1])
         for k in money_cols:
             out[k] = Decimal(r[k]) / 100
         ws.append(out)
-        ws.cell(row=ws.max_row, column=2).number_format = "DD-MM-YYYY"
+        ws.cell(row=rn, column=2).number_format = "DD-MM-YYYY"
         for k in money_cols:
-            ws.cell(row=ws.max_row, column=k + 1).number_format = "#,##,##0.00"
+            ws.cell(row=rn, column=k + 1).number_format = "#,##,##0.00"
     buf = io.BytesIO()
     wb.save(buf)
     data = buf.getvalue()
