@@ -658,9 +658,10 @@ def _events(rng, sales, leads, purchases=(), payments=()):
                         "lines": [{k2: ln[k2] for k2 in ("item_id", "qty", "rate_paise", "discount_paise")}
                                   for ln in s["lines"]]},
                        refs={"so_id": f"{k}/so"}, out={f"{k}/inv": "id", f"{k}/total": "total_paise"}))
-        # the customer pays around its due date (clean year: every invoice is settled in full)
+        # the customer pays around its due date; clean year: every invoice is settled in full within 85 days
+        # (no accidental D4 UNPAID_90D)
         pay = (date.fromisoformat(s["pay_on"]) if s.get("pay_on") else
-               max(inv + timedelta(days=15), inv + timedelta(days=s["so"]["credit_days"] + _int(rng, -10, 10))))
+               inv + timedelta(days=min(85, max(15, s["so"]["credit_days"] + _int(rng, -10, 10)))))
         receipt = _ev(_ts(pay, _int(rng, 780, 960)), "accounts", "record_receipt", {"settled_on": pay.isoformat()},
                       refs={"invoice_nos": f"{k}/inv", "amount_paise": f"{k}/total"})
         if s["dispatch"]:

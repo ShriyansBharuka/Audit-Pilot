@@ -191,7 +191,7 @@ def select_samples(kind: str = "sales_tod", size: int = 30, seed: str | None = N
     def go(who, role):
         r = sampling.select(EID(), kind, size=size, seed=seed, actor=who)
         items = [scrub(i) for i in r.get("items", [])]
-        return result({k: r.get(k) for k in ("run_id", "kind", "seed", "size", "population", "requests_sent")},
+        return result({k: r.get(k) for k in ("run_id", "kind", "seed", "size", "population", "strata", "requests_sent")},
                       items[:100], None, r.get("next_steps") or steps(
                           ("reproduce_selection", {"run_id": r.get("run_id")}, "prove the selection is reproducible")))
     return call(go)

@@ -337,13 +337,35 @@ def run():
         assert outcomes[-2:] == ["DENIED", "OK"], outcomes[-2:]
         return f"{len(seen)} audit tools; denied call trailed, erp.db byte-identical; status: {st['summary']['status']}"
 
+    def e2e_analytics():
+        from app import analytics
+        r = analytics.run_all(config.ENGAGEMENT_ID)
+        W["counts"] = r["counts"]
+        serious = sum(n for d, codes in r["counts"].items() for c, n in codes.items() if d not in ("D0", "D1", "D2", "D5"))
+        return f"detectors {sorted(r['counts'])}; {serious} D3-D14 hits on the clean year"
+
+    def e2e_samples():
+        from app import sampling
+        out = []
+        for kind in ("sales_tod", "cutoff", "credit_note"):
+            try:
+                r = sampling.select(config.ENGAGEMENT_ID, kind, actor="aud.judge")
+            except ValueError as e:
+                if kind == "credit_note" and "empty" in str(e):
+                    out.append("CN: none in a clean year")
+                    continue
+                raise
+            assert sampling.reproduce(r["run_id"])["identical"], kind
+            out.append(f"{kind} {r['size']} ({r['requests_sent']} requests)")
+        return "; ".join(out) + "; reproduce identical"
+
     e2e = [("seed 300 invoices through erp services", ("erp", "ledger", "portal", "chain"), e2e_seed),
            ("export register (Fig. 1) + doctored upload", ("erp", "intake"), e2e_upload),
            ("D0 reconcile + D1/D2 on the frozen register", ("intake",), e2e_d0),
            ("MCP: auditor sees only audit tools; a client tool is denied + trailed; erp.db unchanged",
             ("gateway", "trail"), e2e_mcp),
-           ("run_analytics", ("analytics",), None),
-           ("select_samples x3 + reproduce identical", ("sampling", "trail"), None),
+           ("run_analytics", ("analytics",), e2e_analytics),
+           ("select_samples x3 + reproduce identical", ("sampling", "trail"), e2e_samples),
            ("render/upload evidence (one forged) -> test_sample flags it", ("evidence",), None),
            ("amend LR date after testing -> check_for_changes names the sample", ("evidence", "erp"), None),
            ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain"), None),

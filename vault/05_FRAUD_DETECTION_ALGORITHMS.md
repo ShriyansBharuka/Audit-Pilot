@@ -70,7 +70,7 @@ RP status alone is **never** a finding, only a sampling weight. Standards: Ind A
 - `CONSIGNMENT`: no revenue until the consignee's onward sale; flag for judgement.
 - **Services** (every line HSN `99…`): control date = invoice date (no movement exists); D3 date-conflict checks and D4 movement checks skip them. *(Answer to DA-1a's question, 2026-10-10.)*
 
-Run over **every** invoice. When FY(control_date) ≠ FY(SALES voucher date): `PREMATURE` (control after period_end; overstatement) or `DELAYED` (control on/before period_end, booked after). Impact = taxable value. Separate date-conflict hits: dispatch vs LR vs EWB dates >1 day apart; POD before dispatch; invoice dated after removal or >1 day before it (CGST s.31(1)(a)). Use Asia/Kolkata everywhere (an EWB at 01:30 IST on 1 Apr is *April*). Standards: Ind AS 115 paras 31–38 and B79–B82 (AS 9 for non-Ind AS entities), SA 500, SA 240 (revenue-recognition fraud risk).
+Run over **every** invoice. When FY(control_date) ≠ FY(SALES voucher date): `PREMATURE` (control after period_end; overstatement) or `DELAYED` (control on/before period_end, booked after). Impact = taxable value. Separate date-conflict hits: dispatch vs LR vs EWB dates >1 day apart (`DISPATCH_DATE_CONFLICT`); POD before dispatch (`POD_BEFORE_DISPATCH`); invoice dated after removal or >1 day before it (`INVOICE_DATE_VS_REMOVAL`, CGST s.31(1)(a)). Also `BILL_AND_HOLD_UNSUPPORTED` (B81 criteria not all recorded), `CUTOFF_UNRESOLVED` (no control date within 30 days of period_end → evidence request) and `CONSIGNMENT_JUDGEMENT`. Use Asia/Kolkata everywhere (an EWB at 01:30 IST on 1 Apr is *April*). Standards: Ind AS 115 paras 31–38 and B79–B82 (AS 9 for non-Ind AS entities), SA 500, SA 240 (revenue-recognition fraud risk).
 
 ## D4 · Movement and settlement (turnover with no physical movement)
 
@@ -106,7 +106,8 @@ Per invoice and per month, compare paise exactly (≤100 paise = rounding):
 - **IRN:** `IRN_MISSING` (B2B invoice where e-invoicing applies: AATO > ₹5 cr, so an invoice without an IRN is not a valid tax invoice, Rule 48(5)) · `IRN_MISMATCH` (stored IRN ≠ sha256(supplier_gstin + fy + doc_type + doc_no)) · `IRN_CANCELLED` (portal CNL, invoice active in books) · `IRN_SIGNATURE_BAD` (the payload signature doesn't verify).
 - **EWB:** `EWB_NOT_FOUND` (client-typed ewb_no not on the portal) · `EWB_CANCELLED` · `EWB_DOC_MISMATCH` (doc_no/doc_date/GSTINs; a differing doc_date means the invoice date changed after the EWB) · `EWB_VALUE_MISMATCH` (|invoice total − EWB value| > ₹1, both incl. tax).
 - **GSTR-1:** `NOT_IN_GSTR1` · `GSTR1_VALUE_DIFF` · `GSTR1_NOT_IN_BOOKS` (matched by doc_no, not by month).
-- **Monthly:** ledger revenue vs GSTR-1 taxable vs GSTR-3B 3.1(a) (T2); a residue is a hit.
+- **Monthly:** ledger revenue vs GSTR-1 taxable vs GSTR-3B 3.1(a) (T2); a residue is a hit (`GSTR3B_DIFF`; ledger vs GSTR-1 is D0 `TIEOUT_RESIDUE`).
+- `IRN_NOT_ON_PORTAL`: the stored IRN is the right hash for the document but the IRP has no such registration.
 - **Tax-type checks [REG]:** an inter-state supply must carry IGST only; an intra-state one CGST = SGST (IGST Act s.10). Tax must equal rate × taxable (±₹1). The rate should match the item's HSN rate. Flags: `TAX_TYPE_WRONG`, `TAX_RATE_WRONG`. Register "E Invoice = Incomplete" on a row with a GSTIN gives `IRN_MISSING` **[REG]**.
 
 Standards: CGST Act s.31, s.37, s.39; Rules 46, 48, 138; SA 500 (evidence from independent sources is more reliable).
@@ -118,7 +119,7 @@ Run over 100% of lines on `accounts.is_revenue = 1`:
 - `REVENUE_POSTING_DIFF`: per invoice, revenue credits minus debits sourced to it ≠ its taxable value (per CN likewise).
 - `DUPLICATE_POSTING`: one invoice in more than one SALES voucher.
 - `UNUSUAL_CONTRA`: a revenue credit whose voucher debits anything other than DEBTORS/BANK (SUSPENSE, DIRECTOR_LOAN, advances).
-- **SA 240 filters on every journal touching revenue or receivables:** `POST_CLOSING` (entered after period_end per erp_log seq, dated ≤ period_end), unusual `posted_by`, round amounts (multiples of ₹1,00,000), empty/generic narration.
+- **SA 240 filters on every journal touching revenue or receivables:** `POST_CLOSING` (entered after period_end per erp_log seq, dated ≤ period_end), unusual `posted_by` (`UNUSUAL_POSTER`: a manual revenue JV posted by a role other than accounts / client_admin), round amounts (`ROUND_AMOUNT`, multiples of ₹1,00,000), empty/generic narration (`GENERIC_NARRATION`).
 - `YEAR_END_ACCRUAL` JVs pass only when D3 shows control transferred on/before period_end.
 
 Standards: SA 240 para 32(a) (journal entries and end-of-period adjustments), SA 330.
