@@ -57,14 +57,14 @@ export default function EvidencePage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
             <FolderOpen className="h-5 w-5 text-indigo-400" />
             {isClient ? "Evidence requests from your auditor" : "Evidence & PBC requests"}
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-3xl">
             {isClient
-              ? "Upload the requested document for each item. Files are stored exactly as sent and fingerprinted (SHA-256) by the server; a later change to the underlying records is detected automatically."
-              : "Requests sent to the client for the selected samples. The client sees only the sample reference and document type, never why it was selected."}
+              ? "Upload the requested document for each item."
+              : "Requests sent to the client for selected samples."}
           </p>
         </div>
         <div className="flex items-center gap-2">

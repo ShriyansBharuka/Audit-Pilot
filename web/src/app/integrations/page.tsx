@@ -40,15 +40,9 @@ export default function IntegrationsPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Enterprise Integrations & Workflow Orchestration
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-normal">
-              Power BI · n8n · MCP
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Integrations
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Connect statutory audit deliverables to enterprise business intelligence, webhook workflows, and AI coding agents.
-          </p>
         </div>
       </div>
 
@@ -61,7 +55,7 @@ export default function IntegrationsPage() {
                 <BarChart3 className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-white">Microsoft Power BI Direct Connector</h2>
+                <h2 className="text-sm font-semibold text-slate-50">Microsoft Power BI Direct Connector</h2>
                 <div className="text-xs text-slate-400">Live JSON Web Data Connector Endpoint</div>
               </div>
             </div>
@@ -70,9 +64,7 @@ export default function IntegrationsPage() {
             </span>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Consume cleaned population sales, tax breakdown, related-party flags, and detector findings directly in Microsoft Power BI Desktop or Service without exposing database credentials.
-          </p>
+          <p className="text-xs text-slate-300 leading-relaxed">Population, findings and flags for Power BI.</p>
 
           <div className="space-y-1 text-xs">
             <label className="text-slate-400 font-mono text-xs">Power BI Web Data Feed URL:</label>
@@ -110,7 +102,7 @@ export default function IntegrationsPage() {
                 <Server className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-white">Model Context Protocol (MCP) Server</h2>
+                <h2 className="text-sm font-semibold text-slate-50">Model Context Protocol (MCP) Server</h2>
                 <div className="text-xs text-slate-400">Streamable HTTP gateway, role-filtered tools</div>
               </div>
             </div>
@@ -119,9 +111,7 @@ export default function IntegrationsPage() {
             </span>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Every tool is exposed over standard MCP with cryptographic token-bound RBAC. External AI agents (Claude Code, Cursor, Windsurf) connect directly with token headers.
-          </p>
+          <p className="text-xs text-slate-300 leading-relaxed">Connect an AI agent over MCP with your token.</p>
 
           <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 space-y-2">
             <div className="text-slate-500 font-sans text-[11px] uppercase font-semibold">Connect via CLI:</div>
@@ -142,7 +132,7 @@ export default function IntegrationsPage() {
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-emerald-400" />
-            <h2 className="text-sm font-semibold text-white">n8n event feed</h2>
+            <h2 className="text-sm font-semibold text-slate-50">n8n event feed</h2>
           </div>
           <div className="flex items-center gap-3">
             <span
@@ -152,7 +142,7 @@ export default function IntegrationsPage() {
             >
               {feed?.webhook_configured ? "webhook configured" : "N8N_WEBHOOK_URL not set: events recorded only"}
             </span>
-            <button onClick={load} className="text-slate-400 hover:text-white">
+            <button onClick={load} className="text-slate-400 hover:text-slate-50">
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
             </button>
           </div>
@@ -169,7 +159,7 @@ export default function IntegrationsPage() {
           {(feed?.events || []).length === 0 && <div className="text-xs text-slate-500">No events yet.</div>}
           {(feed?.events || []).map((ev) => (
             <div key={ev.id} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
-              <span className="font-mono text-white">
+              <span className="font-mono text-slate-50">
                 #{ev.id} {ev.kind}
               </span>
               <span className="flex items-center gap-3">

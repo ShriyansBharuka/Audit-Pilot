@@ -39,15 +39,11 @@ export default function NetworkPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            AuditGraph & Circular Trading Explorer
-            <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono font-normal">
-              {data ? `${data.cycles.length} minimum-span cycles flagged` : "minimum-span cycles"}
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Circular Trading
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">{data ? `${data.cycles.length} cycles` : "…"}</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Detects artificial revenue circularity, round-trip transactions, and related-party accommodation trading (Companies Act s.143(12)).
-          </p>
+          <p className="text-xs text-slate-400 mt-1">Round-trip trading loops · Companies Act s.143(12)</p>
         </div>
       </div>
 
@@ -65,7 +61,7 @@ export default function NetworkPage() {
           {/* Left Column (1 col): Cycles Selector */}
           <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                 <Repeat className="h-4 w-4 text-rose-400" />
                 Detected Circular Loops
               </h2>
@@ -109,12 +105,12 @@ export default function NetworkPage() {
               <>
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                       <span>Inspection of Loop #{selectedCycleIndex + 1}</span>
                       <span className="text-xs font-mono text-rose-400">({activeCycle.amount_formatted})</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Closed cyclic graph of invoicing and settlement across {activeCycle.nodes.length} parties
+                      {activeCycle.nodes.length} parties
                     </p>
                   </div>
                   <Link
@@ -136,7 +132,7 @@ export default function NetworkPage() {
                       <React.Fragment key={i}>
                         <div className="p-3 rounded-xl bg-slate-900 border border-slate-700 min-w-[140px] text-center shadow-lg">
                           <div className="text-[11px] text-indigo-400 font-mono">Entity #{i + 1}</div>
-                          <div className="text-xs font-bold text-white mt-1">{node}</div>
+                          <div className="text-xs font-bold text-slate-50 mt-1">{node}</div>
                           <div className="text-[11px] text-slate-400 mt-0.5">
                             {node === "SELF" ? "Audited Entity" : "Accommodation Party"}
                           </div>
@@ -159,7 +155,7 @@ export default function NetworkPage() {
 
                 {/* Associated Invoices in this Loop */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-white uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold text-slate-50 uppercase tracking-wider">
                     Invoices Constituting this Loop ({activeCycle.invoices.length})
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -178,7 +174,7 @@ export default function NetworkPage() {
 
                 {/* Node details table */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-white uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold text-slate-50 uppercase tracking-wider">
                     Network Node Entities in AuditGraph
                   </h4>
                   <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/40">

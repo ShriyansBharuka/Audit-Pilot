@@ -109,15 +109,11 @@ export default function FindingsPage() {
       {/* Top Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Findings & Engagement Partner Sign-Off
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-normal">
-              {findings.length} Total AJEs
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Findings & Sign-Off
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">{findings.length}</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Review proposed adjusting journal entries, confirm factual misstatements, and execute final audit sign-off.
-          </p>
+          <p className="text-xs text-slate-400 mt-1">Review proposed findings and sign off.</p>
         </div>
 
         {/* Sign-off Trigger Button */}
@@ -151,7 +147,7 @@ export default function FindingsPage() {
             className={`px-3 py-1.5 rounded-lg border transition ${
               statusFilter === st
                 ? "bg-indigo-600 border-indigo-500 text-white font-medium"
-                : "border-slate-800 bg-slate-900/60 text-slate-400 hover:text-white"
+                : "border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-50"
             }`}
           >
             {st || "All Findings"}
@@ -195,7 +191,7 @@ export default function FindingsPage() {
                     {f.status}
                   </span>
                 </div>
-                <div className="font-semibold text-xs text-white truncate">{f.title}</div>
+                <div className="font-semibold text-xs text-slate-50 truncate">{f.title}</div>
                 <div className="flex items-center justify-between mt-2 text-xs">
                   <span className="text-slate-400">{f.category}</span>
                   <span className="font-mono font-bold text-amber-400">{f.gross_impact_formatted}</span>
@@ -229,7 +225,7 @@ export default function FindingsPage() {
                       {selectedFinding.status}
                     </span>
                   </div>
-                  <h2 className="text-base font-bold text-white mt-1">{selectedFinding.title}</h2>
+                  <h2 className="text-base font-bold text-slate-50 mt-1">{selectedFinding.title}</h2>
                 </div>
 
                 {/* Partner Action Buttons */}
@@ -275,7 +271,7 @@ export default function FindingsPage() {
 
               {/* Explanation & Technical Basis */}
               <div className="space-y-2 text-xs">
-                <h3 className="font-semibold text-white uppercase tracking-wider text-xs">
+                <h3 className="font-semibold text-slate-50 uppercase tracking-wider text-xs">
                   Auditor Substantive Explanation
                 </h3>
                 <p className="text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-xl border border-slate-800">
@@ -288,7 +284,7 @@ export default function FindingsPage() {
 
               {/* Proposed Adjusting Journal Entry (AJE) Table */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-white uppercase tracking-wider text-xs flex items-center gap-1.5">
+                <h3 className="font-semibold text-slate-50 uppercase tracking-wider text-xs flex items-center gap-1.5">
                   <FileCheck className="h-3.5 w-3.5 text-emerald-400" />
                   Proposed Adjusting Journal Entry (AJE)
                 </h3>
@@ -336,12 +332,10 @@ export default function FindingsPage() {
       {decisionModalOpen && selectedFinding && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <h3 className="font-bold text-white text-sm">
+            <h3 className="font-bold text-slate-50 text-sm">
               Record Partner Decision: {decisionType} Finding {selectedFinding.id}
             </h3>
-            <p className="text-xs text-slate-400">
-              Under SA 230 and SA 450, partner review actions require an explicit, professional rationale recorded permanently in the tamper-evident audit trail.
-            </p>
+            <p className="text-xs text-slate-400">A comment is required and logged to the audit trail.</p>
 
             {decisionError && (
               <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
@@ -356,14 +350,14 @@ export default function FindingsPage() {
                 placeholder="State your audit conclusion, corroboration examined, or basis for rejection..."
                 value={decisionNote}
                 onChange={(e) => setDecisionNote(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <div className="flex justify-end space-x-2 pt-2">
               <button
                 onClick={() => setDecisionModalOpen(false)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-xs hover:text-white"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-xs hover:text-slate-50"
               >
                 Cancel
               </button>
@@ -383,7 +377,7 @@ export default function FindingsPage() {
       {signoffModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+            <h3 className="font-bold text-slate-50 text-sm flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-emerald-400" />
               Final Engagement Partner Sign-Off
             </h3>
@@ -425,7 +419,7 @@ export default function FindingsPage() {
                     rows={3}
                     value={signoffStatement}
                     onChange={(e) => setSignoffStatement(e.target.value)}
-                    className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                    className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
                   />
                 </div>
 
@@ -435,7 +429,7 @@ export default function FindingsPage() {
                     type="password"
                     value={signoffPassword}
                     onChange={(e) => setSignoffPassword(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                    className="w-full p-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
                   />
                 </div>
 

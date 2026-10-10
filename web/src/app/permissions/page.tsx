@@ -61,22 +61,16 @@ export default function PermissionsPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Granular Role-Based Access Control (RBAC)
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-normal">
-              Server-Side Enforced
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Access Control
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Enforce resource-level permissions and audit logging across reports, transactions, findings, and evidence.
-          </p>
         </div>
       </div>
 
       {/* Permissions Matrix */}
       <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
             <Sliders className="h-4 w-4 text-indigo-400" />
             Resource Access Control Matrix
           </h2>
@@ -158,7 +152,7 @@ export default function PermissionsPage() {
       {/* Immutable Permission Audit Log */}
       <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
             <History className="h-4 w-4 text-amber-400" />
             Immutable Permission Audit Log
           </h2>
@@ -181,7 +175,7 @@ export default function PermissionsPage() {
                 >
                   {log.action}
                 </span>
-                <span className="font-mono text-white font-medium">{log.resource_type}</span>
+                <span className="font-mono text-slate-50 font-medium">{log.resource_type}</span>
                 <span className="text-slate-400">for {log.target_role}</span>
               </div>
               <div className="flex items-center space-x-3 text-xs text-slate-400">

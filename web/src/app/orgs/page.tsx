@@ -100,15 +100,9 @@ export default function OrgsPage() {
       {/* Top Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Organization & Department Management
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono font-normal">
-              Supabase RLS Backed
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Organizations
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Configure multi-tenant audit firms, client entities, functional departments, and role assignments.
-          </p>
         </div>
 
         <button
@@ -124,7 +118,7 @@ export default function OrgsPage() {
         {/* Left Column: Orgs list */}
         <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-1.5">
               <Building className="h-4 w-4 text-indigo-400" />
               Organizations
             </h2>
@@ -147,7 +141,7 @@ export default function OrgsPage() {
                       : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
                   }`}
                 >
-                  <div className="font-semibold text-xs text-white">{org.name}</div>
+                  <div className="font-semibold text-xs text-slate-50">{org.name}</div>
                   <div className="text-[11px] text-slate-400 font-mono mt-0.5">{org.slug}</div>
                 </div>
               ))
@@ -162,7 +156,7 @@ export default function OrgsPage() {
               {/* Org Details Bar */}
               <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-white">{selectedOrg.name}</h2>
+                  <h2 className="text-base font-bold text-slate-50">{selectedOrg.name}</h2>
                   <p className="text-xs text-slate-400 mt-0.5">{selectedOrg.description || "Active multi-tenant audit firm"}</p>
                 </div>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
@@ -173,7 +167,7 @@ export default function OrgsPage() {
               {/* Departments Section */}
               <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                     <FolderTree className="h-4 w-4 text-indigo-400" />
                     Departments & Engagement Teams ({departments.length})
                   </h3>
@@ -205,7 +199,7 @@ export default function OrgsPage() {
               {/* Members Section */}
               <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                     <Users className="h-4 w-4 text-indigo-400" />
                     Assigned Team Members & Roles ({members.length})
                   </h3>
@@ -230,7 +224,7 @@ export default function OrgsPage() {
                         className="p-3 rounded-lg bg-slate-900/40 border border-slate-800 flex items-center justify-between text-xs"
                       >
                         <div>
-                          <div className="font-medium text-white">{m.user_name}</div>
+                          <div className="font-medium text-slate-50">{m.user_name}</div>
                           <div className="text-[11px] text-slate-400 font-mono">{m.user_email}</div>
                         </div>
                         <span className="text-[11px] uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
@@ -252,7 +246,7 @@ export default function OrgsPage() {
       {createOrgOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleCreateOrg} className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="font-bold text-white text-sm">Create New Organization</h3>
+            <h3 className="font-bold text-slate-50 text-sm">Create New Organization</h3>
             <div className="space-y-1">
               <label className="text-slate-300 font-semibold">Organization Name</label>
               <input
@@ -261,7 +255,7 @@ export default function OrgsPage() {
                 placeholder="e.g. Apex Statutory Auditors LLP"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
               />
             </div>
             <div className="space-y-1">
@@ -271,7 +265,7 @@ export default function OrgsPage() {
                 placeholder="Audit firm or corporate client group..."
                 value={newOrgDesc}
                 onChange={(e) => setNewOrgDesc(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
               />
             </div>
             <div className="flex justify-end space-x-2 pt-2">
@@ -294,7 +288,7 @@ export default function OrgsPage() {
       {createDeptOpen && selectedOrg && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleCreateDept} className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="font-bold text-white text-sm">Add Department to {selectedOrg.name}</h3>
+            <h3 className="font-bold text-slate-50 text-sm">Add Department to {selectedOrg.name}</h3>
             <div className="space-y-1">
               <label className="text-slate-300 font-semibold">Department / Group Name</label>
               <input
@@ -303,7 +297,7 @@ export default function OrgsPage() {
                 placeholder="e.g. Statutory Audit Team A"
                 value={newDeptName}
                 onChange={(e) => setNewDeptName(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
               />
             </div>
             <div className="space-y-1">
@@ -313,7 +307,7 @@ export default function OrgsPage() {
                 placeholder="Scope of work..."
                 value={newDeptDesc}
                 onChange={(e) => setNewDeptDesc(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
               />
             </div>
             <div className="flex justify-end space-x-2 pt-2">

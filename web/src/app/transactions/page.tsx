@@ -87,15 +87,10 @@ export default function TransactionsPage() {
       {/* Page Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            100% Population Explorer
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono font-normal">
-              {total} Total Invoices
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            100% Population
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">{total} invoices</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Browse, filter, and inspect every sales transaction against the system of record and statutory portals.
-          </p>
         </div>
       </div>
 
@@ -109,7 +104,7 @@ export default function TransactionsPage() {
               placeholder="Search by Invoice No (e.g. G2/0017/26), Customer, or GSTIN..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-50 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
           <button
@@ -202,7 +197,7 @@ export default function TransactionsPage() {
                     className="hover:bg-slate-800/40 transition cursor-pointer"
                     onClick={() => openDrawer(row.invoice_no)}
                   >
-                    <td className="py-3 px-4 font-mono font-medium text-white flex items-center gap-1.5">
+                    <td className="py-3 px-4 font-mono font-medium text-slate-50 flex items-center gap-1.5">
                       <span>{row.invoice_no}</span>
                       {row.irn ? (
                         <span className="text-[11px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">
@@ -227,7 +222,7 @@ export default function TransactionsPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4 font-mono text-slate-200">{row.taxable_amount}</td>
-                    <td className="py-3 px-4 font-mono font-semibold text-white">{row.total_amount}</td>
+                    <td className="py-3 px-4 font-mono font-semibold text-slate-50">{row.total_amount}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
                         <span
@@ -316,7 +311,7 @@ export default function TransactionsPage() {
                   <span className="text-slate-500">·</span>
                   <span>{selectedInvoice}</span>
                 </div>
-                <h2 className="text-base font-bold text-white mt-1">
+                <h2 className="text-base font-bold text-slate-50 mt-1">
                   {detail?.party.name || "Loading counterparty..."}
                 </h2>
               </div>
@@ -330,7 +325,7 @@ export default function TransactionsPage() {
                 </Link>
                 <button
                   onClick={closeDrawer}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-50"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -376,7 +371,7 @@ export default function TransactionsPage() {
 
                   {/* Detector Exceptions */}
                   <div>
-                    <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-semibold text-slate-50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
                       Detector Hits on this Document ({detail.risk_hits.length})
                     </h3>
@@ -408,7 +403,7 @@ export default function TransactionsPage() {
 
                   {/* Line Items Table */}
                   <div>
-                    <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-semibold text-slate-50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <FileText className="h-3.5 w-3.5 text-indigo-400" />
                       Invoice Line Items
                     </h3>
@@ -440,7 +435,7 @@ export default function TransactionsPage() {
 
                   {/* Logistics: EWB and Lorry Receipts */}
                   <div>
-                    <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-semibold text-slate-50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <Truck className="h-3.5 w-3.5 text-emerald-400" />
                       Physical Movement Evidence (EWB & Lorry Receipt)
                     </h3>

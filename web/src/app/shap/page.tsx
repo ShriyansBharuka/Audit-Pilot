@@ -30,8 +30,8 @@ function Waterfall({ data }: { data: ShapExplanation }) {
           </React.Fragment>
         );
       })}
-      <div className="flex items-center justify-between text-xs p-3 rounded-lg bg-indigo-950/40 border border-indigo-500/30 font-bold mt-3">
-        <span className="text-white">Risk score R = max(0.7·A + 0.3·E, hard-evidence floor 60)</span>
+      <div className="flex items-center justify-between text-xs p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/30 font-bold mt-3">
+        <span className="text-slate-50">Risk score R = max(0.7·A + 0.3·E, hard-evidence floor 60)</span>
         <span className="font-mono text-indigo-300 text-sm">{data.risk_score.toFixed(1)} pts</span>
       </div>
     </div>
@@ -109,15 +109,10 @@ function ShapContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-          SHAP Explainability
-          <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-mono font-normal">exact Shapley values</span>
-        </h1>
-        <p className="text-xs text-slate-400 mt-1 max-w-3xl">
-          Why does an invoice score what it scores? Each risk hit and the customer&apos;s entity risk are players of the real
-          AuditGraph formula; their Shapley values are computed exactly (every coalition enumerated, nothing sampled or
-          trained) and add up to the score.
-        </p>
+        <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            SHAP Explainability
+          </h1>
+        <p className="text-xs text-slate-400 mt-1 max-w-3xl">Exact Shapley contributions to each invoice&apos;s risk score.</p>
       </div>
 
       <div className="glass-panel p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
@@ -135,7 +130,7 @@ function ShapContent() {
               placeholder="Invoice no or id (e.g. G2/4066/25, INV-005983)"
               value={invoiceNo}
               onChange={(e) => setInvoiceNo(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-50 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
             />
           </div>
           <button type="submit" className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium">
@@ -178,7 +173,7 @@ function ShapContent() {
                 <div className="text-xs font-mono text-indigo-400">
                   {data.invoice_no} · {data.invoice_date} · {data.party_id} {data.party_name ? `(${data.party_name})` : ""}
                 </div>
-                <div className="text-lg font-bold text-white">
+                <div className="text-lg font-bold text-slate-50">
                   Risk score{" "}
                   <span className={data.risk_band === "HIGH" ? "text-rose-400" : data.risk_band === "REVIEW" ? "text-amber-300" : "text-emerald-400"}>
                     {data.risk_score.toFixed(1)} / 100
@@ -202,7 +197,7 @@ function ShapContent() {
 
               <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                     <BarChart2 className="h-4 w-4 text-indigo-400" />
                     Attribution waterfall
                   </h2>
@@ -215,10 +210,7 @@ function ShapContent() {
                 )}
                 <div className="text-xs text-slate-500 flex gap-1.5 pt-2">
                   <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>
-                    {data.method}. The baseline is a clean invoice, so every attribution is ≥ 0: in this model evidence of a
-                    problem can only add risk; a clean check simply adds nothing.
-                  </span>
+                  <span>{data.method}.</span>
                 </div>
               </div>
             </>
@@ -226,7 +218,7 @@ function ShapContent() {
         </div>
 
         <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 h-fit">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+          <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2 border-b border-slate-800 pb-3">
             <Globe2 className="h-4 w-4 text-sky-400" />
             What drives risk across the audit
           </h2>

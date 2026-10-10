@@ -57,7 +57,7 @@ function LoginScreen() {
             <Shield className="h-4 w-4 text-indigo-400" />
           </div>
           <div>
-            <div className="font-semibold text-white">AuditPilot AI</div>
+            <div className="font-semibold text-slate-50">AuditPilot AI</div>
             <div className="text-xs text-slate-400">Statutory revenue audit · sign in with your token</div>
           </div>
         </div>
@@ -134,18 +134,18 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   const findingsTotal = ov?.findings_counts ? Object.values(ov.findings_counts).reduce((a, b) => a + b, 0) : undefined;
   const requestsTotal = ov?.evidence_requests ? Object.values(ov.evidence_requests).reduce((a, b) => a + b, 0) : undefined;
   const auditItems = [
-    { href: "/", label: "Audit Overview", icon: BarChart3, badge: ov?.company_risk?.band },
-    { href: "/transactions", label: "100% Population", icon: Layers, badge: n(ov?.invoices_count) },
-    { href: "/network", label: "Risk & Circular Loops", icon: Network, badge: "D10" },
-    { href: "/shap", label: "SHAP Explainability", icon: Sparkles, badge: "exact" },
-    { href: "/findings", label: "Findings & Sign-Off", icon: Award, badge: n(findingsTotal) },
-    { href: "/evidence", label: "Evidence & PBC Portal", icon: FolderOpen, badge: n(requestsTotal) },
-    { href: "/orgs", label: "Organizations & Depts", icon: Building },
-    { href: "/permissions", label: "Granular RBAC", icon: Sliders },
+    { href: "/", label: "Overview", icon: BarChart3, badge: ov?.company_risk?.band },
+    { href: "/transactions", label: "Population", icon: Layers, badge: n(ov?.invoices_count) },
+    { href: "/network", label: "Circular Trading", icon: Network },
+    { href: "/shap", label: "SHAP", icon: Sparkles },
+    { href: "/findings", label: "Findings", icon: Award, badge: n(findingsTotal) },
+    { href: "/evidence", label: "Evidence", icon: FolderOpen, badge: n(requestsTotal) },
+    { href: "/orgs", label: "Organizations", icon: Building },
+    { href: "/permissions", label: "Access Control", icon: Sliders },
     { href: "/sharing", label: "Report Sharing", icon: Share2 },
     { href: "/investigations", label: "Fraud Hub", icon: AlertTriangle },
-    { href: "/integrations", label: "Integrations & Power BI", icon: Zap },
-    { href: "/trail", label: "Hash-Chained Trail", icon: GitCommit },
+    { href: "/integrations", label: "Integrations", icon: Zap },
+    { href: "/trail", label: "Audit Trail", icon: GitCommit },
   ];
   // the client only ever sees its evidence requests, never the audit's reasons (vault 05 sampling)
   const navItems = isAudit ? auditItems : auditItems.filter((i) => i.href === "/evidence");
@@ -160,7 +160,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
               <Shield className="h-4 w-4 text-indigo-400" />
             </div>
             <div>
-              <div className="font-semibold text-sm tracking-tight text-white flex items-center gap-1.5">
+              <div className="font-semibold text-sm tracking-tight text-slate-50 flex items-center gap-1.5">
                 AuditPilot <span className="text-xs px-1.5 py-px rounded bg-indigo-500/20 text-indigo-300 font-mono">AI</span>
               </div>
               <div className="text-[11px] text-slate-400 font-mono">Statutory Revenue Audit</div>
@@ -292,16 +292,13 @@ export function Navigation({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Shield className="h-5 w-5 text-indigo-400" />
-                <h3 className="font-semibold text-white text-sm">Connect your own AI agent (MCP)</h3>
+                <h3 className="font-semibold text-slate-50 text-sm">Connect your own AI agent (MCP)</h3>
               </div>
-              <button onClick={() => setCardOpen(false)} className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded bg-slate-800">
+              <button onClick={() => setCardOpen(false)} className="text-slate-400 hover:text-slate-50 text-xs px-2 py-1 rounded bg-slate-800">
                 ✕ Close
               </button>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Every tool call is bound to the caller&apos;s token and written to the hash-chained trail. Your agent gets
-              exactly your role&apos;s tools. The partner token is never given to an agent.
-            </p>
+            <p className="text-xs text-slate-400 leading-relaxed">Your agent gets your role&apos;s tools. Every call is logged.</p>
             <code className="block p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-indigo-300 break-all select-all">
               {`claude mcp add --transport http auditpilot ${MCP_URL} --header "Authorization: Bearer ${
                 user.role === "engagement_partner" ? "<an auditor token>" : user.token

@@ -95,15 +95,9 @@ export default function InvestigationsPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Fraud Investigation & Collaboration Hub
-            <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono font-normal">
-              Cross-Entity Fraud Docket
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Fraud Hub
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Collaborative case management for revenue fraud investigations, evidence threads, and traceable conclusions.
-          </p>
         </div>
 
         <button
@@ -119,7 +113,7 @@ export default function InvestigationsPage() {
         {/* Left Column: Docket List */}
         <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-1.5">
               <ShieldAlert className="h-4 w-4 text-rose-400" />
               Active Cases
             </h2>
@@ -149,7 +143,7 @@ export default function InvestigationsPage() {
                   </span>
                   <span className="text-[11px] text-slate-400 font-mono">{item.status}</span>
                 </div>
-                <div className="font-semibold text-xs text-white leading-snug">{item.title}</div>
+                <div className="font-semibold text-xs text-slate-50 leading-snug">{item.title}</div>
                 <div className="text-[11px] text-slate-400 mt-2 truncate">{item.created_at}</div>
               </div>
             ))}
@@ -168,14 +162,14 @@ export default function InvestigationsPage() {
                     Status: {selectedCase.status}
                   </span>
                 </div>
-                <h2 className="text-base font-bold text-white leading-snug">{selectedCase.title}</h2>
+                <h2 className="text-base font-bold text-slate-50 leading-snug">{selectedCase.title}</h2>
                 <p className="text-xs text-slate-300 leading-relaxed">{selectedCase.description}</p>
               </div>
 
               {/* Thread Discussion */}
               <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-indigo-400" />
                     Investigation Discussion & Evidence Log
                   </h3>
@@ -207,7 +201,7 @@ export default function InvestigationsPage() {
                     placeholder="Contribute forensic findings or reference evidence IDs..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    className="flex-1 p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    className="flex-1 p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50 focus:outline-none focus:border-indigo-500"
                   />
                   <button
                     type="submit"
@@ -229,7 +223,7 @@ export default function InvestigationsPage() {
       {createModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleCreateCase} className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="font-bold text-white text-sm">Open New Fraud Investigation</h3>
+            <h3 className="font-bold text-slate-50 text-sm">Open New Fraud Investigation</h3>
             <div className="space-y-1">
               <label className="text-slate-300 font-semibold">Case Title</label>
               <input
@@ -238,7 +232,7 @@ export default function InvestigationsPage() {
                 placeholder="e.g. Circular Invoicing with Accommodation Vendor"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
               />
             </div>
             <div className="space-y-1">
@@ -246,7 +240,7 @@ export default function InvestigationsPage() {
               <select
                 value={newSeverity}
                 onChange={(e: any) => setNewSeverity(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
               >
                 <option value="CRITICAL">CRITICAL</option>
                 <option value="HIGH">HIGH</option>
@@ -261,7 +255,7 @@ export default function InvestigationsPage() {
                 placeholder="State anomalies, detector flags, and initial observations..."
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
               />
             </div>
             <div className="flex justify-end space-x-2 pt-2">

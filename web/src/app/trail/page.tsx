@@ -39,15 +39,11 @@ export default function TrailPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Cryptographic Hash-Chained Audit Trail
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-normal">
-              {total} Immutable Entries
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Audit Trail
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">{total} entries</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Every audit action, tool invocation, and decision is cryptographically chained using SHA-256 (Companies (Accounts) Rules 2014 r.3(1)).
-          </p>
+          <p className="text-xs text-slate-400 mt-1">SHA-256 hash chain of every action.</p>
         </div>
 
         <button
@@ -93,7 +89,7 @@ export default function TrailPage() {
                   <td className="py-3 px-4 font-bold text-indigo-400">#{row.seq}</td>
                   <td className="py-3 px-4 text-slate-400 text-xs">{row.at}</td>
                   <td className="py-3 px-4">
-                    <span className="text-white font-medium">{row.principal}</span>
+                    <span className="text-slate-50 font-medium">{row.principal}</span>
                     <span className="text-slate-500 text-[11px] block font-sans">{row.role}</span>
                   </td>
                   <td className="py-3 px-4 font-semibold text-slate-200">{row.tool}</td>

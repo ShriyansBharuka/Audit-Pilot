@@ -71,11 +71,8 @@ export default function OverviewPage() {
       {/* Top Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Statutory Revenue Audit Dashboard
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-normal">
-              100% Tested
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Audit Overview
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             {data?.entity_name || "Konkan Marine Controls Ltd"} · {data?.period_start} → {data?.period_end} · {data?.framework === "IND_AS" ? "Ind AS" : data?.framework || "Ind AS"} framework
@@ -87,7 +84,7 @@ export default function OverviewPage() {
           className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 flex items-center gap-1.5 transition"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          <span>Refresh Live Books</span>
+          <span>Refresh</span>
         </button>
       </div>
 
@@ -106,7 +103,7 @@ export default function OverviewPage() {
             <span className="font-medium">Total Population Revenue</span>
             <FileSpreadsheet className="h-4 w-4 text-indigo-400" />
           </div>
-          <div className="text-xl font-bold text-white font-mono tracking-tight">
+          <div className="text-xl font-bold text-slate-50 font-mono tracking-tight">
             {data?.revenue_formatted ?? "—"}
           </div>
           <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
@@ -152,15 +149,11 @@ export default function OverviewPage() {
             <span className="font-medium">Company Risk Band</span>
             <ShieldAlert className="h-4 w-4 text-indigo-400" />
           </div>
-          <div className="text-xl font-bold text-white font-mono tracking-tight flex items-center gap-2">
+          <div className="text-xl font-bold text-slate-50 font-mono tracking-tight flex items-center gap-2">
             <span className="px-2 py-0.5 rounded text-xs badge-high font-bold">
               {data?.company_risk?.band || "HIGH"}
             </span>
             <span className="text-xs text-slate-400 font-normal">AuditGraph</span>
-          </div>
-          <div className="text-xs text-slate-400 mt-2 flex items-center justify-between">
-            <span>Sampling: Sales TOD</span>
-            <span className="text-emerald-400 font-mono">100% Tested</span>
           </div>
         </div>
       </div>
@@ -171,14 +164,13 @@ export default function OverviewPage() {
         <div className="lg:col-span-2 glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
-              <h2 className="text-sm font-semibold text-white">Full Population Procedure Results (D0–D14)</h2>
-              <p className="text-xs text-slate-400">100% substantive testing with automated statutory standard mapping</p>
+              <h2 className="text-sm font-semibold text-slate-50">Detector results (D0–D14)</h2>
             </div>
             <Link
               href="/transactions"
               className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
             >
-              <span>View In Population</span>
+              <span>View all</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -211,7 +203,6 @@ export default function OverviewPage() {
                       {count} hits
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-1">{meta.desc}</p>
                   <div className="text-[11px] text-indigo-400/80 font-mono mt-1">{meta.standard}</div>
                 </div>
               );
@@ -224,29 +215,19 @@ export default function OverviewPage() {
           {/* Partner Sign-off Card */}
           <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                 <Award className="h-4 w-4 text-indigo-400" />
-                Partner Sign-Off State
+                Partner sign-off
               </h3>
               <span className="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
                 {data?.status || "IN_PROGRESS"}
               </span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Every proposed finding needs the engagement partner's confirm, reject or modify decision, with a comment, before sign-off.
-            </p>
+            <p className="text-xs text-slate-400 leading-relaxed">Each finding needs a partner decision with a comment.</p>
             <div className="border-t border-slate-800 pt-3 space-y-2 text-xs">
               <div className="flex justify-between text-slate-300">
                 <span>Proposed Findings:</span>
                 <span className="font-mono font-bold text-amber-400">{data?.findings_counts?.PROPOSED ?? 0}</span>
-              </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Mandatory Partner Comments:</span>
-                <span className="font-mono text-slate-400">Required</span>
-              </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Tamper-evident ledger:</span>
-                <span className="font-mono text-emerald-400">SHA-256 hash chain (verify_integrity)</span>
               </div>
             </div>
             <Link
@@ -255,59 +236,6 @@ export default function OverviewPage() {
             >
               Open Partner Review Queue
             </Link>
-          </div>
-
-          {/* Quick Workflows */}
-          <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Zap className="h-4 w-4 text-emerald-400" />
-              Integrated Deliverables
-            </h3>
-            <div className="space-y-2 text-xs">
-              <Link
-                href="/transactions"
-                className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-800 flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-indigo-400" />
-                  <span className="text-slate-200">100% Population Drill-Down</span>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-slate-500 group-hover:text-indigo-400 transition" />
-              </Link>
-
-              <Link
-                href="/network"
-                className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-800 flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-2">
-                  <Network className="h-4 w-4 text-rose-400" />
-                  <span className="text-slate-200">Circular Trading Graph</span>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-slate-500 group-hover:text-rose-400 transition" />
-              </Link>
-
-              <Link
-                href="/shap"
-                className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-800 flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-sky-400" />
-                  <span className="text-slate-200">SHAP Explainability Studio</span>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-slate-500 group-hover:text-sky-400 transition" />
-              </Link>
-
-              <Link
-                href="/integrations"
-                className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-800 flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-amber-400" />
-                  <span className="text-slate-200">Power BI & n8n Workflows</span>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 text-slate-500 group-hover:text-amber-400 transition" />
-              </Link>
-            </div>
           </div>
         </div>
       </div>

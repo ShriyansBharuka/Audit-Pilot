@@ -103,15 +103,9 @@ export default function SharingPage() {
       {/* Top Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Audit Report Sharing & Field Masking
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono font-normal">
-              Field-Level Access Control
-            </span>
+          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+            Report Sharing
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Publish audit deliverables and configure granular field restrictions to prevent premature leak of unconfirmed findings.
-          </p>
         </div>
       </div>
 
@@ -126,7 +120,7 @@ export default function SharingPage() {
                 </span>
                 <span className="text-[11px] text-slate-500 font-mono">{rep.published_at}</span>
               </div>
-              <h3 className="font-bold text-white text-sm leading-snug">{rep.title}</h3>
+              <h3 className="font-bold text-slate-50 text-sm leading-snug">{rep.title}</h3>
               <div className="mt-3 space-y-1 text-xs">
                 <div className="text-xs text-slate-400">Shared with:</div>
                 <div className="flex flex-wrap gap-1">
@@ -148,7 +142,7 @@ export default function SharingPage() {
                     ? downloadWithToken("/api/audit/deliverables/memo", "memo.json").catch((e: Error) => alert(e.message))
                     : undefined
                 }
-                className="text-slate-400 hover:text-white flex items-center gap-1 transition"
+                className="text-slate-400 hover:text-slate-50 flex items-center gap-1 transition"
               >
                 <Download className="h-3.5 w-3.5" />
                 <span>Download</span>
@@ -169,7 +163,7 @@ export default function SharingPage() {
       {/* Immutable Access Log */}
       <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
             <Clock className="h-4 w-4 text-emerald-400" />
             Report Access Verification Log
           </h2>
@@ -183,7 +177,7 @@ export default function SharingPage() {
               className="p-3 rounded-lg bg-slate-900/40 border border-slate-800 flex items-center justify-between text-xs"
             >
               <div>
-                <span className="font-semibold text-white">{log.report}</span>
+                <span className="font-semibold text-slate-50">{log.report}</span>
                 <span className="text-slate-400 ml-2">by <code className="text-indigo-400">{log.accessed_by}</code></span>
               </div>
               <div className="flex items-center space-x-3 text-xs">
@@ -199,7 +193,7 @@ export default function SharingPage() {
       {shareModalOpen && selectedReport && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSaveShare} className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+            <h3 className="font-bold text-slate-50 text-sm flex items-center gap-2">
               <Share2 className="h-4 w-4 text-indigo-400" />
               Configure Sharing for "{selectedReport.title}"
             </h3>
@@ -228,7 +222,7 @@ export default function SharingPage() {
                     required
                     value={shareTarget}
                     onChange={(e) => setShareTarget(e.target.value)}
-                    className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                    className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-50"
                   />
                 </div>
 

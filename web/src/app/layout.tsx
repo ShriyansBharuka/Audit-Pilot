@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${firaSans.variable} ${firaCode.variable} h-full antialiased dark`}
+      className={`${firaSans.variable} ${firaCode.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
