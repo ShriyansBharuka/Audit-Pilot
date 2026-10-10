@@ -1,0 +1,3 @@
+{"invoices": 7003, "zero_fp_detectors": ["D0", "D3", "D4", "D6", "D7", "D9", "D13"], "weak_indicators": 2,
+ "cycles": 4, "circular_inr": "5.64 Cr", "analytics_seconds": 7,
+ "note": "clean FY 2025-26 + planted trading network; full audit via MCP on a laptop CPU, 2026-10-10"}
