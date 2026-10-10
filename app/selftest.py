@@ -395,6 +395,40 @@ def run():
         assert f"{run_id}#{n}" in item["affected_samples"] and item["by"] == "whs.ganesh"
         return f"{run_id}#{n} STALE: lr_date {item['fields']['header.lr_date']} by {item['by']} via {item['tool']}"
 
+    def e2e_deliverables():
+        from app import findings, memo, workpaper
+        run_id, n, _inv = W["tested"]
+        from app import evidence
+        first = evidence.test_sample(run_id, n, "aud.judge")                 # sees the LR change: STALE
+        again = evidence.test_sample(run_id, n, "aud.judge", note="re-tested after the LR date change")
+        assert first["conclusion_proposed"] == "STALE" and again["conclusion_proposed"] != "STALE"
+        new = findings.from_hits(config.ENGAGEMENT_ID)
+        with db.borrow("audit", "audit_staff") as a:
+            ajes = [json.loads(r[0]) for r in a.execute("SELECT proposed_aje_json FROM findings WHERE proposed_aje_json"
+                                                        " IS NOT NULL")]
+        assert all(sum(x["dr_paise"] for x in j) == sum(x["cr_paise"] for x in j) for j in ajes)
+        wp, mm = workpaper.build(config.ENGAGEMENT_ID), memo.build(config.ENGAGEMENT_ID)
+        from openpyxl import load_workbook
+        assert load_workbook(wp["path"]).sheetnames == ["Sales Reg.", "Sales TOD", "Sales Cut-off TOD", "Credit Note TOD"]
+        return f"{len(new)} PROPOSED findings ({len(ajes)} with balanced AJEs); workpaper + memo (DRAFT) built"
+
+    def e2e_signoff():
+        import subprocess
+        from app import findings, trail
+        partner = {"principal": "ptn.mehta", "role": "engagement_partner", "name": "CA Rakesh Mehta",
+                   "membership_no": "118204"}
+        with db.borrow("audit", "audit_staff") as a:
+            ids = [r[0] for r in a.execute("SELECT id FROM findings WHERE status = 'PROPOSED' ORDER BY id")]
+        for fid in ids:
+            findings.decide(fid, "CONFIRMED", "agreed with the evidence and the reasons", partner)
+        r = findings.sign_off(config.ENGAGEMENT_ID, partner)
+        out = config.AUDIT_FILES_DIR / config.ENGAGEMENT_ID
+        trail.export(out, config.ENGAGEMENT_ID)
+        v = subprocess.run([sys.executable, str(config.ROOT / "scripts" / "verify_trail.py"), str(out / "audit_trail.jsonl"),
+                            str(out / "erp_log_head.json")], capture_output=True, text=True)
+        assert v.returncode == 0, v.stdout + v.stderr
+        return f"{len(ids)} findings confirmed; SIGNED_OFF {r['signoff_hash'][:12]}; verify_trail: {v.stdout.strip()}"
+
     def e2e_integrity():
         import sqlite3
         from app import evidence, trail
@@ -427,10 +461,10 @@ def run():
            ("select_samples x3 + reproduce identical", ("sampling", "trail"), e2e_samples),
            ("render/upload evidence (one forged) -> test_sample flags it", ("evidence",), e2e_evidence),
            ("amend LR date after testing -> check_for_changes names the sample", ("evidence", "erp"), e2e_stale),
-           ("findings + AJEs, workpaper xlsx, memo", ("findings", "workpaper", "memo"), None),
            ("risk graph: cycles by minimum-span decomposition, company band", ("risk_graph",), e2e_risk),
-           ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain"), e2e_integrity),
-           ("partner confirm + sign-off; verify_trail OK", ("trail", "findings"), None)]
+           ("findings + AJEs, workpaper xlsx, memo", ("findings", "workpaper", "memo"), e2e_deliverables),
+           ("partner confirm + sign-off; verify_trail OK", ("trail", "findings"), e2e_signoff),
+           ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain"), e2e_integrity)]
     for name, owners, fn in e2e:
         stubs = [o for o in owners if is_stub(o)]
 

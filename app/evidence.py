@@ -194,7 +194,7 @@ def check_for_changes(engagement_id, reopen=True):
     snap_seq, inv_of = {}, {}
     for s in samples:
         key = f"{s['run_id']}#{s['sample_no']}"
-        snap_seq[key] = s["snapshot_seq"]
+        snap_seq[key] = max(s["snapshot_seq"], s["tested_seq"] or 0)   # a re-test re-baselines the sample
         inv_of[key] = s["doc_id"]
         b = json.loads(s["bundle_json"] or "{}") or {}
         for t, i in (b.get("docs") if isinstance(b, dict) else b) or []:

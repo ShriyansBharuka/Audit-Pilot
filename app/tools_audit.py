@@ -369,11 +369,23 @@ def generate_deliverables() -> dict:
     """Build the 4-sheet workpaper (xlsx), the findings memo (md/html) and the audit-trail export, all marked DRAFT
     until the partner signs off -> one-time download URLs + sha256 (never server paths)."""
     def go(who, role):
-        out = {}
-        for name, mod in (("workpaper", workpaper), ("memo", memo)):
-            r = mod.build(EID())
-            out[name] = ({"sha256": r["sha256"], "url": make_download(r["path"], r["sha256"])} if r.get("path")
-                         else {"status": "not built yet (module pending)"})
+        from app import trail
+        changes = evidence.check_for_changes(EID())               # D11 runs before every deliverable (05 D11)
+        new = findings.from_hits(EID())                           # every serious hit is a PROPOSED finding
+        out = {"new_findings": new, "stale_samples": len(changes["stale_samples"])}
+        wp = workpaper.build(EID())
+        mm = memo.build(EID())
+        files = [("workpaper.xlsx", wp["path"], wp["sha256"]), ("memo.md", mm["path"], mm["sha256"])]
+        import hashlib
+        from pathlib import Path
+        files.append(("memo.html", mm["html_path"], hashlib.sha256(Path(mm["html_path"]).read_bytes()).hexdigest()))
+        exp_dir = config.AUDIT_FILES_DIR / EID()
+        for name, sha in trail.export(exp_dir, EID()).items():
+            files.append((name, str(exp_dir / name), sha))
+        out["files"] = [{"name": n, "sha256": s, "url": make_download(p, s)} for n, p, s in files]
+        out["status"] = "DRAFT (until the engagement partner signs off)"
+        out["verify_offline"] = "python scripts/verify_trail.py audit_trail.jsonl erp_log_head.json"
+        trail.anchor(EID(), "DELIVERABLES")
         return result(out, next_steps=steps(("submit_for_partner_review", {}, "hand over to the engagement partner")))
     return call(go)
 
@@ -383,6 +395,7 @@ def submit_for_partner_review() -> dict:
     """Mark the engagement READY_FOR_REVIEW and list what still blocks sign-off (PROPOSED findings, stale samples,
     integrity failures). The engagement partner decides every finding and signs off in the web UI only."""
     def go(who, role):
+        findings.from_hits(EID())
         blockers = []
         with db.borrow("audit", role) as a:
             _need_engagement(a)
