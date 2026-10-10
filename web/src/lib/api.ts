@@ -43,10 +43,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ...(options.headers as Record<string, string>),
   };
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    // network failure, or a server crash: an unhandled 500 carries no CORS headers, so the browser
+    // reports both as "Failed to fetch"
+    throw reportApiError(`Can't reach the AuditPilot API at ${API_BASE} (or it hit an internal error on ${path.split("?")[0]}).`);
+  }
 
   if (!res.ok) {
     let errorDetail = `Request failed with status ${res.status}`;
@@ -56,16 +60,27 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // fallback
     }
+    if (res.status >= 500) throw reportApiError(`Server error ${res.status} on ${path.split("?")[0]}: ${errorDetail}`);
     throw new Error(errorDetail);
   }
 
   return res.json() as Promise<T>;
 }
 
+/** Network and 5xx failures are shown once, app-wide (Navigation listens); 4xx stay with the page that asked. */
+export const API_ERROR_EVENT = "auditpilot:api-error";
+function reportApiError(message: string) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(API_ERROR_EVENT, { detail: message }));
+  return new Error(message);
+}
+
 /** Download an authenticated file (the token goes in the header, never in a URL). */
 export async function downloadWithToken(path: string, filename: string) {
   const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || `Download failed (${res.status})`);
+  }
   const url = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
   a.href = url;

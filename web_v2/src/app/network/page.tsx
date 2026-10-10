@@ -28,7 +28,7 @@ export default function NetworkPage() {
     api
       .getRiskGraph()
       .then((res) => setData(res))
-      .catch((err) => console.error("Error loading risk graph:", err))
+      .catch((err) => console.warn("Error loading risk graph:", err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -159,7 +159,7 @@ export default function NetworkPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
-                        {data.graph.nodes.slice(0, 8).map((node) => (
+                        {data.graph.nodes.filter((nd, i, all) => all.findIndex((x) => x.id === nd.id) === i).slice(0, 8).map((node) => (
                           <tr key={node.id} className="hover:bg-slate-800/30">
                             <td className="p-2.5 font-mono text-indigo-400">{node.id}</td>
                             <td className="p-2.5 font-medium text-slate-200">{node.name}</td>

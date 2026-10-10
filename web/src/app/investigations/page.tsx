@@ -96,7 +96,7 @@ export default function InvestigationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
-            Fraud Hub
+            Investigations
           </h1>
         </div>
 

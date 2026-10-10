@@ -52,7 +52,7 @@ export default function TransactionsPage() {
         setTotal(res.total);
       })
       .catch((err) => {
-        console.error("Error loading transactions:", err);
+        console.warn("Error loading transactions:", err);
       })
       .finally(() => setLoading(false));
   };
@@ -73,7 +73,7 @@ export default function TransactionsPage() {
     api
       .getTransactionDetail(invoiceNo)
       .then((res) => setDetail(res))
-      .catch((err) => console.error(err))
+      .catch((err) => console.warn(err))
       .finally(() => setDetailLoading(false));
   };
 

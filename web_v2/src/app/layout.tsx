@@ -31,8 +31,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${firaSans.variable} ${firaCode.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <AuthProvider>
           <Navigation>{children}</Navigation>
         </AuthProvider>

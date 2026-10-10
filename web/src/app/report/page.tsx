@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { StatutoryMemo } from "@/lib/types";
@@ -23,6 +23,10 @@ export default function ReportPage() {
       .catch((e) => setError(e.message || "Could not draft the memo"))
       .finally(() => setBusy(false));
   };
+
+  // open on a drafted memo instead of an empty page (the draft is deterministic and takes well under a second)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(draft, []);
 
   const download = (format: "md" | "pdf") => {
     setDownloading(format);

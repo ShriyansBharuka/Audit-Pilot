@@ -149,3 +149,111 @@ summary {
     stroke-dashoffset: -24;
   }
 }
+
+/* ---------- Export PDF (window.print): page content only, light, full length ---------- */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  /* light palette: the slate scale flips (50 = darkest text, 900 = white panels), status text darkens */
+  :root {
+    --background: #ffffff;
+    --color-slate-50: #0b0b0b;
+    --color-slate-100: #111111;
+    --color-slate-200: #1f1f1f;
+    --color-slate-300: #333333;
+    --color-slate-400: #4a4a4a;
+    --color-slate-500: #5f5f5f;
+    --color-slate-600: #8a8a8a;
+    --color-slate-700: #c8c8c8;
+    --color-slate-800: #dddddd;
+    --color-slate-900: #ffffff;
+    --color-slate-950: #f4f4f4;
+    --color-indigo-300: #006239;
+    --color-indigo-400: #006239;
+    --color-emerald-300: #047857;
+    --color-emerald-400: #047857;
+    --color-amber-300: #a15c07;
+    --color-amber-400: #a15c07;
+    --color-rose-300: #b91c1c;
+    --color-rose-400: #b91c1c;
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .no-print,
+  button,
+  select,
+  nextjs-portal {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .print-header {
+    font-size: 11px;
+    color: #5f5f5f;
+    border-bottom: 1px solid #dddddd;
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+  }
+
+  /* undo the app shell's fixed-height scroll container so the whole page prints */
+  .app-shell,
+  .app-body,
+  .app-main {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .app-main > div {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* inner scroll boxes (e.g. the findings list) print at full length */
+  .app-main [class*="overflow-y-auto"],
+  .app-main [class*="overflow-auto"],
+  .app-main [class*="max-h-"] {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* grey panel fills print as white cards with their borders */
+  .app-main [class*="bg-slate-"] {
+    background-color: transparent !important;
+  }
+
+  tr,
+  .panel,
+  .glass-panel,
+  .glass-card,
+  section {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  * {
+    box-shadow: none !important;
+    animation: none !important;
+  }
+}

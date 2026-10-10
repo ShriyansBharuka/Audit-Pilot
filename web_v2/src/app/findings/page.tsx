@@ -51,7 +51,7 @@ export default function FindingsPage() {
           setSelectedFinding(res[0]);
         }
       })
-      .catch((err) => console.error(err))
+      .catch((err) => console.warn(err))
       .finally(() => setLoading(false));
   };
 
