@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, risk_graph, sampling, trail, workpaper, yearend
+from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, reports, risk_graph, sampling, trail, workpaper, yearend
 
 app = FastAPI(
     title="AuditPilot AI API",
@@ -646,6 +646,34 @@ def post_yearend_freeze(who: Dict[str, Any] = Depends(require("audit_staff"))):
         raise HTTPException(status_code=404, detail=str(ex))
     trail.trail(who["principal"], who["role"], "yearend.freeze", {}, "OK", {"anchor": out["anchor"]["id"]}, transport="UI")
     return out
+
+
+def _report(build, format):
+    if format not in ("json", "md", "html"):
+        raise HTTPException(status_code=400, detail="INVALID_ARGUMENT: format is json, md or html")
+    try:
+        r = build()
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+    out = reports.render(r, format)
+    if format == "md":
+        return Response(out, media_type="text/markdown; charset=utf-8")
+    if format == "html":
+        return Response(out, media_type="text/html; charset=utf-8")
+    return out
+
+
+@app.get("/api/reports/continuous", dependencies=[AUDIT])
+def get_report_continuous(format: str = "json"):
+    """vault/13 §6 Report A: unreconciled, missing evidence, control failures, risk trend, open alerts. DRAFT until sign-off."""
+    return _report(reports.continuous, format)
+
+
+@app.get("/api/reports/year-end", dependencies=[AUDIT])
+def get_report_year_end(format: str = "json", ai: bool = False):
+    """vault/13 §6 Report B: risk register, counterparty exposure, funds flow, investigated cases, March-April, AJEs,
+    unresolved questions. ai=true adds a labelled AI-drafted summary when the LLM is on. Never an audit opinion."""
+    return _report(lambda: reports.year_end(ai_summary=ai), format)
 
 
 # ---------------------------------------------------------------- Deliverables & Exports

@@ -163,7 +163,7 @@ def _workbook_sha(eid):
     return hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
 
 
-def _html(md, final):
+def _html(md, final, title="Findings memorandum"):
     out, table = [], []
 
     def flush():
@@ -192,7 +192,7 @@ def _html(md, final):
             out.append(f"<p>{t}</p>")
     flush()
     banner = "" if final else f'<div class="draft">{DRAFT}</div>'
-    return ("<!doctype html><html><head><meta charset='utf-8'><title>Findings memorandum</title><style>"
+    return (f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(title)}</title><style>"
             "body{font-family:Georgia,serif;max-width:900px;margin:2em auto;line-height:1.45}table{border-collapse:collapse;"
             "width:100%;font-size:.9em}td,th{border:1px solid #999;padding:4px 6px}th{background:#eee}"
             ".draft{background:#c00;color:#fff;font-weight:bold;padding:.5em;text-align:center}"
