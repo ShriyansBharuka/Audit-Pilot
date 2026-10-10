@@ -138,6 +138,7 @@ POST /api/cases/{case_id}/investigate  (audit_staff; 409 when the LLM is off or 
 GET  /api/money-trail/{object_id}?hops=2 -> {nodes, edges, numbers}
 GET  /api/yearend/timeline?party_id= -> {months: [{ym, sales_paise, receipts_paise, cn_paise, open_exceptions, band}]}
 GET  /api/yearend/march-april -> {items: [{march_doc, april_events: [...], hits: [...], affected_paise}]}
+POST /api/yearend/freeze  (audit_staff) -> {anchor, analytics_run, snapshot_run, company, cases}   (added MT-6)
 GET  /api/reports/continuous?format=json|md|html
 GET  /api/reports/year-end?format=json|md|html
 ```

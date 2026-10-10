@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, risk_graph, sampling, trail, workpaper
+from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, risk_graph, sampling, trail, workpaper, yearend
 
 app = FastAPI(
     title="AuditPilot AI API",
@@ -616,6 +616,35 @@ def post_case_investigate(case_id: str, demo: bool = False, who: Dict[str, Any] 
         raise HTTPException(status_code=409, detail=str(ex))
     trail.trail(who["principal"], who["role"], "investigator.investigate_case", {"case_id": case_id}, "OK",
                 {"event": out["event"]["id"], "usd": out["usd"]}, transport="UI")
+    return out
+
+
+@app.get("/api/yearend/timeline", dependencies=[AUDIT])
+def get_yearend_timeline(party_id: Optional[str] = None):
+    """vault/13 §6: monthly sales / receipts / credit notes / open exceptions and the band, period + 2 months."""
+    try:
+        return yearend.timeline(party_id=party_id)
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+
+
+@app.get("/api/yearend/march-april", dependencies=[AUDIT])
+def get_yearend_march_april():
+    """Every last-month document with a post-period credit note, cancellation, dispatch / delivery, late keying or bill."""
+    try:
+        return yearend.march_april_links()
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+
+
+@app.post("/api/yearend/freeze")
+def post_yearend_freeze(who: Dict[str, Any] = Depends(require("audit_staff"))):
+    """Year-end freeze: full analytics run + AuditGraph snapshot + anchor on both chain heads."""
+    try:
+        out = yearend.freeze()
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+    trail.trail(who["principal"], who["role"], "yearend.freeze", {}, "OK", {"anchor": out["anchor"]["id"]}, transport="UI")
     return out
 
 
