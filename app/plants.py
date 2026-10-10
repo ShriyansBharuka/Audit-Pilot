@@ -10,6 +10,7 @@ Family H (forged / reused evidence) needs samples first, so it is planted live i
 """
 import json
 import random
+import statistics
 from datetime import date, timedelta
 
 from app import seed
@@ -136,8 +137,14 @@ def add_plants(plan, seed_no=7):
                and not p["id"].startswith(("P-NET", "P-GRP", "P-PLA")) and p["id"] not in used),
               key=lambda p: (counts.get(p["id"], 0), p["id"]))
     used.add(e1c["id"])
+    # size each invoice to 0.8x the customer's median monthly billing so 5 of them clear D5's 3x run-rate at any scale
+    by_m = {}
+    for s0 in plan["sales"]:
+        if s0["party_id"] == e1c["id"]:
+            by_m[s0["invoice_date"][:7]] = by_m.get(s0["invoice_date"][:7], 0) + s0.get("taxable_paise", 0)
+    e1v = max(6_50_000_00, int(0.8 * statistics.median(by_m.values()))) if by_m else 6_50_000_00
     for n, d in enumerate(("2026-03-19", "2026-03-23", "2026-03-25", "2026-03-27", "2026-03-30")):
-        sales.append(_sale(plan, rng, f"PE1{n}", e1c, d, 6_50_000_00))
+        sales.append(_sale(plan, rng, f"PE1{n}", e1c, d, e1v))
     plant("E", "END_WINDOW_SHARE", "party", e1c["id"], "5 invoices in the last 10 business days")
     evs.append(seed._ev(_ts("2026-03-22", 600), "sales", "create_scheme",
                         {"name": "March volume push", "kind": "TRADE_DISCOUNT", "rate_bp": 1200, "valid_from": "2026-03-22",

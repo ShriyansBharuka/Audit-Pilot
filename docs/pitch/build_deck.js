@@ -233,11 +233,9 @@ if (famKeys.length) {
   });
 }
 const pct = (v) => (v === undefined || v === null ? "—" : `${Math.round(v * 100)}%`);
-const abl = metrics ? metrics.ablation_recall_at_k || {} : {};
-const ablVals = Object.values(abl);
 const callouts = [[pct(metrics && metrics.recall), "of planted irregularities caught"],
   [pct(metrics && metrics.precision_sev4), "precision of severity-4+ hits"],
-  [ablVals.length ? `${pct(ablVals[0])} → ${pct(ablVals[ablVals.length - 1])}` : "—", `planted invoices in the top ${metrics ? metrics.k : 30} by risk: transaction-only → full AuditGraph`]];
+  ["~2 s", "from a client's live edit to the updated risk score (whole audit < 1 min)"]];
 if (metrics) callouts.forEach(([n, l], i) => {
   card(s, 6.3, 1.15 + i * 1.3, 3.3, 1.15);
   text(s, n, { x: 6.45, y: 1.2 + i * 1.3, w: 3.0, h: 0.55, fontSize: 26, bold: true, color: C.text2, fontFace: THEME.headFontFace });
@@ -246,7 +244,7 @@ if (metrics) callouts.forEach(([n, l], i) => {
 if (!metrics && clean) text(s, "Recall per irregularity family and the AuditGraph ablation appear here once the planted set and answer key are complete (python -m app.evaluate).", { x: 6.3, y: 1.15, w: 3.3, h: 3.6, fontSize: 13, italic: true, color: C.accent4, valign: "middle" });
 text(s, "Prototype performance on a dataset we designed (7,000 invoices, planted irregularities kept in a held-out answer key the engine never reads). Not a claim of real-world accuracy.",
   { x: 0.4, y: 5.05, w: 8.7, h: 0.45, fontSize: 10, italic: true, color: C.accent4 });
-s.addNotes("Numbers from python -m app.evaluate. The ablation compares transaction features only, plus graph features, plus entity risk: the measured benefit of AuditGraph.");
+s.addNotes("Numbers from python -m app.demo_audit on 7,003 invoices with 31 planted irregularities: 31/31 caught, zero serious false alarms. Latency measured on a laptop CPU: upload to risk map under a minute; a live client edit re-scores that customer in about 1-3 s. Honest caveat: on this data the transaction-only ranking already puts every planted invoice in the top 30, so we don't claim a ranking lift from the graph; it earns its keep on the party view (round trips, undisclosed related parties). Full numbers in docs/FEASIBILITY.md.");
 
 // ---------- 10 demo flow
 s = S("Live demo: plant it, catch it, sign it", "LIGHT", "Evidence");

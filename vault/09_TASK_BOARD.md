@@ -30,7 +30,7 @@ Status: DA-1a / DA-2 / DA-3 pure cores are done (25 tests green). No platform co
 | 7 | **DA-6**: AuditGraph `risk_graph.py` (`05 §19`: `build` + `on_event` per-event updates + **mandatory minimum-span decomposition** + five-factor E + limitations), `get_risk_graph`, `app/replay.py`, `app/evaluate.py` | the differentiator + demo + PPT numbers |
 | 8 | **IB-5**: evidence + D11 stale + D12 integrity | change-after-testing story |
 | 9 | **AA-3 + AA-4 + DA-4**: findings/AJEs, memo, 4-sheet xlsx | deliverables |
-| 10 | **AA-5**: investigator (when the OpenAI key arrives); D10/D14 | P1 |
+| 10 | ✅ **done 18:45**: **AA-5** investigator (live test waits for the key in `.env`); D10/D14 done; DA-1 plants + `demo_audit` (31/31 caught); IB-8 deploy files; `docs/FEASIBILITY.md` | P1 |
 
 If C2 hits its Pro quota, hand the next queue item to Antigravity (the same task IDs and specs) and note it in `PROGRESS.md`.
 

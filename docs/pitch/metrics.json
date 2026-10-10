@@ -1,0 +1,66 @@
+{
+ "per_family": {
+  "A": {
+   "plants": 3,
+   "caught": 3,
+   "recall": 1.0
+  },
+  "B": {
+   "plants": 1,
+   "caught": 1,
+   "recall": 1.0
+  },
+  "C": {
+   "plants": 4,
+   "caught": 4,
+   "recall": 1.0
+  },
+  "D": {
+   "plants": 5,
+   "caught": 5,
+   "recall": 1.0
+  },
+  "E": {
+   "plants": 2,
+   "caught": 2,
+   "recall": 1.0
+  },
+  "F": {
+   "plants": 3,
+   "caught": 3,
+   "recall": 1.0
+  },
+  "G": {
+   "plants": 3,
+   "caught": 3,
+   "recall": 1.0
+  },
+  "I": {
+   "plants": 2,
+   "caught": 2,
+   "recall": 1.0
+  },
+  "J": {
+   "plants": 4,
+   "caught": 4,
+   "recall": 1.0
+  },
+  "K": {
+   "plants": 4,
+   "caught": 4,
+   "recall": 1.0
+  }
+ },
+ "recall": 1.0,
+ "precision_sev4": 1.0,
+ "false_positive_hits_sev4": 0,
+ "prioritised_invoices_R60": 13,
+ "ablation_recall_at_k": {
+  "baseline_A (transaction features)": 1.0,
+  "baseline_B (+ graph features)": 1.0,
+  "proposed (+ entity risk)": 1.0
+ },
+ "k": 30,
+ "replay_latency_events": null,
+ "note": "prototype performance on our synthetic data, not real-world accuracy"
+}
