@@ -4,6 +4,7 @@ Login by token. Client roles get the client portal; audit_staff gets the auditor
 Audit Investigation Explorer (Network View, Transaction Timeline, Evidence & Change History); the engagement
 partner gets the review queue and sign-off. All actions except the partner's go through the MCP server.
 """
+import asyncio
 import base64
 import json
 import sys
@@ -12,7 +13,7 @@ from pathlib import Path
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app import explorer, money, partner  # noqa: E402
+from app import explorer, investigator, money, partner  # noqa: E402
 from ui.mcp_client import MCP_URL, ToolFailed, call  # noqa: E402
 
 st.set_page_config(page_title="AuditPilot AI", page_icon="🔎", layout="wide")
@@ -332,6 +333,19 @@ def evidence_view():
                      width="stretch", hide_index=True)
     else:
         st.caption("No detector hits on this invoice.")
+    with st.expander("🤖 AuditPilot investigator: a GPT agent that is just another MCP client (auditor token)"):
+        ok, why = investigator.ready()
+        if not ok:
+            st.caption(f"Off: {why}. Deterministic detectors above already decide every finding.")
+        elif st.button("Investigate this transaction", key="inv_run"):
+            task, target = investigator.task_for(invoice=inv_no)
+            with st.spinner("Investigating through the MCP server (every tool call is in the audit trail)…"):
+                try:
+                    r = asyncio.run(investigator.investigate(task, save_note=("risk_hit", inv_id)))
+                    st.caption(f"model {r['model']} · {r['tool_calls']} tool calls · cost ${r['usd']}")
+                    st.json(r["investigation"])
+                except Exception as e:  # noqa: BLE001 - surface caps / config errors to the auditor
+                    st.error(str(e))
     st.subheader("Supporting documents")
     for q in explorer.evidence_for(st.session_state.role, inv_no):
         st.markdown(f"**{q['doc_kind']}** · request {q['id']} ({q['status']}, due {q['due_on']})")
