@@ -4,15 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserRole, UserSession } from "./types";
 import { api } from "./api";
 
-// Default demo session (Engagement Partner CA S. Mehta)
-export const DEFAULT_PARTNER_SESSION: UserSession = {
-  token: "ptn_HOw8AhBiFdvqvyFwCbWt6CFBk8xicWaV",
-  principal: "ptn.mehta",
-  role: "engagement_partner",
-  name: "CA S. Mehta",
-  membership_no: "ICAI-094128",
-};
-
 interface AuthContextType {
   user: UserSession | null;
   loading: boolean;
@@ -37,58 +28,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [identities, setIdentities] = useState<any[]>([]);
 
   useEffect(() => {
-    // Load identities from backend for quick switcher
+    // Identities carry no tokens unless the API runs with DEMO_ROLE_SWITCHER=1 (never the partner's).
+    api.getIdentities().then(setIdentities).catch(() => setIdentities([]));
+    const stored = localStorage.getItem("auditpilot_token");
+    if (!stored) {
+      setLoading(false);
+      return;
+    }
     api
-      .getIdentities()
-      .then((ids) => {
-        setIdentities(ids);
-        // Check stored token or default to partner
-        const stored = localStorage.getItem("auditpilot_token");
-        if (stored) {
-          const matched = ids.find((i) => i.token === stored);
-          if (matched) {
-            setUser({
-              token: matched.token,
-              principal: matched.principal,
-              role: matched.role,
-              name: matched.name,
-              membership_no: matched.membership_no,
-            });
-            return;
-          }
-        }
-        // Fallback default demo partner
-        setUser(DEFAULT_PARTNER_SESSION);
-        localStorage.setItem("auditpilot_token", DEFAULT_PARTNER_SESSION.token);
-      })
-      .catch((err) => {
-        console.warn("Could not load identities from API, using default partner:", err);
-        setUser(DEFAULT_PARTNER_SESSION);
-      })
+      .tokenLogin(stored)
+      .then((res) =>
+        setUser({ token: res.token, principal: res.principal, role: res.role, name: res.name, membership_no: res.membership_no })
+      )
+      .catch(() => localStorage.removeItem("auditpilot_token"))
       .finally(() => setLoading(false));
   }, []);
 
   const loginWithToken = async (token: string) => {
-    setLoading(true);
-    try {
-      const res = await api.tokenLogin(token);
-      const session: UserSession = {
-        token: res.token,
-        principal: res.principal,
-        role: res.role,
-        name: res.name,
-        membership_no: res.membership_no,
-      };
-      setUser(session);
-      localStorage.setItem("auditpilot_token", session.token);
-    } finally {
-      setLoading(false);
-    }
+    const res = await api.tokenLogin(token); // throws on an unknown token; the login form shows the message
+    const session: UserSession = {
+      token: res.token,
+      principal: res.principal,
+      role: res.role,
+      name: res.name,
+      membership_no: res.membership_no,
+    };
+    setUser(session);
+    localStorage.setItem("auditpilot_token", session.token);
   };
 
   const switchRole = async (targetRole: UserRole) => {
     const matched = identities.find((i) => i.role === targetRole);
-    if (matched) {
+    if (matched?.token) {
       await loginWithToken(matched.token);
     }
   };

@@ -34,7 +34,7 @@ export interface AuditOverview {
   customers_count?: number;
   register_rows_count?: number;
   company_risk?: {
-    band: "HIGH" | "REVIEW" | "LOW";
+    band: "HIGH" | "MODERATE" | "REVIEW" | "LOW";
     exposure_paise: number;
     circular_paise: number;
     cycles_count: number;
@@ -190,13 +190,15 @@ export interface FindingItem {
 }
 
 export interface EvidenceRequestItem {
+  // pbc.evidence_requests (vault 03 #27): sample_ref is opaque, the client never sees why a document was requested
   id: string;
-  about_doc_no: string;
-  doc_type: string;
+  engagement_id: string;
+  sample_ref: string;
+  doc_kind: "INVOICE" | "EWAY_BILL" | "LR" | "POD" | "CREDIT_NOTE" | "RETURN_PROOF" | "CONTRACT" | "OTHER";
+  about_doc_no: string | null;
   requested_at: string;
-  deadline?: string;
-  status: "REQUESTED" | "RECEIVED" | "TESTED" | "EXPIRED";
-  reason: string;
+  due_on: string;
+  status: "OPEN" | "RECEIVED" | "OVERDUE" | "WAIVED";
   submissions: {
     id: string;
     filename: string;
@@ -208,18 +210,48 @@ export interface EvidenceRequestItem {
   }[];
 }
 
+export interface ShapContribution {
+  feature: string;
+  kind: "hit" | "entity";
+  detector: string | null;
+  code: string | null;
+  severity: number | null;
+  value: number;
+}
+
 export interface ShapExplanation {
+  invoice_id: string;
   invoice_no: string;
   invoice_date: string;
+  party_id: string;
   party_name: string;
   risk_score: number;
+  stored_risk_score: number;
   risk_band: "HIGH" | "REVIEW" | "LOW";
+  A: number;
+  E: number;
   base_value: number;
+  contributions: ShapContribution[];
+  entity_terms: { term: string; feature: string; value: number; term_value?: number }[];
+  check: { sum_of_attributions: number; model_output: number; exact: boolean; note: string };
+  method: string;
   shap_values: Record<string, number>;
   top_positive: { feature: string; value: number }[];
   top_negative: { feature: string; value: number }[];
   explanation_text: string;
   detector_hits_count: number;
+}
+
+export interface ShapSummary {
+  invoices: number;
+  min_risk: number;
+  features: { feature: string; detector: string | null; mean_abs: number; sum_abs: number; invoices: number }[];
+}
+
+export interface N8nEvents {
+  webhook_configured: boolean;
+  events: { id: number; kind: string; at: string; notified_at: string | null }[];
+  workflows: string[];
 }
 
 export interface Organization {

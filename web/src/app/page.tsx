@@ -78,7 +78,7 @@ export default function OverviewPage() {
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Konkan Marine Controls Ltd · FY 2025-26 · Ind AS Framework · Lead Auditor: CA S. Mehta (ICAI-094128)
+            {data?.entity_name || "Konkan Marine Controls Ltd"} · {data?.period_start} → {data?.period_end} · {data?.framework === "IND_AS" ? "Ind AS" : data?.framework || "Ind AS"} framework
           </p>
         </div>
         <button
@@ -107,11 +107,11 @@ export default function OverviewPage() {
             <FileSpreadsheet className="h-4 w-4 text-indigo-400" />
           </div>
           <div className="text-xl font-bold text-white font-mono tracking-tight">
-            {data?.revenue_formatted || "₹10,26,74,404.85"}
+            {data?.revenue_formatted ?? "—"}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
-            <span className="text-emerald-400 font-semibold">{data?.invoices_count || 303} Invoices</span>
-            <span>across {data?.customers_count || 154} customers</span>
+            <span className="text-emerald-400 font-semibold">{(data?.invoices_count ?? 0).toLocaleString("en-IN")} invoices</span>
+            <span>across {data?.customers_count ?? 0} customers</span>
           </div>
         </div>
 
@@ -122,12 +122,12 @@ export default function OverviewPage() {
             <Award className="h-4 w-4 text-amber-400" />
           </div>
           <div className="text-xl font-bold text-amber-400 font-mono tracking-tight flex items-baseline gap-2">
-            <span>{data?.findings_counts?.PROPOSED || 31} Proposed</span>
+            <span>{data?.findings_counts?.PROPOSED ?? 0} proposed</span>
             <span className="text-xs text-slate-400 font-normal">SA 320</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
             <span className="text-amber-400">Materiality OM:</span>
-            <span>{data?.materiality_formatted || "₹42.50 L"}</span>
+            <span>{data?.materiality_paise ? data.materiality_formatted : "set when findings are generated"}</span>
           </div>
         </div>
 
@@ -138,10 +138,10 @@ export default function OverviewPage() {
             <Network className="h-4 w-4 text-rose-400" />
           </div>
           <div className="text-xl font-bold text-rose-400 font-mono tracking-tight flex items-baseline gap-2">
-            <span>{data?.company_risk?.cycles_count || 4} Minimum-Span</span>
+            <span>{data?.company_risk?.cycles_count ?? 0} flagged cycles</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
-            <span className="text-rose-400 font-medium">₹5.63 Cr</span>
+            <span className="text-rose-400 font-medium">₹{((data?.company_risk?.circular_paise ?? 0) / 1e9).toFixed(2)} Cr</span>
             <span>circular turnover flagged</span>
           </div>
         </div>
@@ -233,20 +233,20 @@ export default function OverviewPage() {
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Findings must be reviewed by the engagement partner (CA S. Mehta). All 31 proposed adjusting entries require a confirmed, rejected, or modified status.
+              Every proposed finding needs the engagement partner's confirm, reject or modify decision, with a comment, before sign-off.
             </p>
             <div className="border-t border-slate-800 pt-3 space-y-2 text-xs">
               <div className="flex justify-between text-slate-300">
                 <span>Proposed Findings:</span>
-                <span className="font-mono font-bold text-amber-400">31</span>
+                <span className="font-mono font-bold text-amber-400">{data?.findings_counts?.PROPOSED ?? 0}</span>
               </div>
               <div className="flex justify-between text-slate-300">
                 <span>Mandatory Partner Comments:</span>
                 <span className="font-mono text-slate-400">Required</span>
               </div>
               <div className="flex justify-between text-slate-300">
-                <span>Tamper-Evident Ledger:</span>
-                <span className="font-mono text-emerald-400">Verified (SHA-256)</span>
+                <span>Tamper-evident ledger:</span>
+                <span className="font-mono text-emerald-400">SHA-256 hash chain (verify_integrity)</span>
               </div>
             </div>
             <Link

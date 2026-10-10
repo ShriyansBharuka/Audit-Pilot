@@ -6,3 +6,4 @@ pytest>=8
 # optional
 networkx>=3.3
 openai-agents>=0.23
+fastapi>=0.143        # web app REST API (app/api_server.py)

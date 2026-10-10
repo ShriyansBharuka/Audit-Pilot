@@ -136,7 +136,7 @@ export default function FindingsPage() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
             <span>
-              You are currently viewing as <strong>{user?.name} ({user?.role})</strong>. Only the Engagement Partner may confirm/reject findings or sign off. Use the persona switcher above to switch to CA S. Mehta.
+              You are currently viewing as <strong>{user?.name} ({user?.role})</strong>. Only the Engagement Partner may confirm/reject findings or sign off. Sign out and sign in with the partner token.
             </span>
           </div>
         </div>

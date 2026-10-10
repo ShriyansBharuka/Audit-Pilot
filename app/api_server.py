@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, Header, HTTPException, Query, UploadFile, File, Form
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import config, db, erp, evidence, explorer, findings, gateway, intake, ledger, memo, money, partner, register, risk_graph, sampling, trail, workpaper
+from app import config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, notify, partner, register, risk_graph, sampling, trail, workpaper
 
 app = FastAPI(
     title="AuditPilot AI API",
@@ -45,6 +45,24 @@ def _get_identity(auth_header: Optional[str] = Header(None, alias="Authorization
         raise HTTPException(status_code=401, detail="UNAUTHENTICATED: invalid token")
 
 
+AUDIT_ROLES = ("audit_staff", "engagement_partner")
+CLIENT_ROLES = ("sales", "warehouse", "accounts", "client_admin")
+
+
+def require(*roles):
+    """Dependency: the Bearer token's role must be one of `roles` (identity comes only from the token)."""
+    def dep(auth_header: Optional[str] = Header(None, alias="Authorization")) -> Dict[str, Any]:
+        who = _get_identity(auth_header)
+        if who.get("role") not in roles:
+            raise HTTPException(status_code=403, detail=f"PERMISSION_DENIED: role {who.get('role')} may not use this endpoint")
+        return who
+    return dep
+
+
+AUDIT = Depends(require(*AUDIT_ROLES))
+ANYONE = Depends(require(*AUDIT_ROLES, *CLIENT_ROLES))
+
+
 # ---------------------------------------------------------------- Auth & Identities
 
 @app.get("/api/health")
@@ -67,9 +85,10 @@ def list_identities():
     try:
         ids_dict = json.loads(ids_file.read_text(encoding="utf-8"))
         out = []
+        demo = os.environ.get("DEMO_ROLE_SWITCHER") == "1"     # local demo only; the partner token is never listed
         for token, rec in ids_dict.items():
             out.append({
-                "token": token,
+                "token": token if demo and rec.get("role") != "engagement_partner" else None,
                 "principal": rec.get("principal"),
                 "role": rec.get("role"),
                 "name": rec.get("name", rec.get("principal")),
@@ -102,7 +121,7 @@ def token_login(req: TokenLoginRequest):
 
 # ---------------------------------------------------------------- Audit Overview
 
-@app.get("/api/audit/overview")
+@app.get("/api/audit/overview", dependencies=[AUDIT])
 def get_audit_overview():
     """Engagement statistics, revenue tested, detector counts, risk bands."""
     eid = config.ENGAGEMENT_ID
@@ -136,8 +155,13 @@ def get_audit_overview():
     with db.borrow("pbc", "system") as p:
         evidence_counts = dict(p.execute("SELECT status, count(*) FROM evidence_requests WHERE engagement_id = ? GROUP BY status", (eid,)).fetchall())
 
-    # Risk graph company risk
-    company_risk = risk_graph.company_band(eid)
+    # Risk graph company risk (stored by the last AuditGraph run) + distinct flagged cycles from the D10 hits
+    company_risk = risk_graph.company_band(eid) or {}
+    with db.borrow("audit", "system") as a:
+        cycles = {json.dumps([(json.loads(r[0] or "{}") or {}).get(k) for k in ("members", "flow")])
+                  for r in a.execute("SELECT evidence_json FROM risk_hits WHERE engagement_id = ? AND detector = 'D10'"
+                                     " AND code = 'CIRCULAR_FLOW'", (eid,))}
+    company_risk["cycles_count"] = len(cycles - {"[null, null]"})
     
     return {
         "has_engagement": True,
@@ -168,7 +192,7 @@ def get_audit_overview():
 
 # ---------------------------------------------------------------- Transactions & 100% Population
 
-@app.get("/api/audit/transactions")
+@app.get("/api/audit/transactions", dependencies=[AUDIT])
 def list_transactions(
     limit: int = 50,
     offset: int = 0,
@@ -260,7 +284,7 @@ def list_transactions(
         }
 
 
-@app.get("/api/audit/transactions/{invoice_no:path}")
+@app.get("/api/audit/transactions/{invoice_no:path}", dependencies=[AUDIT])
 def get_transaction_detail(invoice_no: str):
     """Full documentary trail for one transaction: invoice lines, EWB, LR/POD, credit notes, risk history."""
     with db.borrow("erp", "system") as e, db.borrow("audit", "system") as a, db.borrow("ext", "system") as x:
@@ -307,7 +331,7 @@ def get_transaction_detail(invoice_no: str):
 
 # ---------------------------------------------------------------- Risk Graph & Circular Trading
 
-@app.get("/api/audit/risk-graph")
+@app.get("/api/audit/risk-graph", dependencies=[AUDIT])
 def get_risk_graph_data():
     """Graph structure: entity nodes, flows, and circular cycles."""
     eid = config.ENGAGEMENT_ID
@@ -381,7 +405,7 @@ def get_risk_graph_data():
 
 # ---------------------------------------------------------------- Findings & Partner Sign-off
 
-@app.get("/api/audit/findings")
+@app.get("/api/audit/findings", dependencies=[AUDIT])
 def list_findings(status: Optional[str] = None):
     """List findings for the review queue."""
     eid = config.ENGAGEMENT_ID
@@ -436,7 +460,7 @@ def decide_finding_endpoint(
         raise HTTPException(status_code=400, detail=str(ve))
 
 
-@app.get("/api/audit/signoff-blockers")
+@app.get("/api/audit/signoff-blockers", dependencies=[AUDIT])
 def get_signoff_blockers():
     """List of reasons blocking the engagement partner's final sign-off."""
     return partner.blockers()
@@ -467,7 +491,7 @@ def execute_sign_off(
 
 # ---------------------------------------------------------------- Evidence & PBC Requests
 
-@app.get("/api/audit/evidence/requests")
+@app.get("/api/audit/evidence/requests", dependencies=[ANYONE])
 def list_evidence_requests(status: Optional[str] = None):
     """List evidence requests."""
     eid = config.ENGAGEMENT_ID
@@ -491,154 +515,71 @@ def list_evidence_requests(status: Optional[str] = None):
 async def submit_evidence_file(
     request_id: str = Form(...),
     file: UploadFile = File(...),
-    auth_header: Optional[str] = Header(None, alias="Authorization"),
+    who: Dict[str, Any] = Depends(require(*CLIENT_ROLES)),
 ):
-    """Upload client evidence file, computes server sha256, saves content verbatim."""
+    """Client uploads evidence for a request; the server computes sha256 and stores the bytes verbatim."""
     content = await file.read()
     filename = file.filename or "evidence.bin"
-    who = "adm.kiran"
-    if auth_header and auth_header.startswith("Bearer "):
-        try:
-            who = partner.identity(auth_header[7:].strip())["principal"]
-        except Exception:
-            pass
-
-    res = intake.submit("EVIDENCE", content, filename, who, request_id=request_id)
-    return res
+    sid = intake.submit("EVIDENCE", content, filename, who["principal"], request_id=request_id)
+    return intake.on_client_upload(sid)              # EVIDENCE_RECEIVED event (n8n W3) + next_steps
 
 
 # ---------------------------------------------------------------- SHAP Explainability
 
-@app.get("/api/audit/shap/{invoice_no:path}")
+@app.get("/api/audit/shap-summary", dependencies=[AUDIT])
+def get_shap_summary(min_risk: int = 30):
+    """Global SHAP importance: mean |attribution| per risk code over the invoices scored >= min_risk."""
+    return explain.summary(min_r=min_risk)
+
+
+@app.get("/api/audit/shap/{invoice_no:path}", dependencies=[AUDIT])
 def get_shap_explanation(invoice_no: str):
-    """Compute local SHAP feature attribution values for an invoice.
-
-    Decomposes the AuditGraph risk score into exact feature contributions:
-    - Base Expected Value (population baseline)
-    - Factor 1: GSTIN & IRN Statutory Compliance
-    - Factor 2: E-Way Bill & Physical Movement
-    - Factor 3: Related Party & Transfer Pricing
-    - Factor 4: Circular Trading & Graph Cycle
-    - Factor 5: Revenue Timing & Cut-off Anomaly
-    - Factor 6: Discrepancy vs Client Uploaded Register
-    """
-    eid = config.ENGAGEMENT_ID
-    with db.borrow("erp", "system") as e, db.borrow("audit", "system") as a, db.borrow("ext", "system") as x:
-        inv = e.execute("SELECT * FROM invoices WHERE invoice_no = ? OR id = ?", (invoice_no, invoice_no)).fetchone()
-        if not inv:
-            raise HTTPException(status_code=404, detail="Invoice not found")
-        inv_dict = dict(inv)
-        iid = inv_dict["id"]
-
-        party = dict(e.execute("SELECT * FROM parties WHERE id = ?", (inv_dict["party_id"],)).fetchone())
-        hits = [dict(r) for r in a.execute("SELECT detector, code, severity, impact_paise, reason FROM risk_hits WHERE engagement_id = ? AND object_id = ?", (eid, iid)).fetchall()]
-        snapshot = a.execute("SELECT R, band FROM risk_snapshots WHERE object_id = ?", (iid,)).fetchone()
-        risk_score = (snapshot[0] // 1000) if snapshot and snapshot[0] is not None else 15
-        risk_band = snapshot[1] if snapshot else "LOW"
-
-        # Check factors
-        tags = party.get("tags") or ""
-        is_rp = "RP" in tags or "DIRECTOR" in tags or "KMP" in tags or "RELATIVE" in tags
-        has_irn = bool(inv_dict.get("irn"))
-        has_cycle = any(h["detector"] == "D10" for h in hits)
-        has_cutoff = any(h["detector"] == "D3" for h in hits)
-        has_movement_issue = any(h["detector"] in ("D4", "D6") for h in hits)
-        has_reg_diff = any(h["detector"] == "D0" for h in hits)
-
-        # Baseline risk
-        base_value = 12.0
-        contributions = {}
-
-        # 1. Statutory IRN
-        if not has_irn:
-            contributions["IRN Missing / Non-Compliant"] = 28.5
-        elif any(h["code"] == "IRN_LATE" for h in hits):
-            contributions["IRN Generated Late (>30d)"] = 14.0
-        else:
-            contributions["Statutory IRN Validated"] = -4.0
-
-        # 2. Movement / E-Way Bill
-        if has_movement_issue:
-            contributions["E-Way Bill or Logistics Discrepancy"] = 22.0
-        else:
-            contributions["Movement Verified (LR/POD & EWB)"] = -3.5
-
-        # 3. Related Party
-        if is_rp:
-            contributions["Undisclosed / Related-Party Counterparty"] = 18.0
-        else:
-            contributions["Arm's Length Third-Party"] = -2.0
-
-        # 4. Circular Trading Cycle
-        if has_cycle:
-            contributions["Minimum-Span Circular Trading Loop"] = 35.0
-
-        # 5. Timing / Cut-off
-        if has_cutoff:
-            contributions["Premature Revenue Recognition (Cut-off)"] = 16.5
-
-        # 6. Register vs Books Discrepancy
-        if has_reg_diff:
-            contributions["Difference vs Client Uploaded Register"] = 12.0
-
-        # Rank features
-        top_positive = [{"feature": k, "value": v} for k, v in contributions.items() if v > 0]
-        top_positive.sort(key=lambda x: -x["value"])
-
-        top_negative = [{"feature": k, "value": v} for k, v in contributions.items() if v < 0]
-        top_negative.sort(key=lambda x: x["value"])
-
-        explanation_text = (
-            f"Transaction {inv_dict['invoice_no']} carries a risk score of {risk_score}/100 ({risk_band}). "
-            f"The primary driver is {top_positive[0]['feature'] if top_positive else 'standard risk variance'} "
-            f"(+{top_positive[0]['value']:.1f} pts)." if top_positive else "Standard low-risk commercial transaction."
-        )
-
-        return {
-            "invoice_no": inv_dict["invoice_no"],
-            "invoice_date": inv_dict["invoice_date"],
-            "party_name": party.get("name"),
-            "risk_score": risk_score,
-            "risk_band": risk_band,
-            "base_value": base_value,
-            "shap_values": contributions,
-            "top_positive": top_positive,
-            "top_negative": top_negative,
-            "explanation_text": explanation_text,
-            "detector_hits_count": len(hits),
-        }
+    """Exact Shapley attribution of the invoice's AuditGraph risk score (app/explain.py): every risk hit and the
+    customer's entity risk E are players of the real scoring formula; the attributions sum to the score."""
+    x = explain.explain_invoice(invoice_no)
+    if x is None:
+        raise HTTPException(status_code=404, detail="NOT_FOUND: no invoice with that number or id")
+    pos = [c for c in x["contributions"] if c["value"] > 0]
+    neg = [c for c in x["contributions"] if c["value"] < 0]
+    return {**x,
+            "shap_values": {c["feature"]: c["value"] for c in x["contributions"]},
+            "top_positive": [{"feature": c["feature"], "value": c["value"]} for c in pos[:3]],
+            "top_negative": [{"feature": c["feature"], "value": c["value"]} for c in neg[:3]],
+            "detector_hits_count": sum(1 for c in x["contributions"] if c["kind"] == "hit")}
 
 
 # ---------------------------------------------------------------- Deliverables & Exports
 
-@app.get("/api/audit/deliverables/workpaper")
+def _fresh_deliverables(eid):
+    """Same order as the generate_deliverables MCP tool: D11 first, every serious hit a PROPOSED finding."""
+    evidence.check_for_changes(eid)
+    findings.from_hits(eid)
+
+
+@app.get("/api/audit/deliverables/workpaper", dependencies=[AUDIT])
 def download_workpaper():
-    """Generate or retrieve the 4-sheet workpaper Excel workbook."""
+    """The 4-sheet workpaper (xlsx), DRAFT until the partner signs off."""
     eid = config.ENGAGEMENT_ID
-    out_path = config.DATA_DIR / "audit_files" / f"{eid}_workpaper.xlsx"
-    if not out_path.exists():
-        workpaper.generate(eid)
-    if out_path.exists():
-        content = out_path.read_bytes()
-        return Response(
-            content=content,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={eid}_workpaper.xlsx"},
-        )
-    raise HTTPException(status_code=404, detail="Workpaper could not be generated")
+    _fresh_deliverables(eid)
+    wp = workpaper.build(eid)
+    return Response(content=Path(wp["path"]).read_bytes(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename={eid}_workpaper.xlsx",
+                             "X-Content-SHA256": wp["sha256"]})
 
 
-@app.get("/api/audit/deliverables/memo")
+@app.get("/api/audit/deliverables/memo", dependencies=[AUDIT])
 def get_findings_memo():
-    """Retrieve the findings memo markdown text."""
+    """The findings memo (markdown), DRAFT until the partner signs off."""
     eid = config.ENGAGEMENT_ID
-    m = memo.render_memo(eid)
-    return {"memo": m}
+    _fresh_deliverables(eid)
+    mm = memo.build(eid)
+    return {"memo": Path(mm["path"]).read_text(encoding="utf-8"), "sha256": mm["sha256"]}
 
 
 # ---------------------------------------------------------------- Audit Trail (Hash-chained)
 
-@app.get("/api/audit/trail")
+@app.get("/api/audit/trail", dependencies=[AUDIT])
 def get_audit_trail(limit: int = 50, offset: int = 0):
     """Retrieve hash-chained audit trail entries."""
     with db.borrow("audit", "system") as a:
@@ -659,7 +600,7 @@ def get_audit_trail(limit: int = 50, offset: int = 0):
 
 # ---------------------------------------------------------------- Power BI & Integrations
 
-@app.get("/api/integrations/powerbi")
+@app.get("/api/integrations/powerbi", dependencies=[AUDIT])
 def get_powerbi_dataset():
     """Clean JSON endpoint formatted for Microsoft Power BI Web Data Connector."""
     eid = config.ENGAGEMENT_ID
@@ -689,21 +630,13 @@ def get_powerbi_dataset():
     }
 
 
-class N8nTriggerRequest(BaseModel):
-    workflow_name: str
-    action: str
-    payload: Optional[Dict[str, Any]] = None
-
-
-@app.post("/api/integrations/n8n/trigger")
-def trigger_n8n_workflow(req: N8nTriggerRequest):
-    """Trigger an n8n webhook workflow execution and return receipt."""
-    execution_id = hashlib.sha256(f"{req.workflow_name}_{config.now()}".encode()).hexdigest()[:12]
-    # Log run
-    return {
-        "execution_id": f"exec_{execution_id}",
-        "workflow_name": req.workflow_name,
-        "status": "RUNNING",
-        "started_at": config.now(),
-        "message": f"Dispatched {req.action} to n8n webhook orchestrator.",
-    }
+@app.get("/api/integrations/n8n/events", dependencies=[AUDIT])
+def n8n_events(limit: int = 20):
+    """The real event feed n8n receives (03 #38 events): what was emitted, and whether the signed webhook was
+    delivered (notified_at). Workflows run in n8n; this app only emits events (n8n/README.md)."""
+    with db.borrow("audit", "system") as a:
+        rows = [dict(r) for r in a.execute("SELECT id, kind, at, notified_at FROM events ORDER BY id DESC LIMIT ?",
+                                           (min(max(limit, 1), 100),))]
+    return {"webhook_configured": bool(config.N8N_WEBHOOK_URL), "events": rows,
+            "workflows": ["W1 register uploaded -> notify", "W2 samples selected -> evidence request + reminders",
+                          "W3 evidence received -> test_sample", "W4 schedule -> analytics + changes + integrity"]}

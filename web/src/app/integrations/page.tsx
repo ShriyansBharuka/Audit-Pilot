@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { N8nEvents } from "@/lib/types";
 import {
   BarChart3,
   CheckCircle2,
@@ -17,51 +18,21 @@ import {
 
 export default function IntegrationsPage() {
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [triggering, setTriggering] = useState<string | null>(null);
-  const [workflowRuns, setWorkflowRuns] = useState<any[]>([
-    {
-      id: "exec_d819fa0b12",
-      name: "Daily PBC Evidence Expiry Monitor",
-      status: "COMPLETED",
-      at: "2026-10-10 14:00:15",
-      receipt: "Dispatched 12 reminder webhooks to client accounts team",
-    },
-    {
-      id: "exec_4019ab921c",
-      name: "High-Risk Transaction Alert to Teams/Slack",
-      status: "COMPLETED",
-      at: "2026-10-10 12:45:00",
-      receipt: "Broadcasted 13 HIGH risk invoices to Forensic Channel",
-    },
-  ]);
+  const [feed, setFeed] = useState<N8nEvents | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const powerBiUrl = api.getPowerBiDatasetUrl();
+  const mcpUrl = process.env.NEXT_PUBLIC_MCP_URL || "http://localhost:8000/mcp";
 
-  const powerBiUrl = "http://localhost:8000/api/integrations/powerbi";
+  const load = () => {
+    setRefreshing(true);
+    api.getN8nEvents(20).then(setFeed).catch(() => setFeed(null)).finally(() => setRefreshing(false));
+  };
+  useEffect(load, []);
 
   const copyPowerBi = () => {
     navigator.clipboard.writeText(powerBiUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
-  };
-
-  const handleTrigger = async (workflowName: string, action: string) => {
-    setTriggering(workflowName);
-    try {
-      const res = await api.triggerN8nWorkflow(workflowName, action);
-      setWorkflowRuns([
-        {
-          id: res.execution_id,
-          name: res.workflow_name,
-          status: "SUCCESS",
-          at: new Date().toLocaleTimeString(),
-          receipt: res.message,
-        },
-        ...workflowRuns,
-      ]);
-    } catch (err: any) {
-      alert("Failed to trigger workflow: " + err.message);
-    } finally {
-      setTriggering(null);
-    }
   };
 
   return (
@@ -126,7 +97,8 @@ export default function IntegrationsPage() {
             <div className="font-semibold text-slate-300">How to connect in Power BI:</div>
             <div>1. In Power BI Desktop, click <strong>Get Data</strong> → <strong>Web</strong></div>
             <div>2. Paste the URL above and click <strong>OK</strong></div>
-            <div>3. Transform or load <code>invoices</code> and <code>findings</code> tables into your DAX model.</div>
+            <div>3. Under <strong>Advanced</strong>, add the header <code>Authorization: Bearer &lt;auditor token&gt;</code>.</div>
+            <div>4. Load the <code>invoices</code> and <code>findings</code> tables into your model.</div>
           </div>
         </div>
 
@@ -139,7 +111,7 @@ export default function IntegrationsPage() {
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-white">Model Context Protocol (MCP) Server</h2>
-                <div className="text-[11px] text-slate-400">Streamable HTTP Gateway (46 Audit Tools)</div>
+                <div className="text-[11px] text-slate-400">Streamable HTTP gateway, role-filtered tools</div>
               </div>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
@@ -148,13 +120,13 @@ export default function IntegrationsPage() {
           </div>
 
           <p className="text-xs text-slate-300 leading-relaxed">
-            All 46 audit tools are exposed over standard MCP with cryptographic token-bound RBAC. External AI agents (Claude Code, Cursor, Windsurf) connect directly with token headers.
+            Every tool is exposed over standard MCP with cryptographic token-bound RBAC. External AI agents (Claude Code, Cursor, Windsurf) connect directly with token headers.
           </p>
 
           <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-2">
             <div className="text-slate-500 font-sans text-[10px] uppercase font-semibold">Connect via CLI:</div>
             <code className="text-indigo-300 block select-all break-all">
-              claude mcp add --transport http auditpilot http://localhost:8000/mcp --header "Authorization: Bearer aud_pD_bL7H70P_42AypXzL44a7_qiCTEH5z"
+              {`claude mcp add --transport http auditpilot ${mcpUrl} --header "Authorization: Bearer aud_…"`}
             </code>
           </div>
 
@@ -165,82 +137,53 @@ export default function IntegrationsPage() {
         </div>
       </div>
 
-      {/* n8n Webhook Orchestration */}
+      {/* n8n: real events this app emits; the workflows themselves run in n8n (n8n/README.md) */}
       <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-emerald-400" />
-            <h2 className="text-sm font-semibold text-white">n8n Workflow Execution Orchestrator</h2>
+            <h2 className="text-sm font-semibold text-white">n8n event feed</h2>
           </div>
-          <span className="text-xs text-slate-400 font-mono">Webhook Receiver Active</span>
-        </div>
-
-        {/* Action Triggers */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="font-semibold text-xs text-white">Daily PBC Evidence Reminders</div>
-            <p className="text-[11px] text-slate-400">Dispatches automated notifications for unanswered client requests.</p>
-            <button
-              onClick={() => handleTrigger("Daily PBC Evidence Reminders", "dispatch_reminders")}
-              disabled={triggering === "Daily PBC Evidence Reminders"}
-              className="w-full mt-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 flex items-center justify-center gap-1.5 transition"
+          <div className="flex items-center gap-3">
+            <span
+              className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                feed?.webhook_configured ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
+              }`}
             >
-              <Play className="h-3 w-3 text-emerald-400" />
-              <span>{triggering === "Daily PBC Evidence Reminders" ? "Triggering..." : "Run Workflow"}</span>
-            </button>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="font-semibold text-xs text-white">High-Risk Exception Alerts</div>
-            <p className="text-[11px] text-slate-400">Pushes circular trading and cut-off findings to audit partner channel.</p>
-            <button
-              onClick={() => handleTrigger("High-Risk Exception Alerts", "send_alerts")}
-              disabled={triggering === "High-Risk Exception Alerts"}
-              className="w-full mt-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 flex items-center justify-center gap-1.5 transition"
-            >
-              <Play className="h-3 w-3 text-emerald-400" />
-              <span>{triggering === "High-Risk Exception Alerts" ? "Triggering..." : "Run Workflow"}</span>
-            </button>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="font-semibold text-xs text-white">Workpaper Sync & Backup</div>
-            <p className="text-[11px] text-slate-400">Archives current 4-sheet workpaper and findings memo to secure vault.</p>
-            <button
-              onClick={() => handleTrigger("Workpaper Sync & Backup", "sync_workpaper")}
-              disabled={triggering === "Workpaper Sync & Backup"}
-              className="w-full mt-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 flex items-center justify-center gap-1.5 transition"
-            >
-              <Play className="h-3 w-3 text-emerald-400" />
-              <span>{triggering === "Workpaper Sync & Backup" ? "Triggering..." : "Run Workflow"}</span>
+              {feed?.webhook_configured ? "webhook configured" : "N8N_WEBHOOK_URL not set: events recorded only"}
+            </span>
+            <button onClick={load} className="text-slate-400 hover:text-white">
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
             </button>
           </div>
         </div>
-
-        {/* Workflow Run History */}
-        <div className="space-y-2 pt-2">
-          <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider text-[11px]">
-            Recent n8n Execution Runs
-          </div>
-          <div className="space-y-1.5">
-            {workflowRuns.map((run) => (
-              <div
-                key={run.id}
-                className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs"
-              >
-                <div>
-                  <span className="font-semibold text-white">{run.name}</span>
-                  <div className="text-[11px] text-slate-400 mt-0.5">{run.receipt}</div>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                    {run.status}
-                  </span>
-                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">{run.at}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          {(feed?.workflows || []).map((w) => (
+            <div key={w} className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300">
+              {w}
+            </div>
+          ))}
+        </div>
+        <div className="space-y-1.5">
+          <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Recent events (signed HMAC-SHA256 webhooks)</div>
+          {(feed?.events || []).length === 0 && <div className="text-xs text-slate-500">No events yet.</div>}
+          {(feed?.events || []).map((ev) => (
+            <div key={ev.id} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+              <span className="font-mono text-white">
+                #{ev.id} {ev.kind}
+              </span>
+              <span className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-500 font-mono">{ev.at}</span>
+                <span
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                    ev.notified_at ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  {ev.notified_at ? "delivered" : "recorded"}
+                </span>
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

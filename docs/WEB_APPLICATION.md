@@ -24,9 +24,9 @@ AuditPilot AI is equipped with a modern, production-grade web application built 
               ┌─────────────┴─────────────┐
               ▼                           ▼
 ┌───────────────────────────┐   ┌───────────────────────────┐
-│     FastAPI / MCP Server  │   │       Supabase Cloud      │
+│  FastAPI REST API (:8001) │   │       Supabase Cloud      │
 │     (app/api_server.py)   │   │     (Project: Elevate)    │
-│  - Port 8000 (REST + MCP) │   │  - 23 RLS-Secured Tables  │
+│  MCP server stays on :8000│   │  - 23 RLS-Secured Tables  │
 │  - Reads/Writes SQLite    │   │  - Multi-Tenant Orgs      │
 │    (erp, ext, pbc, audit) │   │  - Granular RBAC Matrix   │
 │  - Token-bound Security   │   │  - Field-Level Sharing    │
@@ -43,9 +43,9 @@ AuditPilot AI is equipped with a modern, production-grade web application built 
 | `/` | **Audit Overview** | Executive cockpit with total tested revenue (₹10.26 Cr), population coverage (303 invoices), 15 detectors summary (D0–D14), circular trading exposure (₹5.63 Cr), and partner sign-off readiness. |
 | `/transactions` | **100% Population Explorer** | Interactive high-density data table with search, filter by risk band (`HIGH`, `REVIEW`, `LOW`) and detector (`D0`–`D14`). Features a slide-over document trail drawer (IRN, E-Way Bill, Lorry Receipt, POD, and Journal Entries). |
 | `/network` | **AuditGraph & Circular Trading** | Visualizes accommodation networks and detects 4 minimum-span circular trading loops (Companies Act s.143(12)) with entity node details and cycle turnover values. |
-| `/shap` | **SHAP Explainability Studio** | Mathematical decomposition of AuditGraph risk scores into exact positive (risk-escalating) and negative (risk-mitigating) feature contributions with interactive waterfall charts. |
+| `/shap` | **SHAP Explainability** | **Exact Shapley values** of the real AuditGraph score (`app/explain.py`): each risk hit and the customer's entity risk E are players of R = max(0.7A + 0.3E, floor); all coalitions enumerated, attributions sum to the score (shown as a check); E split over its five terms; global mean-abs importance across flagged invoices. |
 | `/findings` | **Findings & Partner Sign-off** | Review queue of 31 proposed adjusting journal entries (AJEs) with balanced Dr/Cr COA inspection, mandatory partner review comments, and cryptographic sign-off modal. |
-| `/evidence` | **Evidence & PBC Portal** | Tracks 118 auditor requests sent to the client, provides a drag-and-drop file upload with server-computed SHA-256 fingerprinting, and tamper detection. |
+| `/evidence` | **Evidence & PBC Portal** | Client roles: their open requests (sample ref + document kind only, never the reason) and a per-request upload, stored verbatim with a server SHA-256. Audit roles: request statuses and received files. |
 | `/orgs` | **Organizations & Departments** | Multi-tenant organization creation, department tree hierarchy, member invitations, and role management backed by Supabase RLS. |
 | `/permissions` | **Granular RBAC Matrix** | Resource-level access control matrix (`can_view`, `can_edit`, `can_approve`, `can_export`) with live toggles and immutable permission change logs. |
 | `/sharing` | **Report Sharing & Field Masking** | Published deliverables manager (`.xlsx` workpaper, memo, trail) with selective field masking (summary vs detailed) and access verification logging. |
@@ -63,18 +63,26 @@ python -m app.seed --reset --invoices 300
 python -m app.demo_audit
 ```
 
-### 2. Start the Backend API & MCP Server
+### 2. Start the MCP server and the REST API
 ```bash
-python -m uvicorn app.api_server:app --host 0.0.0.0 --port 8000 --reload
+python -m app.mcp_server                                                    # :8000, agents (MCP)
+DEMO_ROLE_SWITCHER=1 python -m uvicorn app.api_server:app --port 8001       # :8001, the web app's REST API
 ```
-The REST API is live at `http://localhost:8000` (docs at `/docs`), and the MCP endpoint is at `http://localhost:8000/mcp`.
+`DEMO_ROLE_SWITCHER=1` (local demos only) lets the login screen offer one-click personas; **the partner token is never
+listed**, and without the flag `/api/identities` returns no tokens at all.
 
 ### 3. Start the Next.js Frontend
 ```bash
 cd web
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) (`npm run dev -- -p 3001` if 3000 is taken) and sign in with a token.
+Set `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_MCP_URL` when the API or MCP server isn't on localhost.
+
+### Access model (same as MCP)
+Every `/api/audit/*` and `/api/integrations/*` endpoint needs an **audit** token (`audit_staff` or `engagement_partner`);
+client tokens get 403 and see only `/evidence`. Evidence upload needs a **client** token. Partner decisions and
+sign-off need the **partner** token (UI only; it's refused on MCP).
 
 ---
 
@@ -84,7 +92,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
   ```bash
   python -m pytest tests/test_api_server.py -q
   ```
-  *(11 tests passing in <1s)*
+  *(10 tests: role guards on every endpoint, no token leaks, exact SHAP on every flagged invoice, deliverables)*
 
 - **Comprehensive End-to-End Audit Engine Self-Test:**
   ```bash

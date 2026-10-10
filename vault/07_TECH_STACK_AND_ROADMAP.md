@@ -15,6 +15,7 @@
 | Stats | stdlib `statistics` (median/MAD), `secrets`, `random` | **no numpy, scipy or pandas**. Pandas coerces dates, numbers and leading zeros, which breaks "pasted exactly as provided" |
 | Graph (D10) | `networkx` (optional; installed) or a 15-line DFS | brownie only |
 | Investigator | `openai-agents` (0.23.x) + GPT credits | optional P1, see `10` |
+| Web app API (added 2026-10-10 by Ibrahim's PH-6, recorded by Claude) | `fastapi>=0.143` (REST bridge `app/api_server.py` for the Next.js app in `web/`, port **8001**; needs Starlette 1.x like `mcp`, so not 0.115) | the MCP server stays the agent entry point; the REST API enforces the same token roles |
 | Tunnel | `cloudflared tunnel --url http://localhost:8000` | judges' hosted agents and n8n cloud need a public URL |
 
 `requirements.txt`:
@@ -27,6 +28,7 @@ pytest>=8
 # optional
 networkx>=3.3
 openai-agents>=0.23
+fastapi>=0.143        # web app REST API (app/api_server.py)
 ```
 
 ## 2. Processes and ports
@@ -37,6 +39,7 @@ openai-agents>=0.23
 | MCP over HTTP (judges, n8n) | `python -m app.mcp_server` (env `PUBLIC_HOST`, `PUBLIC_URL`) | 8000 (`/mcp`, `/c/<token>/mcp`, `/files/<key>`, `/api/evidence/<req>`, `/connectors/shopify`) |
 | MCP over stdio (local) | `MCP_TRANSPORT=stdio MCP_TOKEN=aud_… python -m app.mcp_server` | none |
 | UI | `streamlit run ui/app.py` | 8501 |
+| Web app API (added 2026-10-10 by Ibrahim's PH-6, recorded by Claude) | `fastapi>=0.143` (REST bridge `app/api_server.py` for the Next.js app in `web/`, port **8001**; needs Starlette 1.x like `mcp`, so not 0.115) | the MCP server stays the agent entry point; the REST API enforces the same token roles |
 | Tunnel | `cloudflared tunnel --url http://localhost:8000` | none |
 | Self-test | `python -m app.selftest` | none |
 

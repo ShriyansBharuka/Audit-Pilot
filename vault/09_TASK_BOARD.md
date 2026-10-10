@@ -11,6 +11,13 @@
 > Prefixes: SH = Shriyans, IB = Ibrahim, DA = Darshan, AA = Aarav (detector codes D0–D14 are a different namespace).
 > Worker column: **AG** Antigravity · **C2** Claude Code #2 (second PC) · **CL** this Claude (review/cores on request).
 
+## Queue 2 (from 21:00): money trail + three-layer audit
+
+**C2 (Darshan's Claude) works MT-1 → MT-8 in [`13_MONEY_TRAIL_BUILD.md`](13_MONEY_TRAIL_BUILD.md)** (P2P records, D15
+detectors + plants, money trail, cases, multi-agent investigator, year-end layer, reports A/B, docs). Claude on
+Shriyans's PC owns `web/` (frontend), `app/explain.py` (exact SHAP) and the REST guards, and builds the case /
+money-trail / reports screens against `13 §6`. Queue 1 below is done.
+
 ## Who pulls what right now (updated 2026-10-10 15:00 · submission 08:00 tomorrow)
 
 **Decision:** all coding runs on **Darshan's Claude Pro (C2)**, in the order below. Antigravity (Shriyans's PC) takes only the Streamlit UI and overflow. People own review, data plants, deployment, sponsors, the PPT and testing. We **are** using the MCP server (`04`). Short version for people: [`../WHO_DOES_WHAT.md`](../WHO_DOES_WHAT.md).

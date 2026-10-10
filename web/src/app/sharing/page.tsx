@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { downloadWithToken } from "@/lib/api";
 import {
   Check,
   CheckCircle2,
@@ -139,15 +140,19 @@ export default function SharingPage() {
             </div>
 
             <div className="pt-2 flex items-center justify-between border-t border-slate-800 text-xs">
-              <a
-                href={rep.type === "workpaper" ? "http://localhost:8000/api/audit/deliverables/workpaper" : "#"}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() =>
+                  rep.type === "workpaper"
+                    ? downloadWithToken("/api/audit/deliverables/workpaper", "workpaper.xlsx").catch((e: Error) => alert(e.message))
+                    : rep.type === "memo"
+                    ? downloadWithToken("/api/audit/deliverables/memo", "memo.json").catch((e: Error) => alert(e.message))
+                    : undefined
+                }
                 className="text-slate-400 hover:text-white flex items-center gap-1 transition"
               >
                 <Download className="h-3.5 w-3.5" />
                 <span>Download</span>
-              </a>
+              </button>
 
               <button
                 onClick={() => handleOpenShare(rep)}
