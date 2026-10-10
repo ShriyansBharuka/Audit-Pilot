@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+/*
+ * AuditPilot tokens, Supabase-style dark: neutral greys (no blue tint), one green brand accent.
+ * Pages use stock slate/indigo classes; slate maps to the grey scale (50 = headings, 900 = panels,
+ * 950 = wells) and indigo maps to the brand green.
+ */
+@theme {
+  --color-slate-50: #ededed;
+  --color-slate-100: #ededed;
+  --color-slate-200: #d6d6d6;
+  --color-slate-300: #b4b4b4;
+  --color-slate-400: #a0a0a0;
+  --color-slate-500: #8b8b8b;
+  --color-slate-600: #5a5a5a;
+  --color-slate-700: #3e3e3e;
+  --color-slate-800: #2e2e2e;
+  --color-slate-900: #232323;
+  --color-slate-950: #1a1a1a;
+
+  --color-indigo-100: #d1fae5;
+  --color-indigo-200: #a7f3d0;
+  --color-indigo-300: #6ee7b7;
+  --color-indigo-400: #3ecf8e;
+  --color-indigo-500: #3ecf8e;
+  --color-indigo-600: #006239;
+  --color-indigo-700: #00754a;
+  --color-purple-300: #c4b5fd;
+}
+
+@theme inline {
+  --font-sans: var(--font-fira-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+}
+
+:root {
+  --background: #1c1c1c;
+  --sidebar: #171717;
+  --foreground: var(--color-slate-100);
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* money, ids and counts line up in columns */
+.font-mono,
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+button:not(:disabled),
+[role="button"],
+select,
+summary {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-indigo-400);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-indigo-500) 35%, transparent);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-slate-800);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-slate-700);
+}
+
+/* Surfaces: solid cards with a hairline border (no blur; dense data reads better on flat panels) */
+.panel,
+.glass-panel {
+  background: var(--color-slate-900);
+  border: 1px solid var(--color-slate-800);
+  box-shadow: none;
+}
+
+.glass-card {
+  background: var(--color-slate-900);
+  border: 1px solid var(--color-slate-800);
+  box-shadow: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: color-mix(in srgb, var(--color-indigo-500) 40%, transparent);
+}
+
+/* Risk Badges */
+.badge-high {
+  background-color: rgb(239 68 68 / 0.1);
+  color: #f87171;
+  border: 1px solid rgb(239 68 68 / 0.35);
+}
+
+.badge-review {
+  background-color: rgb(245 158 11 / 0.12);
+  color: #fbbf24;
+  border: 1px solid rgb(245 158 11 / 0.35);
+}
+
+.badge-low {
+  background-color: rgb(16 185 129 / 0.1);
+  color: #3ecf8e;
+  border: 1px solid rgb(16 185 129 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* circular-trading ring: dashes drift along the loop */
+.ring-flow {
+  stroke-dasharray: 7 5;
+  animation: ring-dash 1.4s linear infinite;
+}
+
+@keyframes ring-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
