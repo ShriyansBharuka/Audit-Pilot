@@ -1,0 +1,30 @@
+# secrets and identities
+.env
+identities.json
+
+# generated data (seed, databases, evidence, deliverables, answer key)
+data/
+*.db
+*.db-wal
+*.db-shm
+evidence/
+audit_files/
+exports/
+out/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# node (ShipReady / Shopify app)
+node_modules/
+.shopify/
+
+# os / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

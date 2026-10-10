@@ -1,166 +1,206 @@
-# 07 - Tech Stack, 4-Person Team Split & Implementation Roadmap
+# 07 · Stack, layout, owners, contracts, 20-hour schedule
 
-This document outlines the selected technology stack, project folder structure, work allocation for the 4 team members (highlighting Ibrahim's scope), and a step-by-step execution roadmap.
+> Revised by Claude, 2026-10-10. Replaces the first draft. Team: **Shriyans** (lead), **Ibrahim**, **Darshan**, **Aarav**. AI workers: **Antigravity** (Shriyans's PC), **Claude Code #2** (teammate's Claude Pro, second PC), **Claude** (reviewer/spec owner), and **GPT credits** in-product only (`10`).
 
----
+## 1. Stack (versions checked on PyPI 2026-10-10)
 
-## 1. Selected Tech Stack
+| Need | Choice | Why / note |
+|---|---|---|
+| Language | Python 3.11 | already installed on the team PCs |
+| MCP server | **`mcp>=2.3,<3`** (official SDK; `from mcp.server import MCPServer`) | `pip install mcp` gives 2.3.0. `FastMCP` was renamed `MCPServer`, and `mcp.server.fastmcp` raises ModuleNotFoundError. It brings starlette + uvicorn, so **no FastAPI** is needed |
+| Storage | stdlib `sqlite3`, 4 files (`03`) | zero install; `mode=ro` enforces independence |
+| Excel | `openpyxl>=3.1.5` | verbatim copy + formatted sheets |
+| UI | `streamlit>=1.40` (1.65 current) | Python-only, fast for a mixed-experience team; UI only, every action calls the same role-checked services |
+| PDFs | `pymupdf>=1.24` | render mock evidence + extract text (already installed) |
+| Stats | stdlib `statistics` (median/MAD), `secrets`, `random` | **no numpy, scipy or pandas**. Pandas coerces dates, numbers and leading zeros, which breaks "pasted exactly as provided" |
+| Graph (D10) | `networkx` (optional; installed) or a 15-line DFS | brownie only |
+| Investigator | `openai-agents` (0.23.x) + GPT credits | optional P1, see `10` |
+| Tunnel | `cloudflared tunnel --url http://localhost:8000` | judges' hosted agents and n8n cloud need a public URL |
 
-| Tier | Technology | Rationale |
-| :--- | :--- | :--- |
-| **Backend Framework** | **Python 3.11+ with FastAPI** | Ultra-fast development, native async, automatic OpenAPI docs (`/docs`), strong typing with Pydantic. |
-| **MCP Implementation** | **FastMCP (Anthropic `mcp` SDK)** | Official Python Model Context Protocol SDK. Turns Python functions into tools with `@mcp.tool()` decorators. |
-| **Database & Ledger** | **SQLite (`audit.db`)** | Zero installation for judges; single file; fully supports ACID transactions, triggers, and foreign keys. |
-| **Graph & Fraud Libs** | **`networkx`** (Cycles), **`rapidfuzz`** (Fuzzy RPs), **`scipy`/`numpy`** (Z-scores) | Industry-standard libraries for graph cycle detection ($A \to B \to C \to A$) and entity resolution. |
-| **Excel Generator** | **`openpyxl`** | Generates professional multi-tab `.xlsx` files with colored headers, borders, and number formatting. |
-| **Frontend** | **React (Vite) + Tailwind CSS** | Clean corporate UI: Live ERP tab, 4-sheet workpaper viewer, fraud visualizer, CA sign-off modal. |
-
----
-
-## 2. 4-Person Work Allocation Matrix
-
-This split ensures all 4 members can build in parallel without merge conflicts.
-
+`requirements.txt`:
 ```
-┌────────────────────────────────────────────────────────┐
-│ Member 1 (Ibrahim)                                     │
-│ Scope: Double-Entry Immutable Ledger & Cryptography    │
-│ • Database schema for ledger_entries                   │
-│ • Double-entry balancing enforcement (Dr == Cr)        │
-│ • SHA-256 hash chaining (prev_hash -> entry_hash)     │
-│ • Zero-mutation SQLite triggers                        │
-│ • Hash verification test suite (tamper detection)      │
-└────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────┐
-│ Member 2                                               │
-│ Scope: Mini ERP System of Record & MCP Gateway         │
-│ • Commercial models: Orders, Dispatches, Invoices, CNs │
-│ • FastMCP Server setup (stdio + SSE transports)        │
-│ • Identity-based RBAC (Auditor vs Client permissions)  │
-│ • Stale sample listener (alert if client alters record)│
-│ • Client upload portal & webhook notification          │
-└────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────┐
-│ Member 3                                               │
-│ Scope: Audit Engine, Sampling & Fraud Algorithms       │
-│ • SA 530 Sampling (Seed=42, High-Value, RP weighted)   │
-│ • Circular trading graph cycle detector (networkx)     │
-│ • Undisclosed RP fuzzy matcher (rapidfuzz)             │
-│ • Cut-off analyzer (Ind AS 115 date comparison)        │
-│ • Three-way document match (Invoice vs E-Way vs LR)    │
-└────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────┐
-│ Member 4                                               │
-│ Scope: Deliverables, Workpapers, Memo & React UI       │
-│ • 4-Sheet Excel workbook generator (openpyxl)          │
-│ • Findings memo generator with proposed AJEs           │
-│ • React UI: 4-sheet workpaper grid & status badges     │
-│ • Fraud alert panel & circular trade visualizer        │
-│ • CA digital sign-off workflow                         │
-└────────────────────────────────────────────────────────┘
+mcp>=2.3,<3
+openpyxl>=3.1.5
+streamlit>=1.40
+pymupdf>=1.24
+pytest>=8
+# optional
+networkx>=3.3
+openai-agents>=0.23
 ```
 
----
+## 2. Processes and ports
 
-## 3. Recommended Project Folder Structure
+| Process | Command | Port |
+|---|---|---|
+| Seed / reset (CLI only, never an MCP tool) | `python -m app.seed --reset [--invoices 7000] [--seed 7]` | builds the 4 DBs, `identities.json`, demo evidence, `data/answer_key.json`, and prints the judge card |
+| MCP over HTTP (judges, n8n) | `python -m app.mcp_server` (env `PUBLIC_HOST`, `PUBLIC_URL`) | 8000 (`/mcp`, `/c/<token>/mcp`, `/files/<key>`, `/api/evidence/<req>`, `/connectors/shopify`) |
+| MCP over stdio (local) | `MCP_TRANSPORT=stdio MCP_TOKEN=aud_… python -m app.mcp_server` | none |
+| UI | `streamlit run ui/app.py` | 8501 |
+| Tunnel | `cloudflared tunnel --url http://localhost:8000` | none |
+| Self-test | `python -m app.selftest` | none |
 
-```text
-Auditing Tool/
-├── vault/                              # Knowledge Vault (Requirements & Specs)
-│   ├── README.md
-│   ├── 01_PROBLEM_STATEMENT.md
-│   ├── 02_SYSTEM_ARCHITECTURE.md
-│   ├── 03_DATABASE_SCHEMA.md
-│   ├── 04_MCP_TOOLS_SPEC.md
-│   ├── 05_FRAUD_DETECTION_ALGORITHMS.md
-│   ├── 06_WORKPAPERS_AND_DELIVERABLES.md
-│   └── 07_TECH_STACK_AND_ROADMAP.md
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                     # FastAPI REST API entry point
-│   │   ├── config.py
-│   │   ├── database.py                 # SQLite connection & schema init
-│   │   ├── ledger/                     # Ibrahim's module
-│   │   │   ├── engine.py               # Double-entry posting logic
-│   │   │   ├── hasher.py               # SHA-256 chain calculation
-│   │   │   └── verifier.py             # Full chain integrity checker
-│   │   ├── erp/                        # Mini ERP (Member 2)
-│   │   │   ├── router.py
-│   │   │   ├── services.py             # Orders, Dispatches, Invoices
-│   │   │   └── models.py
-│   │   ├── mcp_server/                 # FastMCP Gateway (Member 2)
-│   │   │   ├── server.py               # MCP server instance
-│   │   │   ├── rbac.py                 # SA 200 independence enforcement
-│   │   │   └── tools.py                # Registered MCP tools
-│   │   ├── audit/                      # Audit Engine (Member 3)
-│   │   │   ├── sampler.py              # SA 530 deterministic sampling
-│   │   │   ├── cutoff.py               # Ind AS 115 cutoff testing
-│   │   │   ├── fraud_detectors.py      # RapidFuzz, NetworkX, Z-score
-│   │   │   └── stale_checker.py        # Post-sample alteration detector
-│   │   └── deliverables/               # Workpaper & Memo (Member 4)
-│   │       ├── excel_generator.py      # openpyxl 4-tab workbook
-│   │       ├── memo_generator.py       # Findings & AJEs builder
-│   │       └── signoff.py              # CA digital sign-off
-│   ├── tests/
-│   │   ├── test_ledger_tampering.py    # Proves hash break on silent edit
-│   │   ├── test_rbac_independence.py   # Proves auditor cannot create SO
-│   │   ├── test_fraud_scenarios.py     # Verifies all 11 frauds are caught
-│   │   └── test_sampling_seed.py       # Verifies deterministic samples
-│   ├── data/
-│   │   └── seed_mock_data.py           # Generates 8,000 realistic sales + planted fraud
-│   └── requirements.txt
-└── frontend/                           # React UI (Member 4)
-    ├── index.html
-    ├── package.json
-    ├── src/
-    │   ├── App.jsx
-    │   ├── components/
-    │   │   ├── LiveERPView.jsx
-    │   │   ├── WorkpaperTabs.jsx
-    │   │   ├── FraudDashboard.jsx
-    │   │   ├── CircularGraph.jsx
-    │   │   └── CASignoffModal.jsx
-    │   └── services/
-    │       └── api.js
-    └── tailwind.config.js
+## 3. Folder layout
+
+```
+AGENTS.md  CLAUDE.md  README.md  requirements.txt  .env.example  .gitignore
+vault/                 specs: the source of truth (read README first)
+schema/                erp.sql  ext.sql  pbc.sql  audit.sql        (DDL from 03; applied by db.init_all)
+app/
+  config.py            paths, env, TZ='Asia/Kolkata', engagement defaults
+  db.py                connect(db, role), init_all(), tx()                         [Shriyans]
+  chain.py  money.py   hash chain, to_paise/fmt_inr/tax_split                       [Ibrahim]
+  ledger.py            COA, post_journal, reverse_journal, trial_balance           [Ibrahim]
+  erp.py               write_doc + every business service                           [Shriyans]
+  portal.py            ext.db: IRN, EWB, GSTR-1/3B, bank, signatures                 [Ibrahim]
+  trail.py  notify.py  audit_trail + anchors; events → n8n webhook (HMAC)           [Ibrahim]
+  intake.py            submit(), on_client_upload()                                 [Darshan]
+  register.py          parse_verbatim, map_columns, D0 reconcile                    [Darshan]
+  related_parties.py   D1 identifier graph, D2 RP timing                            [Darshan]
+  analytics.py         D3–D7, D9, D10, D13, D14 → risk_hits                         [Aarav]
+  sampling.py          strata, PPS, cut-off/CN selection, reproduce                 [Aarav]
+  evidence.py          extract, test_sample (D8), bundle, check_for_changes (D11), verify_integrity (D12)  [Ibrahim]
+  findings.py  memo.py hits → findings, AJEs, materiality, SA 450; memo md/html     [Aarav]
+  workpaper.py         4-sheet xlsx                                                 [Darshan]
+  playbook.py  tools_client.py  tools_audit.py  mcp_server.py   MCP layer          [Shriyans]
+  investigator.py      GPT agent over MCP stdio + CostMeter (10)                    [Aarav]
+  seed.py              demo company + plants + answer key                           [Darshan]
+  selftest.py          end-to-end check                                             [Shriyans]
+ui/app.py              Streamlit: login by token; Overview, Transactions, Investigation, Workpaper; client portal; partner review   [Antigravity → Shriyans]
+adapters/voroa.py      sponsor slot (10)
+connectors/shopify/    ShipReady app (10)                                           [Darshan + Claude #2]
+n8n/                   exported workflow JSONs (10)                                 [Ibrahim]
+scripts/               verify_trail.py  tamper_demo.py  replay_shopify.py  judge_card.py
+tests/                 test_tamper.py  test_rbac.py  test_sampling.py  test_detectors.py  test_verbatim.py
+data/                  gitignored: *.db  evidence/  audit_files/  answer_key.json
 ```
 
----
+## 4. Module contracts (code against these; stubs first)
 
-## 4. 5-Phase Implementation Roadmap
+All money is paise; all dates are ISO strings; every function opens connections via `db.connect(db, role)`; every client write goes through `erp.write_doc`.
 
-### Phase 1: Core Foundation & Ibrahim's Ledger (Milestone 1)
-- Set up SQLite schema with foreign keys and trigger locks.
-- Implement double-entry debit/credit balance verification.
-- Implement SHA-256 hash chaining: $H_n = \text{SHA256}(H_{n-1} + \dots)$.
-- Write `test_ledger_tampering.py` (demonstrates that updating a single SQLite row breaks all subsequent hashes).
+```python
+# db.py
+def connect(db: str, role: str) -> sqlite3.Connection            # 03 §6
+def init_all(reset: bool = False) -> None                         # apply schema/*.sql, triggers, COA seed, PRAGMAs
+@contextmanager
+def tx(conn): ...                                                 # BEGIN IMMEDIATE / COMMIT / ROLLBACK
 
-### Phase 2: Mini ERP & FastMCP Gateway (Milestone 2)
-- Implement commercial endpoints: Orders $\to$ Dispatches (LR & E-way) $\to$ Invoices $\to$ Credit Notes.
-- Set up `FastMCP` with tools exposed for both Client and Auditor.
-- Add identity enforcement: block `auditor` from mutating ERP state.
-- Implement stale sample tracking when records change post-sampling.
+# chain.py · money.py                                             # 03 §6 (copy)
+def append(conn, table: str, row: dict) -> tuple[int, str]
+def verify(conn, table: str, anchors=()) -> dict
+def to_paise(s: str) -> int;  def fmt_inr(paise: int) -> str;  def tax_split(taxable_paise: int, rate_bp: int, inter_state: bool) -> dict
 
-### Phase 3: Audit Engine & Planted Fraud Detectors (Milestone 3)
-- Build SA 530 deterministic sampling (`seed=42`, high-value top 5%, related-party weighting).
-- Implement Cut-off TOD ($\pm 15$ invoices around 31-March vs LR dates).
-- Implement NetworkX cycle detection for circular trading.
-- Implement RapidFuzz for undisclosed related party detection.
-- Implement 3-way match (Invoice $\leftrightarrow$ E-way Bill $\leftrightarrow$ LR).
+# ledger.py
+def post_journal(conn, voucher_date, voucher_type, lines: list[dict], narration, actor, role, tool,
+                 source_type=None, source_id=None, reverses_no=None, aje_ref=None) -> int   # raises ValueError unless Dr == Cr > 0
+def reverse_journal(conn, journal_no: int, date: str, actor, role, tool, reason) -> int
+def trial_balance(conn, upto: str) -> dict[str, int]             # account_code -> net paise (Dr positive)
 
-### Phase 4: 4-Sheet Workpaper, Findings Memo & UI (Milestone 4)
-- Build `openpyxl` generator producing the 4-tab `.xlsx` workpaper.
-- Build Findings Memo generator with formatted **Adjusting Journal Entries (AJEs)**.
-- Build React interface with:
-  - 4-tab workpaper viewer.
-  - Fraud alert drawer.
-  - CA sign-off modal with digital stamp.
+# erp.py: each service is (actor, role, **args) -> dict(result, next_steps); opens erp rw, calls portal.* when needed
+def write_doc(conn, actor, role, tool, action, doc_type, doc_id, reason=None) -> int        # appends erp_log; returns seq
+create_party · link_parties · create_item · create_lead · create_scheme · create_sales_order · issue_invoice ·
+generate_eway_bill · record_dispatch · record_delivery · issue_credit_note · record_receipt · record_payment ·
+record_purchase · post_journal_entry · file_gstr1 · file_gstr3b · amend_record · cancel_document · import_records ·
+export_sales_register · render_document
 
-### Phase 5: Planted Dataset & Judge Demo Rehearsal (Milestone 5)
-- Create `seed_mock_data.py` with 7,000 genuine sales and exactly the 11 planted fraud scenarios.
-- Connect an AI agent via MCP and run a mock audit round.
-- Verify that every single planted anomaly is flagged with the exact ICAI standard citation.
+# portal.py (role 'portal'; ext.db; server clock for ack_at / generated_at)
+def register_irn(supplier_gstin, fy, doc_type, doc_no, doc_date, buyer_gstin, taxable_paise, tax_paise) -> dict
+def cancel_irn(irn: str) -> dict                                  # refuses after 24 h
+def generate_eway_bill(**f) -> dict;  def cancel_eway_bill(ewb_no) -> dict
+def file_gstr1(gstin, period, omit=(), changes=()) -> dict;  def file_gstr3b(gstin, period, figures=None) -> dict
+def bank_txn(account_no, value_date, amount_paise, cp_name, cp_account, cp_ifsc, utr, narration) -> str
+def verify_signature(einvoice_row: dict) -> bool
+
+# trail.py · notify.py
+def trail(principal, role, tool, args, outcome, result=None, transport='HTTP') -> None   # audit_trail row with erp anchor
+def anchor(engagement_id: str, label: str) -> dict
+def emit(kind: str, payload: dict, engagement_id=None) -> None    # events row + optional POST to N8N_WEBHOOK_URL (X-AuditPilot-Signature: HMAC)
+
+# intake.py · register.py · related_parties.py
+def submit(kind, content: bytes, filename, submitted_by, request_id=None, declared=None) -> str   # pbc.submissions id
+def on_client_upload(submission_id: str) -> dict                  # system principal: freeze rows, engagement, D0 + RP tags, event
+def parse_verbatim(content: bytes, filename: str) -> tuple[list[str], list[dict]]
+def map_columns(headers: list[str]) -> dict[str, str]             # knows Fig. 1 headers: 'Bill no.', 'GST No.', 'Total Cost', 'Gross Amt.' …
+def reconcile(engagement_id: str) -> list[dict]                   # D0 hits
+def run_d1_d2(engagement_id: str) -> list[dict];  def rp_status(party_id: str, on_date: str) -> tuple[str, str]
+
+# analytics.py · sampling.py · findings.py · memo.py
+def run_all(engagement_id, detectors=None, incremental=False) -> dict    # writes risk_hits; returns counts by detector/code + top 20
+def select(engagement_id, kind, size=30, seed=None, actor='') -> dict     # first call = testing start (anchor + snapshots + requests)
+def reproduce(run_id: str) -> dict;  def pps(items, k, rng) -> list
+def from_hits(engagement_id) -> list[str];  def aje(finding: dict) -> list[dict] | None;  def sa450_summary(engagement_id) -> dict
+
+# evidence.py
+def extract(submission_id) -> dict;  def test_sample(run_id, sample_no, actor, note=None) -> dict
+def bundle(invoice_id) -> list[tuple[str, str]];  def check_for_changes(engagement_id) -> dict;  def verify_integrity(engagement_id) -> dict
+
+# workpaper.py · memo.py
+def build(engagement_id) -> dict                                  # {path, sha256, download_key}
+```
+Shared shapes (plain dicts; no class hierarchy):
+- **risk_hit:** `{detector, code, object_type, object_id, severity, impact_paise, reason, evidence}`
+- **finding:** as in `03 #34`
+- **tool result:** `{summary, items?, next_cursor?, next_steps, client_data?}`
+
+## 5. Ownership and AI workers
+
+| Owner | Modules | Suggested AI worker |
+|---|---|---|
+| **Shriyans** | db, erp, mcp_server + tools + playbook, selftest, integration, demo | Antigravity (scaffold, wrappers, UI) + Claude reviews |
+| **Ibrahim** | chain, money, ledger, portal, trail, notify, evidence, n8n workflows | Claude Code #2 or Antigravity; Claude reviews chain/anchors |
+| **Darshan** | seed + answer key, intake, register, related_parties, workpaper, ShipReady connector | Antigravity (seed bulk, xlsx) + Claude Code #2 (RP graph, ShipReady) |
+| **Aarav** | analytics, sampling, findings, memo, investigator | Claude Code #2 (audit brain) |
+
+Rule: you edit only your modules; for anything else, ask the owner or write it in `PROGRESS.md`. Changing a contract (03/04/07 §4) means editing the vault in the same commit.
+
+## 6. 20-hour schedule (T0 ≈ 12:30 IST 10 Oct; confirm the exact submission time)
+
+| When | What | Exit check |
+|---|---|---|
+| **Now** (before T0) | Shriyans: repo skeleton + `pip install -r requirements.txt` + Gateway hello (`whoami` over stdio and HTTP). Ibrahim: `chain.py`, `money.py` + test_tamper. Darshan: seed skeleton (company, 2 units, ~150 customers, ~40 items, Fig. 1 export). Aarav: `pps`, strata, control-date function + unit tests | each runs locally |
+| **T0–T1** | Contract freeze: `schema/*.sql` from 03, every module stubbed with valid return shapes, `python -m app.selftest` green on stubs | selftest passes |
+| **T1–T6** | **P0 build** in parallel (§7) | each module's done-when in `09` |
+| **T6** (~18:30) | **Integration #1** on a 300-invoice seed: seed → export → doctored upload → Sheet 1 → analytics → samples → evidence → test → findings → xlsx/memo. Claude reviews the code | E2E runs |
+| **T6–T11** | Finish P0; P0.5 (n8n); P1 (investigator, PDF extraction, UI pages, D10) | — |
+| **T11** (~23:30) | **Judge simulation:** a fresh Claude Code session with only the URL + client token ("run the business for a day; plant 3 irregularities"), then only the auditor token ("audit FY 2025-26 revenue"). Log every stall → fix descriptions/errors. Recall run vs `answer_key.json` | 100% recall; no stalls |
+| **T11–T15** | Fix misses and false positives; ShipReady (3 h time box); Voroa once its docs arrive; deliverable polish. Sleep in two 3-hour shifts | — |
+| **T15–T17** | README + judge card + connection commands, demo script, slides, rehearsal | rehearsal under 7 min |
+| **T17** | **Feature freeze.** Only bug fixes after this point | — |
+| **T17–T20** | Final clean seed, full selftest, push, buffer | tagged commit pushed |
+
+## 7. Cut lines
+
+- **P0 (must):**
+  - 4 DBs + chain + ledger + erp_log + trail + anchors.
+  - Identity/roles/Gateway (stdio + HTTP).
+  - Client tools: lifecycle + upload_sales_register (edits) + upload_related_parties + amend/cancel + post_journal_entry + file_gstr1 + generate_eway_bill + import_records + render_document/upload_evidence.
+  - Detectors D0, D1 (GSTIN + STRONG/MEDIUM edges), D2 (dates), D3, D4, D5 (sales + discounts), D6 (IRN/EWB/GSTR-1/tax type), D7, D8 (hash/number reuse + structured field match), D9, D11, D12, D13.
+  - Sampling: 3 kinds + reproduce.
+  - Findings + AJEs, the 4-sheet xlsx, memo, trail export + verify script, partner confirm/sign-off (UI).
+  - Seed with plants + answer key; selftest.
+- **P0.5:** n8n (upload notify, evidence emails + reminders, scheduled monitoring); a minimal Streamlit (login, client portal, partner review).
+- **P1:** investigator (GPT); PDF text extraction + D14; full UI views; D10 cycles; MCA mock; GSTR-3B; RP price test; ShipReady connector; Voroa slot.
+- **P2:** LLM vision for scanned or Hindi/Marathi documents; multi-entity; on-prem local model; purchases/inventory extension; React UI; docx memo.
+
+## 8. Acceptance tests (the whole team's definition of done)
+
+1. `test_tamper.py`: the four cases in 03 §6 (edit without rehash, rehash, rewritten tail vs anchor, direct UPDATE with triggers dropped).
+2. `test_rbac.py`: every (tool, role) pair not in `TOOL_ROLES` gives PERMISSION_DENIED + a DENIED trail row, and **erp.db stays byte-identical**. An audit-role `connect('erp', …)` INSERT raises `attempt to write a readonly database`. A client-role `connect('audit', …)` raises PERMISSION_DENIED. The partner token is rejected on MCP.
+3. `test_sampling.py`: the same seed + population gives identical picks; size 25–35; ≥3 RP; ≤3 per customer; every pick has a reason; `reproduce_selection.identical == True`.
+4. `test_verbatim.py`: Sheet 1 equals the uploaded file cell for cell (values + number formats) plus the auditor columns; `=HYPERLINK(…)` text stays a string; CSV leading zeros survive.
+5. `test_detectors.py`: on the seed, every `answer_key.json` plant has a matching `risk_hits` code, and the false-positive count is printed.
+6. `python -m app.selftest`, end to end: seed → export → doctored upload → analytics → samples → render/upload evidence (one forged) → test_sample → amend an LR date after testing → `check_for_changes` names the sample → deliverables → partner confirm → sign-off → `scripts/verify_trail.py` OK.
+7. Judge simulation (§6 T11) completes without human hints.
+
+## 9. Judge runbook
+
+```bash
+pip install -r requirements.txt
+python -m app.seed --reset                       # prints the judge card (tokens per role)
+cloudflared tunnel --url http://localhost:8000   # copy the https host
+set PUBLIC_HOST=<host> & set PUBLIC_URL=https://<host>/mcp     (PowerShell: $env:PUBLIC_HOST="<host>")
+python -m app.mcp_server                         # HTTP MCP on :8000
+streamlit run ui/app.py                          # partner + client portal on :8501
+```
+Connection commands for Claude Code, Claude Desktop, Cursor and header-less hosts are in `04 §7`. Never expose the partner token to an agent.
