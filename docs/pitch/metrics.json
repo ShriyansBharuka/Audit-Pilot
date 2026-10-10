@@ -49,6 +49,11 @@
    "plants": 4,
    "caught": 4,
    "recall": 1.0
+  },
+  "P": {
+   "plants": 5,
+   "caught": 5,
+   "recall": 1.0
   }
  },
  "recall": 1.0,

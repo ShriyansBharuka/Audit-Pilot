@@ -8,11 +8,12 @@ slower per step; every number below still fits the demo with room to spare.
 
 | | |
 |---|---|
-| Planted irregularities | **31** across the 10 PS families A-K (27 in the books + 4 register edits at upload) |
-| Recall (plant caught by the right family/code) | **100%** (31/31; every family 100%) |
+| Planted irregularities | **36** across the 10 PS families A-K plus purchase-to-pay P (32 in the books + 4 register edits at upload); one more P plant is an *explained* control that must stay clean, and does |
+| Recall (plant caught by the right family/code) | **100%** (36/36; every family 100%, P 5/5) |
 | Precision, severity >= 4 hits | **100%** (0 serious hits on un-planted records) |
 | Invoices prioritised (R >= 60) | **13** of 7,003 |
-| Company band | **HIGH**: risk-weighted exposure Rs 72.4 L vs performance materiality Rs 68.4 L; circular value Rs 56.4 L; 9 families hit |
+| Company band | **HIGH**: risk-weighted exposure Rs 72.2 L vs performance materiality Rs 68.4 L; circular value Rs 56.4 L; 10 families hit |
+| Audit cases (one per root cause of severity >= 4 hits) | **31**; every severity >= 4 plant sits in exactly one case (the 3 severity <= 3 plants stay hits) |
 | Planted invoices in the top 30 by R (recall@30) | 100% for transaction-only, +graph, and +entity scoring alike |
 
 The last row means the ablation doesn't separate the three scorers on this data (the plants are strong enough that
@@ -36,6 +37,21 @@ detector fires on the case it was built for and stays quiet on a clean year, not
 | Re-run analytics + graph (warm) | 7.7 s |
 | **Live client write -> risk updated** (per-event AuditGraph update) | 0.9 s for a 27-invoice customer, 1.7 s for 255, 2.3-3.4 s for the largest (818 invoices) |
 | Peak memory (analytics + graph in one process) | 362 MB |
+
+
+### Money trail, cases, year-end and reports (vault/13, measured 10 Oct on the same 7k company)
+
+| Step | Time |
+|---|---|
+| `trace_money` on a PO chain, an invoice or a payment (hops 2) | 0.05 s |
+| `trace_money` on the largest customer (818 invoices, aggregated edges) | 0.22 s |
+| `trace_money` on a network party, hops 3 | 0.20 s |
+| Rebuild all 31 cases (one money trail per case; runs at the end of every analytics run) | 1.2 s |
+| `list_cases` (25) / `get_case` with its money trail | 0.02 s / 0.06 s |
+| Year-end timeline (14 months) / March-April links | 0.12 s / 0.10 s |
+| Report A / Report B, json + html | 0.13 s / 0.12 s |
+
+All of these are interactive-speed. The cases rebuild adds about 1 s to a full analytics run.
 
 So the whole audit, upload to risk map, is **under a minute**, and a judge's live edit shows up in the risk view
 **within ~1-3 s**.
@@ -73,12 +89,22 @@ project budget on the OpenAI key itself.
 **Measured (first live run, 10 Oct 19:08):** one investigation of a flagged invoice on `gpt-6.1-sol` = **$0.024, 31 s, 3 tool calls**, about 5x cheaper than the typical-case model above (the agent needed 3 turns, not 8). Astra at the same token count is ~5x Sol, so **~$0.12**; a 13-item demo on Astra is ~$1.60. The table above stays as the conservative bound.
 with a spinner in the UI; it never blocks the deterministic audit.
 
+**Multi-agent case investigation (MT-5), cost model.** The risk, evidence and money-flow agents run in parallel, and each sees
+only its read-only allow-list of tools. Measured schema prefixes: risk ~0.55k, evidence ~1.0k and money-flow ~0.56k tokens,
+against ~4.7k for all 25 audit tools. Each agent is capped at 5 turns and 1,500 output tokens; the reporting agent has no tools,
+2 turns and 2,500 output tokens. Assuming ~3 turns per specialist with 2-4k-token tool results, a run is about 29k uncached
+input, 21k cached input and 7.5k output tokens: roughly **$0.13 on Sol** (bound) and $0.65 on Astra. The single-agent run
+measured above came in 5x under its model, which would put a case at **~$0.03 on Sol**. Wall time is about the slowest
+specialist plus the reporter, roughly 40 s. *Not yet measured live: LLM_ENABLED is off on the build PC; run
+`python -m app.investigator --case <ABC case>` to record the real number (done-when: < $0.10 on Sol).*
+
 ## 4. Is the math sound?
 
 | Piece | Claim | Check |
 |---|---|---|
 | Why 100% analytics, not sampling | 30 random picks out of 7,000 catch >= 1 of 10 planted items with p = 1 - C(6990,30)/C(7000,30) = **4.2%** (even 10x risk weighting only gets ~35%) | so detection runs on every record (SA 500 / SA 520 style analytics); samples are only for vouching evidence |
 | Sampling | systematic PPS: item i is picked with p = min(1, n * v_i / V); items above the interval are certain picks | seed = `secrets.randbits(64)` stored with the population hash: unpredictable to the client (SA 240), yet `reproduce_selection` replays it exactly |
+| Money trail | edges carry provenance VERIFIED / CLAIMED / INFERRED; numbers cover only the traced documents | no downstream attribution (A pays B, B pays C never implies A's money reached C); a cycle counts once at its minimum-span value, never the sum of its edges |
 | Money | integer paise, GST rates in basis points | sums are exact (no 0.1 + 0.2 != 0.3); Dr = Cr checked per journal |
 | Entry score A | noisy-OR: A = 100 * (1 - prod(1 - min(1, w_code * sev / 5))) | bounded [0, 100], monotone, order-independent. **Caveat:** it assumes detectors are independent, so two detectors flagging the same root cause push A up; acceptable for ranking, and the findings themselves are per detector |
 | Entity score E | E = 0.35C + 0.25F + 0.15T + 0.15H + 0.10N, each term in [0, 100] | weights sum to 1.00, so E is in [0, 100] |

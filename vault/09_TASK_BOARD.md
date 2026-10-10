@@ -18,6 +18,19 @@ detectors + plants, money trail, cases, multi-agent investigator, year-end layer
 Shriyans's PC owns `web/` (frontend), `app/explain.py` (exact SHAP) and the REST guards, and builds the case /
 money-trail / reports screens against `13 §6`. Queue 1 below is done.
 
+| ID | Status (2026-10-11) | What landed | REST for the frontend |
+|---|---|---|---|
+| MT-1 | ✅ done | `purchase_orders`, `goods_receipts` (append-only), `purchase_bills.po_id`; tools #47-48; seed PO → GRN → bill → payment | — |
+| MT-2 | ✅ done | D15 (7 codes, family P) + plants PP1-PP6; demo_audit 7k: P 5/5, 0 sev ≥ 4 FP, PP6 clean | — |
+| MT-3 | ✅ done | `money_trail.trace`, tool #49 `trace_money`; ABC: verified ₹5 L, received ₹3 L, affected ₹2 L | `GET /api/money-trail/{id}?hops=` |
+| MT-4 | ✅ done | `cases` + `case_events` (#45-46), tools #50-52; 7k: 31 cases, one per root cause | `GET /api/cases`, `GET /api/cases/{id}`, `POST /api/cases/{id}/action` |
+| MT-5 | 🟡 partial | 4-agent case investigation (amounts copied from the case, unknown ids flagged), tested offline; **live Sol run pending** (LLM off on the build PC) | `POST /api/cases/{id}/investigate` (409 when the LLM is off) |
+| MT-6 | ✅ done | `yearend.timeline`, `march_april_links` (exactly PC1-3, PI1-2, PP5 on 7k), `freeze` | `GET /api/yearend/timeline`, `GET /api/yearend/march-april`, `POST /api/yearend/freeze` |
+| MT-7 | ✅ done | Reports A and B, json / md / html, DRAFT until sign-off, every amount carries a case or finding id | `GET /api/reports/continuous`, `GET /api/reports/year-end?format=&ai=` |
+| MT-8 | ✅ done | `HOW_IT_WORKS.md` §5c, demo video "trace this ₹5 lakh payment" beat, `docs/FEASIBILITY.md` latencies + investigation cost model, this table | — |
+
+After pulling MT-4 or later, **reseed** (`python -m app.seed --reset` then `python -m app.demo_audit`): audit.db gained two tables.
+
 ## Who pulls what right now (updated 2026-10-10 15:00 · submission 08:00 tomorrow)
 
 **Decision:** all coding runs on **Darshan's Claude Pro (C2)**, in the order below. Antigravity (Shriyans's PC) takes only the Streamlit UI and overflow. People own review, data plants, deployment, sponsors, the PPT and testing. We **are** using the MCP server (`04`). Short version for people: [`../WHO_DOES_WHAT.md`](../WHO_DOES_WHAT.md).
