@@ -26,6 +26,8 @@ def risk_history(role, object_type, object_id):
     for r in rows:
         d = dict(r)
         d["reasons"] = json.loads(d.pop("reasons_json") or "[]")
+        for k in ("A", "E", "R"):                       # stored x1000 integers (03 #42)
+            d[k] = None if d[k] is None else round(d[k] / 1000)
         d["C"] = None if d["C"] is None else d["C"] / 1000
         out.append(d)
     return out

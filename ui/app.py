@@ -224,7 +224,7 @@ def network_view():
     rows = ev.selection.rows if ev and ev.selection else []
     if rows:
         pick = table[rows[0]]
-        if pick["type"] in ("PARTY", "party", "CUSTOMER", "ENTITY", "PERSON") or str(pick["id"]).startswith("P-"):
+        if str(pick["type"]).lower() in ("party", "person", "self", "entity"):
             if st.button(f"Focus the graph on {pick['id']}"):
                 st.session_state.focus_party = pick["id"]
                 st.rerun()
