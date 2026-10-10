@@ -75,8 +75,7 @@ def get_engagement_status() -> dict:
             ch = evidence.check_for_changes(EID())
             status["stale_samples"] = len(ch.get("stale_samples", []))
             status["integrity_ok"] = evidence.verify_integrity(EID()).get("ok")
-        if not _is_stub(risk_graph):
-            status["company_risk"] = risk_graph.build(EID()).get("company")
+        status["company_risk"] = risk_graph.company_band(EID())     # the latest AuditGraph flag (run_analytics)
         nxt = []
         if eng["register_submission_id"] and "D0" not in by_det:
             nxt.append(("reconcile_register_to_system", {}, "every register vs books difference"))
@@ -176,7 +175,8 @@ def run_analytics(detectors: list[str] | None = None, incremental: bool = False)
     def go(who, role):
         r = analytics.run_all(EID(), detectors=detectors, incremental=incremental)
         top = [_hit_item(h) for h in r.get("top", [])]
-        return result({"run_id": r.get("run_id"), "counts": r.get("counts", {})}, top, None,
+        return result({"run_id": r.get("run_id"), "counts": r.get("counts", {}), "company_risk": r.get("company")},
+                      top, None,
                       steps(("select_samples", {"kind": "sales_tod"}, "risk-based samples (KEY stratum = these hits)"),
                             ("list_audit_items", {"kind": "risk_hits", "filters": {"min_severity": 4}}, "all serious hits")))
     return call(go)

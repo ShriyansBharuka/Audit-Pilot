@@ -692,21 +692,51 @@ def _events(rng, sales, leads, purchases=(), payments=()):
 
 # ---------------------------------------------------------------- plan
 
-def build_plan(n_invoices=7000, seed=7):
+def build_plan(n_invoices=7000, seed=7, network=True):
+    """network=False leaves out the 05 §19.10 trading network (its cycles are planted irregularities, family J)."""
     rng = random.Random(seed)
     parties, links, meta, regressions = _masters(rng)
     items = _items(rng)
     sales = _sales(rng, n_invoices, parties, meta, items)
     leads = _lost_leads(rng, max(10, n_invoices // 8), parties)
-    net_parties, net_links, net_sales, net_purchases, net_payments, network = _network(parties, items)
+    net_parties, net_links, net_sales, net_purchases, net_payments, network_ = _network(parties, items)
     net_sales[0]["pay_on"], net_sales[1]["pay_on"] = "2026-03-12", "2026-03-14"
+    if not network:
+        net_parties, net_links, net_sales, net_purchases, net_payments, network_ = [], [], [], [], [], []
+        next(p for p in parties if p["id"] == "P-VEN2")["tags"] = "VENDOR"
     parties, links = parties + net_parties, links + net_links
     sales = sorted(sales + net_sales, key=lambda s: (s["invoice_date"], s["key"]))
     purchases = _routine_purchases(rng, items) + net_purchases
     return {"seed": seed, "n_invoices": n_invoices, "fy": ["2025-04-01", "2026-03-31"], "post_end": POST_END.isoformat(),
             "units": UNITS, "parties": parties, "links": links, "items": items, "sales": sales, "purchases": purchases,
             "events": _events(rng, sales, leads, purchases, net_payments), "regressions": regressions,
-            "network": network}
+            "network": network_}
+
+DECLARED = ("P-DIR1", "P-DIR2", "P-DIR3", "P-DIR4", "P-KMP1", "P-KMP2", "P-REL1", "P-REL2", "P-REL3", "P-REL4",
+            "P-GRP1", "P-GRP2", "P-GRP3")
+
+
+def declared_rp_csv(plan, omit=(), dates=None):
+    """The client's related-party list as management would upload it (Name, PAN, GSTIN, Relation, Effective From),
+    dated from the links (a relative from when their director joined). omit / dates={party: 'YYYY-MM-DD'} make the
+    DA-1 demo list with an omission and a wrong date."""
+    by = {p["id"]: p for p in plan["parties"]}
+    links = plan["links"]
+    rows = ["Name,PAN,GSTIN,Relation,Effective From"]
+    for pid in DECLARED:
+        if pid in omit:
+            continue
+        p = by[pid]
+        own = [l for l in links if pid in (l["from_party"], l["to_party"])]
+        since = max(l["effective_from"] for l in own)
+        rel = own[0]["relation"].replace("_OF", "").lower()
+        if pid.startswith("P-REL"):
+            of = next(l["to_party"] for l in links if l["from_party"] == pid)
+            since = next(l["effective_from"] for l in links if l["from_party"] == of and l["to_party"] == "SELF")
+            rel = "relative of director"
+        since = (dates or {}).get(pid, since)
+        rows.append(f"\"{p['name']}\",{p['pan'] or ''},{p['gstin'] or ''},{rel},{since}")
+    return "\n".join(rows) + "\n"
 
 # ---------------------------------------------------------------- identities (04 §1) + judge card
 

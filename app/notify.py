@@ -13,7 +13,7 @@ from app import config, db
 
 log = logging.getLogger("auditpilot.notify")
 KINDS = ("REGISTER_UPLOADED", "RP_LIST_UPLOADED", "SAMPLES_SELECTED", "EVIDENCE_RECEIVED", "STALE_DETECTED",
-         "INTEGRITY_ALERT", "READY_FOR_REVIEW", "SIGNED_OFF")
+         "INTEGRITY_ALERT", "READY_FOR_REVIEW", "SIGNED_OFF", "RISK_ESCALATED")
 
 
 def emit(kind, payload, engagement_id=None):

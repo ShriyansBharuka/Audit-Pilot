@@ -51,13 +51,18 @@ def _d(s):
 
 # ---------------------------------------------------------------- population
 
-def load_population(e, x):
-    """Everything the detectors read, in a handful of queries (erp + ext, read-only)."""
-    P = {}
-    P["invoices"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM invoices")}
+def load_population(e, x, party_ids=None, period_end=None):
+    """Everything the detectors read, in a handful of queries (erp + ext, read-only). party_ids narrows the
+    documents to those customers (AuditGraph's per-event update); masters and portals stay whole."""
+    P = {"narrow": bool(party_ids)}
+    pp = list(party_ids or ())
+    inlist = f"({','.join('?' * len(pp))})"
+    inv_f = f" WHERE party_id IN {inlist}" if pp else ""
+    line_f = f" WHERE l.invoice_id IN (SELECT id FROM invoices WHERE party_id IN {inlist})" if pp else ""
+    P["invoices"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM invoices" + inv_f, pp)}
     lines = defaultdict(list)
     for r in e.execute("SELECT l.*, i.gst_rate_bp AS item_rate, i.cost_paise FROM invoice_lines l JOIN items i"
-                       " ON i.id = l.item_id ORDER BY invoice_id, line_no"):
+                       " ON i.id = l.item_id" + line_f + " ORDER BY invoice_id, line_no", pp):
         lines[r["invoice_id"]].append(dict(r))
     for iid, inv in P["invoices"].items():
         ls = lines.get(iid, [])
@@ -69,31 +74,47 @@ def load_population(e, x):
         inv["goods"] = any(not str(l["hsn"]).startswith("99") and not l["item_id"].startswith("CHG") for l in ls)
         inv["gross"] = sum(l["qty"] * l["rate_paise"] for l in ls if not l["item_id"].startswith("CHG"))
         inv["discount"] = sum(l["discount_paise"] for l in ls if not l["item_id"].startswith("CHG"))
-    P["so"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM sales_orders")}
-    P["movements"] = {r["id"]: dict(r, lines={}) for r in e.execute("SELECT * FROM movements")}
-    for r in e.execute("SELECT * FROM movement_lines"):
+    sel = f"(SELECT id FROM invoices WHERE party_id IN {inlist})"
+    P["so"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM sales_orders" + inv_f, pp)}
+    mov_f = f" WHERE party_id IN {inlist} OR id IN (SELECT movement_id FROM invoice_movements WHERE invoice_id IN {sel})" \
+        if pp else ""
+    P["movements"] = {r["id"]: dict(r, lines={}) for r in e.execute("SELECT * FROM movements" + mov_f, pp + pp)}
+    for r in e.execute("SELECT * FROM movement_lines" + (f" WHERE movement_id IN (SELECT id FROM movements{mov_f})"
+                                                         if pp else ""), pp + pp):
         P["movements"][r["movement_id"]]["lines"][r["item_id"]] = r["qty"]
     P["inv_mov"] = defaultdict(list)
     P["mov_inv"] = defaultdict(list)
-    for r in e.execute("SELECT * FROM invoice_movements"):
+    for r in e.execute("SELECT * FROM invoice_movements" + (f" WHERE invoice_id IN {sel}" if pp else ""), pp):
         P["inv_mov"][r["invoice_id"]].append(dict(r))
         P["mov_inv"][r["movement_id"]].append(r["invoice_id"])
     P["parties"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM parties")}
     P["items"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM items")}
     P["schemes"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM schemes")}
     P["settle"] = defaultdict(list)
-    for r in e.execute("SELECT * FROM settlements WHERE direction = 'RECEIPT' AND doc_type = 'INVOICE'"):
+    for r in e.execute("SELECT * FROM settlements WHERE direction = 'RECEIPT' AND doc_type = 'INVOICE'"
+                       + (f" AND doc_id IN {sel}" if pp else ""), pp):
         P["settle"][r["doc_id"]].append(dict(r))
-    P["cns"] = {r["id"]: dict(r, lines=[]) for r in e.execute("SELECT * FROM credit_notes")}
-    for r in e.execute("SELECT * FROM cn_lines ORDER BY cn_id, line_no"):
+    P["cns"] = {r["id"]: dict(r, lines=[]) for r in e.execute("SELECT * FROM credit_notes" + inv_f, pp)}
+    for r in e.execute("SELECT * FROM cn_lines" + (f" WHERE cn_id IN (SELECT id FROM credit_notes WHERE party_id IN"
+                                                   f" {inlist})" if pp else "") + " ORDER BY cn_id, line_no", pp):
         P["cns"][r["cn_id"]]["lines"].append(dict(r))
     P["revenue_accounts"] = {r[0] for r in e.execute("SELECT code FROM accounts WHERE is_revenue = 1")}
-    P["journals"] = {r["no"]: dict(r, lines=[]) for r in e.execute("SELECT * FROM journals")}
-    for r in e.execute("SELECT * FROM journal_lines ORDER BY journal_no, line_no"):
+    jf = (f" WHERE source_id IN {sel} OR source_id IN (SELECT id FROM credit_notes WHERE party_id IN {inlist})"
+          if pp else "")
+    P["journals"] = {r["no"]: dict(r, lines=[]) for r in e.execute("SELECT * FROM journals" + jf, pp + pp)}
+    for r in e.execute("SELECT * FROM journal_lines" + (f" WHERE journal_no IN (SELECT no FROM journals{jf})" if pp else "")
+                       + " ORDER BY journal_no, line_no", pp + pp):
         P["journals"][r["journal_no"]]["lines"].append(dict(r))
+    if period_end:                                      # D13 needs the first post-period entry even in a narrow load
+        r = e.execute("SELECT MIN(l.seq) FROM erp_log l JOIN invoices i ON l.doc_type = 'invoice' AND l.doc_id = i.id"
+                      " AND l.action = 'CREATE' WHERE i.invoice_date > ?", (period_end,)).fetchone()
+        P["first_after_seq"] = r[0]
+    ids = list(P["invoices"]) + list(P["cns"]) + [str(j) for j in P["journals"]] + list(P["movements"])
     P["created"], P["pod_recorded"], P["log_role"] = {}, {}, {}
     for r in e.execute("SELECT seq, recorded_at, role, action, doc_type, doc_id, reason FROM erp_log"
-                       " WHERE doc_type IN ('invoice', 'credit_note', 'journal', 'movement') ORDER BY seq"):
+                       " WHERE doc_type IN ('invoice', 'credit_note', 'journal', 'movement')"
+                       + (f" AND doc_id IN ({','.join('?' * len(ids))})" if pp and ids else "")
+                       + " ORDER BY seq", ids if pp and ids else []):
         key = (r["doc_type"], r["doc_id"])
         if r["action"] in ("CREATE", "POST", "IMPORT") and key not in P["created"]:
             P["created"][key] = (r["seq"], r["recorded_at"])
@@ -186,7 +207,7 @@ def d3(P, eng):
                              f"criteria recorded, so control is treated as not transferred until the goods move.", ev))
         if cd is None:
             near = abs((_d(vdate) - _d(end)).days) <= 30
-            if near and inv["goods"]:
+            if near and inv["goods"] and not _fresh(inv):
                 hits.append(_hit("D3", "CUTOFF_UNRESOLVED", "invoice", inv["id"], 3, inv["taxable"],
                                  f"Invoice {_ref(inv)} sits near the period end but its transfer of control can't be dated "
                                  f"({basis}); request the LR / POD.", ev))
@@ -231,6 +252,11 @@ def _digits(s):
     return re.sub(r"\D", "", str(s or "")).lstrip("0")
 
 
+def _fresh(inv):
+    """Raised in the last 7 days: its dispatch and filing aren't due yet (continuous mode, 05 §19.6)."""
+    return inv["invoice_date"] > (_d(config.today()) - timedelta(days=7)).isoformat()
+
+
 def d4(P, eng, rp=None):
     hits, start, end = [], eng["period_start"], eng["period_end"]
     today = config.today()
@@ -245,7 +271,7 @@ def d4(P, eng, rp=None):
         movs = [P["movements"][l["movement_id"]] for l in links if P["movements"][l["movement_id"]]["direction"] == "OUT"]
         ev = {"invoice_no": inv["invoice_no"], "taxable_paise": inv["taxable"], "value_paise": inv["value"],
               "movements": [m["id"] for m in movs]}
-        if inv["goods"]:
+        if inv["goods"] and not _fresh(inv):
             if not movs and so.get("delivery_terms") != "BILL_AND_HOLD":
                 hits.append(_hit("D4", "NO_MOVEMENT", "invoice", inv["id"], 5, inv["taxable"],
                                  f"Invoice {_ref(inv)} ({_inr(inv['taxable'])} taxable) has no dispatch, LR or delivery "
@@ -563,10 +589,13 @@ def d6(P, eng):
                                  f"declares {_inr(e['value_paise'])}.", ev))
         g = P["gstr1"].get((inv["supplier_gstin"], inv["invoice_no"]))
         if g is None:
-            filed = (inv["supplier_gstin"], inv["invoice_date"][:4] + inv["invoice_date"][5:7]) in P["gstr1_periods"]
-            hits.append(_hit("D6", "NOT_IN_GSTR1", "invoice", inv["id"], 4, inv["taxable"],
-                             f"Invoice {_ref(inv)} is in the books but not in GSTR-1"
-                             f"{'' if filed else ' (that month has not been filed)'}.", ev))
+            y, m = int(inv["invoice_date"][:4]), int(inv["invoice_date"][5:7])
+            filed = (inv["supplier_gstin"], f"{y}{m:02d}") in P["gstr1_periods"]
+            due = date(y + (m == 12), m % 12 + 1, 11).isoformat()            # GSTR-1 is due on the 11th
+            if filed or config.today() > due:
+                hits.append(_hit("D6", "NOT_IN_GSTR1", "invoice", inv["id"], 4, inv["taxable"],
+                                 f"Invoice {_ref(inv)} is in the books but not in GSTR-1"
+                                 f"{'' if filed else ' (that month was never filed)'}.", ev))
         else:
             dt = abs(g["taxable_paise"] - inv["taxable"])
             dx = abs(g["igst_paise"] + g["cgst_paise"] + g["sgst_paise"] - inv["tax"])
@@ -785,7 +814,9 @@ def d13(P, eng):
     docs = [("invoice", i["id"], i["invoice_date"], i) for i in P["invoices"].values()] + \
            [("credit_note", c["id"], c["cn_date"], c) for c in P["cns"].values()]
     after = [P["created"].get((t, i), (None,))[0] for t, i, d, _ in docs if d > end]
-    first_after = min((s for s in after if s), default=None)
+    first_after = min((s for s in after if s), default=P.get("first_after_seq"))
+    if P.get("first_after_seq"):
+        first_after = min(first_after, P["first_after_seq"])
     if first_after:
         for t, i, d, row in docs:
             seq = P["created"].get((t, i), (None,))[0]
@@ -796,7 +827,7 @@ def d13(P, eng):
                                  f"period, but was entered on {when}, after documents of the next year had been entered.",
                                  {"date": d, "entered_at": P["created"][(t, i)][1], "erp_seq": seq}))
     by_series = defaultdict(list)
-    for i in P["invoices"].values():
+    for i in ([] if P.get("narrow") else P["invoices"].values()):      # a series test needs the whole series
         m = re.fullmatch(r"([A-Z0-9]+)/(\d+)/(\d{2})", i["invoice_no"] or "")
         if m and start <= i["invoice_date"] <= end:
             by_series[(m[1], m[3])].append((int(m[2]), i))
@@ -922,6 +953,8 @@ def run_all(engagement_id, detectors=None, incremental=False):
     det = want & set(DETECTORS)
     if det:
         save_hits(engagement_id, run_id, hits, det)
+    from app import risk_graph                       # full run: D10 cycles + re-baselined scores and snapshots (19.6)
+    company = risk_graph.build(engagement_id, persist=True)["company"]
     with db.borrow("audit", "system") as a:
         counts = defaultdict(dict)
         for d, c, n in a.execute("SELECT detector, code, count(*) FROM risk_hits WHERE engagement_id = ? GROUP BY"
@@ -929,4 +962,4 @@ def run_all(engagement_id, detectors=None, incremental=False):
             counts[d][c] = n
         top = [dict(r) for r in a.execute("SELECT * FROM risk_hits WHERE engagement_id = ? ORDER BY severity DESC,"
                                           " impact_paise DESC, id LIMIT 20", (engagement_id,))]
-    return {"run_id": run_id, "counts": dict(counts), "top": top}
+    return {"run_id": run_id, "counts": dict(counts), "top": top, "company": company}

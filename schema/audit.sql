@@ -79,7 +79,8 @@ CREATE TABLE IF NOT EXISTS anchors (
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY, engagement_id TEXT,
   kind TEXT NOT NULL CHECK (kind IN ('REGISTER_UPLOADED','RP_LIST_UPLOADED','SAMPLES_SELECTED','EVIDENCE_RECEIVED',
-                                     'STALE_DETECTED','INTEGRITY_ALERT','READY_FOR_REVIEW','SIGNED_OFF')),
+                                     'STALE_DETECTED','INTEGRITY_ALERT','READY_FOR_REVIEW','SIGNED_OFF',
+                                     'RISK_ESCALATED')),           -- RISK_ESCALATED: AuditGraph crossing into High (05 §19.6)
   payload_json TEXT, at TEXT NOT NULL, notified_at TEXT);
 
 -- 39 downloads: one-time /files/<key> URLs, never server paths

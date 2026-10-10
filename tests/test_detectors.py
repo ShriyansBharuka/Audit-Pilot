@@ -123,6 +123,8 @@ def test_other_plants_are_caught(planted):
 def test_clean_invoices_are_not_flagged(planted):
     P, hits, _ = planted
     planted_ids = {v["id"] for v in P.values() if isinstance(v, dict) and "id" in v}
+    with db.borrow("erp", "audit_staff") as e:                # the seed's 05 §19.10 network is planted too (family J)
+        planted_ids |= {r[0] for r in e.execute("SELECT id FROM invoices WHERE party_id LIKE 'P-NET%'")}
     serious = {h["object_id"] for h in hits if h["object_type"] == "invoice" and h["severity"] >= 4}
     assert serious <= planted_ids, serious - planted_ids
 

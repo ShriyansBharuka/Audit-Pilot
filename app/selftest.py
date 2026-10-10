@@ -359,6 +359,16 @@ def run():
             out.append(f"{kind} {r['size']} ({r['requests_sent']} requests)")
         return "; ".join(out) + "; reproduce identical"
 
+    def e2e_risk():
+        from app import risk_graph
+        g = risk_graph.build(config.ENGAGEMENT_ID)
+        flagged = sorted({c for cyc in g["cycles"] if cyc["flagged"] for c in cyc["codes"]})
+        assert {"ROUND_TRIP_GOODS", "ROUND_TRIP_CASH"} <= set(flagged), flagged
+        assert any(c["codes"] == ["RECIPROCAL_EXPLAINED"] and not c["flagged"] for c in g["cycles"])
+        co = g["company"]
+        return (f"company {co['band']} (families {','.join(co['families']) or '-'}, circular "
+                f"{co['circular_paise'] // 100:,}); cycles flagged {flagged}; job-work pair explained")
+
     e2e = [("seed 300 invoices through erp services", ("erp", "ledger", "portal", "chain"), e2e_seed),
            ("export register (Fig. 1) + doctored upload", ("erp", "intake"), e2e_upload),
            ("D0 reconcile + D1/D2 on the frozen register", ("intake",), e2e_d0),
@@ -370,7 +380,7 @@ def run():
            ("amend LR date after testing -> check_for_changes names the sample", ("evidence", "erp"), None),
            ("verify_integrity clean, then out-of-band edit detected", ("evidence", "chain"), None),
            ("findings + AJEs, workpaper xlsx, memo", ("findings", "workpaper", "memo"), None),
-           ("risk graph: company band", ("risk_graph",), None),
+           ("risk graph: cycles by minimum-span decomposition, company band", ("risk_graph",), e2e_risk),
            ("partner confirm + sign-off; verify_trail OK", ("trail", "findings"), None)]
     for name, owners, fn in e2e:
         stubs = [o for o in owners if is_stub(o)]
