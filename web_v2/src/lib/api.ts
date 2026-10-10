@@ -1,6 +1,7 @@
 import {
   AuditOverview,
   ChartsData,
+  StatutoryMemo,
   N8nEvents,
   ShapSummary,
   CycleItem,
@@ -143,6 +144,12 @@ export const api = {
 
   // Analytics charts (EX-2)
   getAnalyticsCharts: () => request<ChartsData>("/api/audit/analytics/charts"),
+
+  // Statutory memo (EX-3): PROPOSED / DRAFT; the partner decides in the findings flow
+  draftStatutoryMemo: (polish = false) =>
+    request<StatutoryMemo>("/api/audit/deliverables/statutory-memo", { method: "POST", body: JSON.stringify({ polish }) }),
+  downloadStatutoryMemo: (format: "md" | "pdf") =>
+    downloadWithToken(`/api/audit/deliverables/statutory-memo?format=${format}`, `statutory_memo.${format}`),
 
   // Audit Trail
   getAuditTrail: (limit = 50, offset = 0) =>

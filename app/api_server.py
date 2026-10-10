@@ -683,6 +683,32 @@ def get_analytics_charts():
     return charts.charts()
 
 
+class StatutoryMemoBody(BaseModel):
+    polish: bool = False
+
+
+@app.post("/api/audit/deliverables/statutory-memo", dependencies=[AUDIT])
+def post_statutory_memo(body: Optional[StatutoryMemoBody] = None):
+    """EX-3: the statutory revenue audit memorandum (PROPOSED / DRAFT) for preview: markdown + html + AJE totals."""
+    from app import statutory
+    r = statutory.build(polish=bool(body and body.polish))
+    return {k: r[k] for k in ("markdown", "html", "sha256", "status", "finding_ids", "aje_totals", "polished")}
+
+
+@app.get("/api/audit/deliverables/statutory-memo", dependencies=[AUDIT])
+def get_statutory_memo(format: str = "md"):
+    """Download the memorandum: format=md (Markdown) or pdf (PyMuPDF)."""
+    from app import statutory
+    if format not in ("md", "pdf"):
+        raise HTTPException(status_code=400, detail="INVALID_ARGUMENT: format is md or pdf")
+    r = statutory.build()
+    if format == "pdf":
+        return Response(statutory.pdf(r["html"]), media_type="application/pdf",
+                        headers={"Content-Disposition": 'attachment; filename="statutory_memo.pdf"'})
+    return Response(r["markdown"], media_type="text/markdown; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="statutory_memo.md"'})
+
+
 # ---------------------------------------------------------------- Deliverables & Exports
 
 def _fresh_deliverables(eid):

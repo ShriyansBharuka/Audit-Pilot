@@ -77,7 +77,7 @@ def test_audit_identities_dont_see_client_tools(server):
     as_role(gw, "audit_staff")
     seen = {t.name for t in asyncio.run(gw.mcp.list_tools())}
     assert "create_sales_order" not in seen and "get_engagement_status" in seen
-    assert len(gw.TOOL_ROLES) == 52              # 04 §4: 46 + MT-1 (2) + trace_money (MT-3) + list_cases, get_case, act_on_case (MT-4)
+    assert len(gw.TOOL_ROLES) == 53              # 04 §4: 46 + MT-1 (2) + trace_money (MT-3) + cases (MT-4, 3) + statutory memo (EX-3)
 
 
 def test_partner_token_is_rejected_on_mcp(server):

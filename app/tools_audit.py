@@ -391,6 +391,31 @@ def generate_deliverables() -> dict:
 
 
 @tool(*AUD)
+def generate_statutory_audit_report(polish: bool = False) -> dict:
+    """Draft the statutory revenue audit memorandum (PROPOSED / DRAFT): executive summary and scope, risk of material
+    misstatement against materiality, observations grouped by standard (SA 240, SA 550, Ind AS 115, CGST Rule 138) and
+    the AJE summary, assembled from the findings, risk hits, SHAP summary, samples and materiality. Client text is
+    quoted as data. polish=true lets the LLM tighten the opening prose when configured (labelled). -> one-time
+    download URLs for .md, .html and .pdf. Only the engagement partner confirms or signs off, in the web UI."""
+    def go(who, role):
+        from pathlib import Path
+        from app import statutory
+        r = statutory.build(EID(), polish=bool(polish))
+        pdf_path = Path(r["md_path"]).with_suffix(".pdf")
+        pdf_path.write_bytes(statutory.pdf(r["html"]))
+        import hashlib
+        files = [("statutory_memo.md", r["md_path"], r["sha256"]),
+                 ("statutory_memo.html", r["html_path"], hashlib.sha256(Path(r["html_path"]).read_bytes()).hexdigest()),
+                 ("statutory_memo.pdf", str(pdf_path), hashlib.sha256(pdf_path.read_bytes()).hexdigest())]
+        return result({"status": r["status"], "findings": len(r["finding_ids"]), "finding_ids": r["finding_ids"][:50],
+                       "aje_totals": {"dr": inr(r["aje_totals"]["dr_paise"]), "cr": inr(r["aje_totals"]["cr_paise"])},
+                       "polished": r["polished"],
+                       "files": [{"name": n, "sha256": h, "url": make_download(pth, h)} for n, pth, h in files]},
+                      next_steps=steps(("submit_for_partner_review", {}, "hand the memo and findings to the partner")))
+    return call(go)
+
+
+@tool(*AUD)
 def submit_for_partner_review() -> dict:
     """Mark the engagement READY_FOR_REVIEW and list what still blocks sign-off (PROPOSED findings, stale samples,
     integrity failures). The engagement partner decides every finding and signs off in the web UI only."""

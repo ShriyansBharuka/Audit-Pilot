@@ -350,3 +350,13 @@ export interface ChartsData {
     scatter_shown: number;
   };
 }
+
+export interface StatutoryMemo {
+  markdown: string;
+  html: string;
+  sha256: string;
+  status: string;
+  finding_ids: string[];
+  aje_totals: { dr_paise: number; cr_paise: number };
+  polished: boolean;
+}
