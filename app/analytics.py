@@ -13,7 +13,7 @@ from datetime import date, timedelta
 
 from app import config, db, money
 
-ALL = ("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D9", "D13", "D14")
+ALL = ("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D9", "D13", "D14", "D15")
 _SAFE = re.compile(r"^[A-Za-z0-9/\-_. ]{1,40}$")
 
 
@@ -138,6 +138,15 @@ def load_population(e, x, party_ids=None, period_end=None):
         if j["voucher_type"] == "SALES" and j["source_type"] == "invoice":
             P["sales_vouchers"][j["source_id"]].append(j)
     P["reversed"] = rev
+    # purchase to pay (D15): orders, receipts, bills, vendor payments with their bank lines, year-end accruals
+    P["pos"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM purchase_orders")}
+    P["grns"] = [dict(r) for r in e.execute("SELECT * FROM goods_receipts ORDER BY received_on, id")]
+    P["bills"] = {r["id"]: dict(r) for r in e.execute("SELECT * FROM purchase_bills")}
+    P["vendor_payments"] = [dict(r) for r in e.execute("SELECT * FROM settlements WHERE direction = 'PAYMENT'"
+                                                       " ORDER BY settled_on, id")]
+    P["accruals"] = [dict(r) for r in e.execute(
+        "SELECT j.no, j.voucher_date, l.party_id, l.cr_paise FROM journals j JOIN journal_lines l ON l.journal_no = j.no"
+        " WHERE j.voucher_type = 'JOURNAL' AND l.account_code = 'CREDITORS' AND l.cr_paise > 0")]
     return P
 
 
@@ -892,7 +901,121 @@ def d14(P, eng):
 
 # ---------------------------------------------------------------- run
 
-DETECTORS = {"D3": d3, "D4": d4, "D5": d5, "D6": d6, "D7": d7, "D9": d9, "D13": d13, "D14": d14}
+# ---------------------------------------------------------------- D15 purchase to pay (vault/13 MT-2)
+
+def d15(P, eng):
+    """100% of purchase orders, goods receipts, bills and vendor payments. Explain first: received quantity counts
+    every GRN to date (later deliveries included) net of returns; an advance under 30 days old is still pending; a GRN
+    is accrued when a year-end journal credits the vendor. Impacts are at the PO rate (before tax and freight)."""
+    hits, end, today = [], eng["period_end"], config.today()
+    grn_by_po = defaultdict(list)
+    for g in P["grns"]:
+        grn_by_po[g["po_id"]].append(g)
+    bills_by_po = defaultdict(list)
+    for b in P["bills"].values():
+        if b["po_id"]:
+            bills_by_po[b["po_id"]].append(b)
+    pay_by_bill, adv_by_po = defaultdict(list), defaultdict(list)
+    for s in P["vendor_payments"]:
+        if s["doc_type"] == "PURCHASE" and s["doc_id"]:
+            pay_by_bill[s["doc_id"]].append(s)
+        elif s["doc_type"] == "ADVANCE":
+            adv_by_po[s["doc_id"]].append(s)
+    received = lambda po_id, upto=None: sum((g["qty"] if g["kind"] == "RECEIPT" else -g["qty"]) for g in grn_by_po[po_id]
+                                             if upto is None or g["received_on"] <= upto)
+    for po in P["pos"].values():
+        rate = po["rate_paise"]
+        bills = bills_by_po[po["id"]]
+        billed_qty = sum(b["qty"] or 0 for b in bills)
+        paid = sum(s["amount_paise"] for b in bills for s in pay_by_bill[b["id"]]) + \
+            sum(s["amount_paise"] for s in adv_by_po[po["id"]])
+        # quantity paid for: the paid share of each bill's quantity (a bill paid at an inflated price is a PRICE_VARIANCE,
+        # not a short receipt), plus advances against the PO at the PO rate
+        paid_qty = 0
+        for b in bills:
+            total = b["taxable_paise"] + b["tax_paise"]
+            settled = sum(s["amount_paise"] for s in pay_by_bill[b["id"]])
+            paid_qty += min(b["qty"] or 0, (b["qty"] or 0) * settled // total) if total else 0
+        if rate:
+            paid_qty += sum(s["amount_paise"] for s in adv_by_po[po["id"]]) // rate
+        got = received(po["id"])
+        ev = {"po_id": po["id"], "vendor_id": po["vendor_id"], "po_qty": po["qty"], "rate_paise": rate,
+              "received_qty": got, "billed_qty": billed_qty, "paid_paise": paid, "payment_terms": po["payment_terms"],
+              "grns": [g["id"] for g in grn_by_po[po["id"]]], "bills": [b["id"] for b in bills]}
+        advances = adv_by_po[po["id"]]
+        pending = po["payment_terms"] == "ADVANCE" and advances and not bills and \
+            all((_d(today) - _d(s["settled_on"])).days < 30 for s in advances)
+        over = max(billed_qty, paid_qty) - got
+        if over > 0 and (bills or advances) and not pending:
+            hits.append(_hit("D15", "SHORT_RECEIPT", "purchase_order", po["id"], 5, over * rate,
+                             f"Purchase order {po['id']} with vendor {po['vendor_id']}: {max(billed_qty, paid_qty)} units "
+                             f"billed or paid for, {got} received to date (all goods receipts, net of returns); "
+                             f"{_inr(over * rate)} at the PO rate is not supported by a receipt.", ev))
+        for b in bills:
+            if b["qty"] and rate and b["taxable_paise"] * 100 > b["qty"] * rate * 102:
+                excess = b["taxable_paise"] - b["qty"] * rate
+                hits.append(_hit("D15", "PRICE_VARIANCE", "purchase_bill", b["id"], 4, excess,
+                                 f"Bill {b['id']} charges {_inr(b['taxable_paise'] // b['qty'])} a unit against the PO rate "
+                                 f"of {_inr(rate)} (more than 2% over); {_inr(excess)} in excess.",
+                                 {**ev, "bill_id": b["id"], "bill_rate_paise": b["taxable_paise"] // b["qty"]}))
+        if po["payment_terms"] != "ADVANCE" and not grn_by_po[po["id"]]:
+            for b in bills:
+                for s in pay_by_bill[b["id"]]:
+                    hits.append(_hit("D15", "PAYMENT_WITHOUT_RECEIPT", "settlement", s["id"], 5, s["amount_paise"],
+                                     f"Payment {s['id']} settles bill {b['id']} of PO {po['id']}, but nothing has been "
+                                     f"received against that order and the terms are not advance.", ev))
+        # received on or before the period end, billed only after it, and not accrued
+        recv_in = received(po["id"], end)
+        if recv_in > 0 and bills and all(b["bill_date"] > end for b in bills):
+            first = min((g for g in grn_by_po[po["id"]] if g["received_on"] <= end and g["kind"] == "RECEIPT"),
+                        key=lambda g: g["received_on"])
+            accrued = any(a["party_id"] == po["vendor_id"] and first["received_on"] <= a["voucher_date"] <= end
+                          for a in P["accruals"])
+            if not accrued:
+                hits.append(_hit("D15", "UNRECORDED_LIABILITY", "goods_receipt", first["id"], 4, recv_in * rate,
+                                 f"Goods receipt {first['id']} ({first['received_on']}) puts {recv_in} units of PO {po['id']} "
+                                 f"in the period, but the vendor's bill is dated after the period end and no accrual "
+                                 f"was booked: {_inr(recv_in * rate)} of liabilities (and purchases) is unrecorded.", ev))
+    # duplicate payments: one bill settled twice, or the same vendor paid the same amount twice within 7 days
+    for bid, pays in pay_by_bill.items():
+        b = P["bills"].get(bid)
+        if b and len(pays) > 1 and sum(s["amount_paise"] for s in pays) > b["taxable_paise"] + b["tax_paise"]:
+            for s in pays[1:]:
+                hits.append(_hit("D15", "DUPLICATE_PAYMENT", "settlement", s["id"], 5, s["amount_paise"],
+                                 f"Payment {s['id']} settles bill {bid} a second time (first paid by {pays[0]['id']}).",
+                                 {"bill_id": bid, "payments": [p["id"] for p in pays], "vendor_id": b["vendor_id"]}))
+    by_vendor = defaultdict(list)
+    for s in P["vendor_payments"]:
+        by_vendor[(s["party_id"], s["amount_paise"])].append(s)
+    flagged = {h["object_id"] for h in hits if h["code"] == "DUPLICATE_PAYMENT"}
+    for (vendor, amt), pays in by_vendor.items():
+        bills_same = [b for b in P["bills"].values() if b["vendor_id"] == vendor and b["taxable_paise"] + b["tax_paise"] == amt]
+        for a, b in zip(pays, pays[1:]):
+            if (_d(b["settled_on"]) - _d(a["settled_on"])).days <= 7 and len(bills_same) < len(pays) and \
+                    b["id"] not in flagged and not (a["doc_type"] == "PURCHASE" and b["doc_type"] == "PURCHASE"
+                                                   and a["doc_id"] != b["doc_id"]):
+                hits.append(_hit("D15", "DUPLICATE_PAYMENT", "settlement", b["id"], 5, amt,
+                                 f"Vendor {vendor} was paid {_inr(amt)} twice within 7 days ({a['id']}, {b['id']}) with no "
+                                 f"second bill for that amount.", {"payments": [a["id"], b["id"]], "vendor_id": vendor}))
+                flagged.add(b["id"])
+    for s in P["vendor_payments"]:
+        bank = P["bank"].get(s["bank_txn_id"]) or {}
+        master = _digits((P["parties"].get(s["party_id"]) or {}).get("bank_account"))
+        paid_to = _digits(bank.get("cp_account"))
+        if paid_to and master and paid_to != master:
+            hits.append(_hit("D15", "BENEFICIARY_MISMATCH", "settlement", s["id"], 5, s["amount_paise"],
+                             f"Payment {s['id']} to vendor {s['party_id']} went to a bank account that is not the vendor's "
+                             f"(bank line {bank.get('id')}; account ending {paid_to[-4:]}).",
+                             {"vendor_id": s["party_id"], "bank_txn": bank.get("id")}))
+        if s["doc_type"] == "ADVANCE" and (_d(today) - _d(s["settled_on"])).days > 90 and \
+                (not s["doc_id"] or received(s["doc_id"]) <= 0):
+            hits.append(_hit("D15", "ADVANCE_UNSETTLED", "settlement", s["id"], 3, s["amount_paise"],
+                             f"Advance {s['id']} of {_inr(s['amount_paise'])} to vendor {s['party_id']} is more than 90 "
+                             f"days old with no goods received against it.", {"vendor_id": s["party_id"], "po_id": s["doc_id"]}))
+    return _dedup(hits)
+
+
+DETECTORS = {"D3": d3, "D4": d4, "D5": d5, "D6": d6, "D7": d7, "D9": d9, "D13": d13, "D14": d14, "D15": d15}
 
 
 def _self_related(e):

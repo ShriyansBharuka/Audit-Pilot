@@ -166,7 +166,7 @@ Gotchas:
 | 14 | `record_delivery` | warehouse | T1 | POD: delivered_on, received_by (transfer of control for FOR-destination) |
 | 15 | `issue_credit_note` | accounts | T1 | Lines [{invoice_no?, item?, qty?, taxable}], cn_date, reason, scheme_id?, return_movement_id?; posts CREDIT_NOTE, registers the CRN IRN |
 | 16 | `record_receipt` | accounts | T1 | Bank receipt: amount, invoice_nos[], payer_name/payer_account/ifsc/utr; writes ext.bank_txns + settlements, posts RECEIPT |
-| 17 | `record_payment` | accounts | T2 | Vendor payment (closes cash round trips, D10) |
+| 17 | `record_payment` | accounts | T2 | Vendor payment (closes cash round trips, D10). `po_id` without `purchase_ids` = an advance against that PO (settlement `doc_type=ADVANCE`, `doc_id`=PO id; D15) |
 | 18 | `record_purchase` | accounts | T2 | Purchase bill (closes goods round trips, D10), normally against a PO: `po_id` (vendor and item default from it) |
 | 47 | `create_purchase_order` | accounts | T1 | Purchase order: vendor, item, qty, rate (rupees), payment_terms `ADVANCE\|ON_DELIVERY\|CREDIT_30\|CREDIT_60` (`vault/13` MT-1) |
 | 48 | `record_goods_receipt` | warehouse | T1 | Goods receipt (GRN) against a PO: qty, received_on, received_by; `kind=RETURN` for a return to the vendor (MT-1) |

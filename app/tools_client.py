@@ -292,12 +292,13 @@ def record_receipt(amount: str, invoice_nos: list[str] | None = None, settled_on
 
 @tool("accounts", "client_admin")
 def record_payment(amount: str, vendor_id: str, settled_on: str | None = None, purchase_ids: list[str] | None = None,
-                   payee_account: str | None = None, narration: str | None = None) -> dict:
-    """A vendor payment out of the bank (optionally against purchase bills). Example: record_payment(amount='400000.00',
-    vendor_id='P-VEN1', settled_on='2026-03-05')"""
+                   payee_account: str | None = None, narration: str | None = None, po_id: str | None = None) -> dict:
+    """A vendor payment out of the bank: against purchase bills (purchase_ids), as an advance against a purchase
+    order (po_id), or a plain advance. Example: record_payment(amount='500000.00', vendor_id='P-VEN1',
+    settled_on='2026-02-05', po_id='PO-000012')"""
     return call(lambda who, role: from_service(erp.record_payment(
         who, role, amount_paise=paise(amount, "amount", required=True), vendor_id=vendor_id, settled_on=settled_on,
-        purchase_ids=purchase_ids, payee_account=payee_account, narration=narration)))
+        purchase_ids=purchase_ids, payee_account=payee_account, narration=narration, po_id=po_id)))
 
 
 @tool("accounts", "client_admin")

@@ -793,8 +793,10 @@ def record_purchase(actor, role, vendor_id=None, bill_no=None, bill_date=None, t
 
 
 def record_payment(actor, role, amount_paise=None, vendor_id=None, settled_on=None, payee_account=None,
-                   payee_ifsc=None, utr=None, mode="NEFT", purchase_ids=None, narration=None):
-    """A vendor payment (T2; closes cash round trips for D10): bank line out + settlement + PAYMENT voucher."""
+                   payee_ifsc=None, utr=None, mode="NEFT", purchase_ids=None, narration=None, po_id=None):
+    """A vendor payment: bank line out + settlement + PAYMENT voucher. Against bills (purchase_ids), or an advance
+    against a purchase order (po_id: settlement ADVANCE / PO id), or a plain advance. The payee account is recorded
+    as the bank shows it (D15 BENEFICIARY_MISMATCH compares it with the vendor master)."""
     amount = _int(amount_paise, "amount_paise", minimum=1)
     settled_on = _date(settled_on, "settled_on", default=config.today())
     with _session(role) as c:
@@ -803,10 +805,11 @@ def record_payment(actor, role, amount_paise=None, vendor_id=None, settled_on=No
                              payee_account if payee_account is not None else v["bank_account"],
                              payee_ifsc if payee_ifsc is not None else v["ifsc"], utr, narration or "payment")
         bills = [_get(c, "purchase_bill", b)["id"] for b in (purchase_ids or [])]
+        po = _get(c, "purchase_order", po_id)["id"] if po_id and not bills else None
         sid = _next_id(c, "settlements", "id", "ST-", 6)
         c.execute("INSERT INTO settlements(id, direction, settled_on, party_id, doc_type, doc_id, amount_paise, bank_txn_id,"
                   " mode) VALUES (?,?,?,?,?,?,?,?,?)", (sid, "PAYMENT", settled_on, v["id"],
-                                                        "PURCHASE" if bills else "ADVANCE", bills[0] if bills else None,
+                                                        "PURCHASE" if bills else "ADVANCE", bills[0] if bills else po,
                                                         amount, bt, mode))
         write_doc(c, actor, role, "record_payment", "CREATE", "settlement", sid)
         jno = ledger.post_journal(c, settled_on, "PAYMENT", [{"account_code": "CREDITORS", "party_id": v["id"],

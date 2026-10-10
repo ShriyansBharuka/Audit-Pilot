@@ -31,6 +31,7 @@ FAMILY = {  # 05 §18 rows -> the PS irregularity families
     "D7": "G", "D8": "H", "D14": "H", "D9": "I", "D10": "J", "D11": "L", "D12": "L", "D13": "C",
     "UNPAID_90D": "D", "THIRD_PARTY_PAYER": "A", "PAYER_IS_RP": "A", "LR_VEHICLE_MISMATCH": "D",
     "EWB_REASON_NOT_SUPPLY": "D", "LATE_CANCELLATION": "I", "IRN_LATE": "C", "SEQUENCE_BREAK": "C",
+    "D15": "P",                                       # purchase to pay (vault/13 MT-2)
 }
 # portal / bank / register-sourced deterministic hits: hard evidence is never diluted by averaging (19.5 FLOOR)
 HARD = {"NOT_IN_SOR", "MISSING_FROM_REGISTER", "TAXABLE_DIFF", "DATE_DIFF", "FY_DIFF", "CANCELLED_BUT_LISTED",
@@ -38,7 +39,9 @@ HARD = {"NOT_IN_SOR", "MISSING_FROM_REGISTER", "TAXABLE_DIFF", "DATE_DIFF", "FY_
         "IRN_SIGNATURE_BAD", "IRN_NOT_ON_PORTAL", "NOT_IN_GSTR1", "GSTR1_VALUE_DIFF", "REVENUE_WITHOUT_SALE",
         "REVENUE_POSTING_DIFF", "DUPLICATE_POSTING", "PREMATURE", "POST_PERIOD_REVERSAL", "PAYER_IS_RP",
         "BELONGS_TO_OTHER_TXN", "EWB_NOT_ON_PORTAL", "DOC_FIELD_MISMATCH", "QTY_SHORT", "BACKDATED_ENTRY",
-        "CIRCULAR_FLOW", "ROUND_TRIP_GOODS", "ROUND_TRIP_CASH"}
+        "CIRCULAR_FLOW", "ROUND_TRIP_GOODS", "ROUND_TRIP_CASH",
+        # D15: bank-line and goods-receipt sourced
+        "SHORT_RECEIPT", "PAYMENT_WITHOUT_RECEIPT", "DUPLICATE_PAYMENT", "BENEFICIARY_MISMATCH", "UNRECORDED_LIABILITY"}
 INDEPENDENT = {"D0", "D6", "D8"}                       # register / IRP / EWB / GSTN / document evidence
 HEURISTIC = {"D5", "D14"}
 

@@ -214,6 +214,65 @@ def add_plants(plan, seed_no=7):
     plant("F", "TIEOUT_RESIDUE", "engagement", "gstr1", "GSTR-1 short of the books by the omitted invoice")
     plant("C", "POST_CLOSING", "journal", "journal_of:@PC3/inv", "the backdated invoice's SALES voucher is post-closing")
 
+    # ---- P: purchase to pay (vault/13 MT-2). The ABC case, a duplicate payment, a price variance, a wrong
+    #      beneficiary, an unrecorded liability, and one that LOOKS short but is explained by a later receipt.
+    abc = seed._party("P-PLV1", "ENTITY", "VENDOR", "ABC Industrial Supplies", pan="AAACA5521K",
+                      gstin=seed.make_gstin("27", "AAACA5521K"), state_code="27",
+                      address="Gala 14, Bhosari MIDC, Pune", pincode="411026", phone="7000000301",
+                      email="sales@abcindustrial.in", bank_account="660011112222", ifsc="ICIC0000066")
+    plan["parties"].append(abc)
+    p_item = _goods(plan)[0]["id"]
+
+    def p2p(key, vendor, po_date, qty, rate, terms, grns, bill=None, pays=(), advance=None):
+        """PO -> optional advance -> GRNs [(date, qty)] -> optional bill (date, qty, taxable) -> payments
+        [(date, amount, payee_account|None)]. Publishes <key>/po, /grn (first), /pb, /pay, /pay2."""
+        out = [seed._ev(_ts(po_date, 570), "accounts", "create_purchase_order",
+                        {"vendor_id": vendor, "item_id": p_item, "qty": qty, "rate_paise": rate, "po_date": po_date,
+                         "payment_terms": terms}, out={f"{key}/po": "id"})]
+        if advance:
+            out.append(seed._ev(_ts(advance[0], 660), "accounts", "record_payment",
+                                {"vendor_id": vendor, "amount_paise": advance[1], "settled_on": advance[0],
+                                 "narration": "advance against PO"}, refs={"po_id": f"{key}/po"},
+                                out={f"{key}/adv": "settlement_id"}))
+        for n, (d, q) in enumerate(grns):
+            out.append(seed._ev(_ts(d, 700 + n), "warehouse", "record_goods_receipt",
+                                {"qty": q, "received_on": d, "received_by": "Stores"}, refs={"po_id": f"{key}/po"},
+                                out={f"{key}/grn" if n == 0 else f"{key}/grn{n}": "id"}))
+        if bill:
+            d, q, taxable = bill
+            out.append(seed._ev(_ts(d, 780), "accounts", "record_purchase",
+                                {"vendor_id": vendor, "bill_no": f"{key}/BILL", "bill_date": d, "item_id": p_item, "qty": q,
+                                 "taxable_paise": taxable, "tax_paise": taxable * 18 // 100},
+                                refs={"po_id": f"{key}/po"}, out={f"{key}/pb": "id"}))
+        for n, (d, amount, payee) in enumerate(pays):
+            args = {"vendor_id": vendor, "amount_paise": amount, "settled_on": d}
+            if payee:
+                args.update(payee_account=payee, payee_ifsc="SBIN0000998")
+            out.append(seed._ev(_ts(d, 840 + n), "accounts", "record_payment", args,
+                                refs={"purchase_ids": f"{key}/pb"}, out={f"{key}/pay" if n == 0 else f"{key}/pay2": "settlement_id"}))
+        return out
+
+    with_tax = lambda t: t + t * 18 // 100
+    evs += p2p("PP1", "P-PLV1", "2026-02-02", 100, 5_000_00, "ADVANCE", [("2026-02-20", 60)],
+               bill=("2026-02-21", 100, 5_00_000_00), advance=("2026-02-05", 5_00_000_00))
+    plant("P", "SHORT_RECEIPT", "purchase_order", "@PP1/po", "₹5 L paid in advance for 100 units, 60 received")
+    evs += p2p("PP2", "P-VEN1", "2025-11-03", 12, 5_296_61, "CREDIT_30", [("2025-11-10", 12)],
+               bill=("2025-11-11", 12, 63_559_33),
+               pays=[("2025-12-01", with_tax(63_559_33), None), ("2025-12-04", with_tax(63_559_33), None)])
+    plant("P", "DUPLICATE_PAYMENT", "settlement", "@PP2/pay2", "the same ₹75,000 bill paid twice, 3 days apart")
+    evs += p2p("PP3", "P-VEN3", "2025-12-08", 50, 2_000_00, "CREDIT_30", [("2025-12-15", 50)],
+               bill=("2025-12-16", 50, 50 * 2_300_00), pays=[("2026-01-14", with_tax(50 * 2_300_00), None)])
+    plant("P", "PRICE_VARIANCE", "purchase_bill", "@PP3/pb", "billed at ₹2,300 a unit against a PO rate of ₹2,000")
+    evs += p2p("PP4", "P-VEN4", "2026-01-05", 40, 4_000_00, "CREDIT_30", [("2026-01-12", 40)],
+               bill=("2026-01-13", 40, 40 * 4_000_00), pays=[("2026-02-10", with_tax(40 * 4_000_00), "998877665544")])
+    plant("P", "BENEFICIARY_MISMATCH", "settlement", "@PP4/pay", "paid to an account that is not the vendor's")
+    evs += p2p("PP5", "P-VEN5", "2026-03-15", 30, 3_000_00, "CREDIT_30", [("2026-03-28", 30)],
+               bill=("2026-04-03", 30, 30 * 3_000_00), pays=[("2026-05-05", with_tax(30 * 3_000_00), None)])
+    plant("P", "UNRECORDED_LIABILITY", "goods_receipt", "@PP5/grn", "goods received 28 Mar, bill dated 3 Apr, no accrual")
+    # control: billed and paid for 100 in March with 60 received; the other 40 arrive on 15 Apr -> explained, clean
+    evs += p2p("PP6", "P-VEN3", "2026-02-09", 100, 1_000_00, "ADVANCE", [("2026-03-01", 60), ("2026-04-15", 40)],
+               bill=("2026-03-02", 100, 1_00_000_00), advance=("2026-02-10", 1_00_000_00))
+
     plan["events"] = sorted(plan["events"] + evs, key=lambda e: e["at"])
     return key
 
