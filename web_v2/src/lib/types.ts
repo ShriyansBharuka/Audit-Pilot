@@ -47,6 +47,14 @@ export interface AuditOverview {
   evidence_requests?: Record<string, number>;
   signed_by?: string;
   signed_at?: string;
+  detectors?: DetectorMeta[];
+}
+
+export interface DetectorMeta {
+  detector_id: string;
+  name: string;
+  standard: string;
+  severity: number;
 }
 
 export interface TransactionItem {

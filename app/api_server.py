@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, reports, risk_graph, sampling, trail, workpaper, yearend
+from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, trail, workpaper, yearend
 
 app = FastAPI(
     title="AuditPilot AI API",
@@ -187,6 +187,7 @@ def get_audit_overview():
         "evidence_requests": evidence_counts,
         "signed_by": eng_dict.get("signed_by"),
         "signed_at": eng_dict.get("signed_at"),
+        "detectors": powerbi.detector_rows(),
     }
 
 
@@ -729,33 +730,17 @@ def get_audit_trail(limit: int = 50, offset: int = 0):
 # ---------------------------------------------------------------- Power BI & Integrations
 
 @app.get("/api/integrations/powerbi", dependencies=[AUDIT])
+@app.get("/api/v1/powerbi/feed", dependencies=[AUDIT])
 def get_powerbi_dataset():
-    """Clean JSON endpoint formatted for Microsoft Power BI Web Data Connector."""
-    eid = config.ENGAGEMENT_ID
-    with db.borrow("erp", "system") as e, db.borrow("audit", "system") as a:
-        invoices = [dict(r) for r in e.execute(
-            "SELECT i.invoice_no, i.invoice_date, p.name as party_name, "
-            "(CASE WHEN p.tags LIKE '%RP%' OR p.tags LIKE '%DIRECTOR%' OR p.tags LIKE '%KMP%' THEN 1 ELSE 0 END) as is_related_party, "
-            "COALESCE(SUM(l.taxable_paise), 0) / 100.0 as taxable_amount_inr, "
-            "COALESCE(SUM(l.igst_paise + l.cgst_paise + l.sgst_paise), 0) / 100.0 as tax_amount_inr, "
-            "i.place_of_supply, i.status "
-            "FROM invoices i JOIN parties p ON p.id = i.party_id "
-            "LEFT JOIN invoice_lines l ON l.invoice_id = i.id "
-            "GROUP BY i.id ORDER BY i.invoice_date"
-        ).fetchall()]
-        
-        findings_rows = [dict(r) for r in a.execute(
-            "SELECT id, detector, code, category, title, gross_impact_paise / 100.0 as gross_impact_inr, status "
-            "FROM findings WHERE engagement_id = ?", (eid,)
-        ).fetchall()]
+    """Power BI "Web" source: invoices, customers, detectors and findings/AJEs, money in integer paise (EX-1)."""
+    return powerbi.feed()
 
-    return {
-        "dataset_name": f"AuditPilot_AI_{eid}",
-        "generated_at": config.now(),
-        "entity": config.ENTITY_NAME,
-        "invoices": invoices,
-        "findings": findings_rows,
-    }
+
+@app.get("/api/integrations/powerbi/package", dependencies=[AUDIT])
+def get_powerbi_package():
+    """Zip: Fact_Invoices, Dim_Customers, Dim_Detectors, Fact_Findings_AJEs (CSV, paise) + measures.dax."""
+    data, name = powerbi.package()
+    return Response(data, media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @app.get("/api/integrations/n8n/events", dependencies=[AUDIT])

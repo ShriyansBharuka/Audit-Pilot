@@ -144,8 +144,9 @@ export const api = {
   getAuditTrail: (limit = 50, offset = 0) =>
     request<{ total: number; offset: number; limit: number; items: any[] }>(`/api/audit/trail?limit=${limit}&offset=${offset}`),
 
-  // Power BI Export
-  getPowerBiDatasetUrl: () => `${API_BASE}/api/integrations/powerbi`,
+  // Power BI: JSON "Web" feed URL + the zip package (4 CSVs in paise + measures.dax)
+  getPowerBiDatasetUrl: () => `${API_BASE}/api/v1/powerbi/feed`,
+  downloadPowerBiPackage: () => downloadWithToken("/api/integrations/powerbi/package", "AuditPilot_PowerBI.zip"),
 
   // n8n: the real event feed this app emits (workflows themselves run in n8n)
   getN8nEvents: (limit = 20) => request<N8nEvents>(`/api/integrations/n8n/events?limit=${limit}`),

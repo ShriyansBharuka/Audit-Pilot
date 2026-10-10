@@ -121,7 +121,10 @@ export default function OverviewPage() {
           </div>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-slate-800">
-              {Object.entries(DETECTOR_NAMES).map(([key, meta]) => {
+              {(data?.detectors?.length
+                ? data.detectors.map((d) => [d.detector_id, { title: d.name, standard: d.standard }] as const)
+                : Object.entries(DETECTOR_NAMES)
+              ).map(([key, meta]) => {
                 const count = data?.detector_counts?.[key] || 0;
                 return (
                   <tr key={key} className={count ? "hover:bg-slate-800/40" : "text-slate-500"}>

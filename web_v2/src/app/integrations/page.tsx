@@ -7,6 +7,7 @@ import {
   BarChart3,
   CheckCircle2,
   Copy,
+  Download,
   ExternalLink,
   Play,
   RefreshCw,
@@ -20,6 +21,8 @@ export default function IntegrationsPage() {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [feed, setFeed] = useState<N8nEvents | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const powerBiUrl = api.getPowerBiDatasetUrl();
   const mcpUrl = process.env.NEXT_PUBLIC_MCP_URL || "http://localhost:8000/mcp";
 
@@ -28,6 +31,15 @@ export default function IntegrationsPage() {
     api.getN8nEvents(20).then(setFeed).catch(() => setFeed(null)).finally(() => setRefreshing(false));
   };
   useEffect(load, []);
+
+  const downloadPackage = () => {
+    setDownloading(true);
+    setDownloadError(null);
+    api
+      .downloadPowerBiPackage()
+      .catch((e) => setDownloadError(e.message || "Download failed"))
+      .finally(() => setDownloading(false));
+  };
 
   const copyPowerBi = () => {
     navigator.clipboard.writeText(powerBiUrl);
@@ -85,12 +97,25 @@ export default function IntegrationsPage() {
             </div>
           </div>
 
+          <div className="flex items-center gap-3">
+            <button
+              onClick={downloadPackage}
+              disabled={downloading}
+              className="h-8 px-3 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 text-white text-xs font-medium flex items-center gap-1.5 transition disabled:opacity-60"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {downloading ? "Preparing…" : "Download dataset"}
+            </button>
+            <span className="text-xs text-slate-500">4 CSV tables + measures.dax</span>
+            {downloadError && <span className="text-xs text-rose-300">{downloadError}</span>}
+          </div>
+
           <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-400 space-y-1">
             <div className="font-semibold text-slate-300">How to connect in Power BI:</div>
             <div>1. In Power BI Desktop, click <strong>Get Data</strong> → <strong>Web</strong></div>
             <div>2. Paste the URL above and click <strong>OK</strong></div>
             <div>3. Under <strong>Advanced</strong>, add the header <code>Authorization: Bearer &lt;auditor token&gt;</code>.</div>
-            <div>4. Load the <code>invoices</code> and <code>findings</code> tables into your model.</div>
+            <div>4. Load the <code>invoices</code>, <code>customers</code>, <code>detectors</code> and <code>findings</code> tables. Amounts are in paise.</div>
           </div>
         </div>
 
