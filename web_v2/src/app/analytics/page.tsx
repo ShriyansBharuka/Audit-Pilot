@@ -224,7 +224,7 @@ export default function AnalyticsPage() {
   const spikes = useMemo(() => data?.volume.days.filter((d) => d.flagged).length ?? 0, [data]);
   const high = data?.risk.histogram.find((b) => b.band === ">=70")?.count ?? 0;
   const stats = [
-    { label: "Invoices", value: data ? data.benford.n.toLocaleString("en-IN") : "—", sub: data ? `${data.period.start} → ${data.period.end}` : "" },
+    { label: "Invoices in FY", value: data ? data.benford.n.toLocaleString("en-IN") : "—", sub: data ? `${data.period.start} → ${data.period.end}` : "" },
     { label: "Spike days", value: data ? String(spikes) : "—", sub: "z ≥ 3" },
     { label: "Benford", value: data ? (data.benford.flagged ? "Deviates" : "Consistent") : "—", sub: data ? `χ² ${data.benford.chi2.toFixed(1)}` : "" },
     { label: "High risk", value: data ? String(high) : "—", sub: "score 70+" },
