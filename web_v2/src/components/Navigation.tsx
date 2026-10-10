@@ -16,6 +16,7 @@ import {
   FolderOpen,
   GitCommit,
   KeyRound,
+  LineChart,
   Layers,
   LogOut,
   Network,
@@ -136,6 +137,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   const auditItems = [
     { href: "/", label: "Overview", icon: BarChart3, badge: ov?.company_risk?.band },
     { href: "/transactions", label: "Population", icon: Layers, badge: n(ov?.invoices_count) },
+    { href: "/analytics", label: "Analytics", icon: LineChart },
     { href: "/network", label: "Circular Trading", icon: Network },
     { href: "/shap", label: "SHAP", icon: Sparkles },
     { href: "/findings", label: "Findings", icon: Award, badge: n(findingsTotal) },

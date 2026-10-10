@@ -527,16 +527,30 @@ def d5(P, eng):
                              f"period.", {"invoice_id": i["id"]}))
     amounts = [i["value"] for i in fy if i["value"] > 0]
     if len(amounts) >= 1000:                                  # first-digit tests need ~1,000+ values (Nigrini)
-        import math
-        obs = [0] * 10
-        for a in amounts:
-            obs[int(str(a)[0])] += 1
-        mad = sum(abs(obs[dg] / len(amounts) - math.log10(1 + 1 / dg)) for dg in range(1, 10)) / 9
+        mad = benford(amounts)["mad"]
         if mad > 0.015:
             hits.append(_hit("D5", "BENFORD_FIRST_DIGIT", "company", "SELF", 1, 0,
                              f"First digits of invoice values deviate from Benford's law (MAD {mad:.4f} > 0.015, "
                              f"nonconformity; SA 520 analytical procedure; information only).", {"mad": round(mad, 5)}))
     return hits
+
+BENFORD_CHI2_CRIT = 15.507                                   # chi-square, df 8, alpha 0.05
+
+
+def benford(amounts):
+    """First-digit test over positive integer amounts (paise) -> {n, counts{1..9}, expected{1..9} (proportions),
+    chi2, mad, flagged}. Floats here are derived statistics only, never money."""
+    import math
+    counts = {d: 0 for d in range(1, 10)}
+    for a in amounts:
+        if a > 0:
+            counts[int(str(int(a))[0])] += 1
+    n = sum(counts.values())
+    expected = {d: math.log10(1 + 1 / d) for d in range(1, 10)}
+    chi2 = sum((counts[d] - n * p) ** 2 / (n * p) for d, p in expected.items()) if n else 0.0
+    mad = sum(abs(counts[d] / n - p) for d, p in expected.items()) / 9 if n else 0.0
+    return {"n": n, "counts": counts, "expected": expected, "chi2": chi2, "mad": mad,
+            "flagged": chi2 > BENFORD_CHI2_CRIT}
 
 # ---------------------------------------------------------------- D6 statutory documents and tax filings
 

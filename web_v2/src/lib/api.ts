@@ -1,5 +1,6 @@
 import {
   AuditOverview,
+  ChartsData,
   N8nEvents,
   ShapSummary,
   CycleItem,
@@ -139,6 +140,9 @@ export const api = {
   getShapExplanation: (invoiceNo: string) =>
     request<ShapExplanation>(`/api/audit/shap/${encodeURIComponent(invoiceNo)}`),
   getShapSummary: (minRisk = 30) => request<ShapSummary>(`/api/audit/shap-summary?min_risk=${minRisk}`),
+
+  // Analytics charts (EX-2)
+  getAnalyticsCharts: () => request<ChartsData>("/api/audit/analytics/charts"),
 
   // Audit Trail
   getAuditTrail: (limit = 50, offset = 0) =>

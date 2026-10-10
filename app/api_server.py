@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import cases, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, trail, workpaper, yearend
+from app import cases, charts, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, trail, workpaper, yearend
 
 app = FastAPI(
     title="AuditPilot AI API",
@@ -675,6 +675,12 @@ def get_report_year_end(format: str = "json", ai: bool = False):
     """vault/13 §6 Report B: risk register, counterparty exposure, funds flow, investigated cases, March-April, AJEs,
     unresolved questions. ai=true adds a labelled AI-drafted summary when the LLM is on. Never an audit opinion."""
     return _report(lambda: reports.year_end(ai_summary=ai), format)
+
+
+@app.get("/api/audit/analytics/charts", dependencies=[AUDIT])
+def get_analytics_charts():
+    """EX-2: daily volume (z-scores, period-end window), Benford first digits (chi-square), risk histogram + scatter."""
+    return charts.charts()
 
 
 # ---------------------------------------------------------------- Deliverables & Exports

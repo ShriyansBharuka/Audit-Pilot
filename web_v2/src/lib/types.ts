@@ -326,3 +326,27 @@ export interface AuditReport {
   published_at: string;
   shared_count?: number;
 }
+
+export interface ChartsData {
+  period: { start: string; end: string };
+  volume: {
+    days: { date: string; count: number; total_paise: number; z: number; flagged: boolean; period_end_window: boolean }[];
+    mean_paise: number;
+    stdev_paise: number;
+    z_flag: number;
+  };
+  benford: {
+    n: number;
+    chi2: number;
+    critical: number;
+    flagged: boolean;
+    mad: number;
+    digits: { digit: number; count: number; actual: number; expected: number }[];
+  };
+  risk: {
+    histogram: { band: string; count: number }[];
+    scatter: { invoice_no: string; total_paise: number; risk_score: number; category: string; code: string | null }[];
+    scatter_total: number;
+    scatter_shown: number;
+  };
+}
