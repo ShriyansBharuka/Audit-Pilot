@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { API_ERROR_EVENT, api } from "@/lib/api";
 import { AuditOverview } from "@/lib/types";
@@ -10,6 +10,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, KeyRound, LogOut, Shield, Use
 import { NAV, PRINTABLE, allHrefs, groupForPath, itemHrefs, type BadgeKey, type NavItem } from "@/lib/nav";
 import { SectionTabs } from "@/components/SectionTabs";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
+import { Landing } from "@/components/Landing";
 
 const AUDIT_ROLES = ["audit_staff", "engagement_partner"];
 const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL || "http://localhost:8000/mcp";
@@ -36,6 +37,7 @@ function LoginScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4">
       <div className="w-full max-w-md glass-panel rounded-lg border border-slate-800 p-6 space-y-5">
+        <Link href="/" className="text-xs text-slate-500 hover:text-slate-300">← Back to home</Link>
         <div className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
             <Shield className="h-4 w-4 text-indigo-400" />
@@ -99,6 +101,7 @@ function LoginScreen() {
 
 export function Navigation({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading, logout, identities, loginWithToken } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
@@ -117,6 +120,11 @@ export function Navigation({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener(API_ERROR_EVENT, on);
   }, []);
   useEffect(() => setApiError(null), [pathname]);
+
+  // signed in and on /signin: go to the workspace
+  useEffect(() => {
+    if (user && pathname === "/signin") router.replace(AUDIT_ROLES.includes(user.role) ? "/" : "/evidence");
+  }, [user, pathname, router]);
   const isAudit = !!user && AUDIT_ROLES.includes(user.role);
 
   // auto-open the group (and the item) that holds the current page
@@ -134,7 +142,10 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Loading…</div>;
   }
-  if (!user) return <LoginScreen />;
+  if (!user) return pathname === "/" ? <Landing /> : <LoginScreen />;
+  if (pathname === "/signin") {
+    return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Signing in…</div>;
+  }
 
   const n = (v?: number) => (v === undefined || v === null ? undefined : v.toLocaleString("en-IN"));
   // demo personas carry a token only when the API runs with DEMO_ROLE_SWITCHER=1; the partner's never does
