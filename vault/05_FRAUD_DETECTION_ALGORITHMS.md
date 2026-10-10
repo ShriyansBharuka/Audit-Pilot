@@ -140,7 +140,7 @@ Codes:
 - `MISSING_DOCUMENT`: request overdue.
 - `PDF_EDITED` (T2): PDF ModDate > CreationDate, or the producer is an editing tool.
 
-Results fill the TOD attribute columns. Standards: SA 500 (reliability), SA 240 (documents that may not be authentic).
+For an LR or POD that legitimately covers several invoices (one consolidated load), the LR-number rule decides and sha256/text reuse is not an exception; for every other document type, sha256/text reuse always is (answered 2026-10-10). Results fill the TOD attribute columns. Standards: SA 500 (reliability), SA 240 (documents that may not be authentic).
 
 ## D9 · Credit notes (especially post-period)
 
@@ -351,7 +351,7 @@ Built with networkx `MultiDiGraph` from data that already exists; nothing new is
 - **Replay mode (demo):** `python -m app.replay --speed 600` replays the seed's entry-time-ordered events through the erp services (the seed already produces this list), running incremental analytics every N events. The audience watches risk evolve over a "year in 3 minutes", then the annual-audit workpaper.
 
 ### 19.7 Company flag (SA 315 risk of material misstatement)
-- Exposure = Σ (R/100 × taxable) over entries, plus the count of PS families hit (rows in §18) and the circular ₹ value.
+- Exposure = Σ (R/100 × taxable) over entries **in Review or High only (R ≥ 30)**, so low-band noise can't push a clean year over PM (answered 2026-10-10), plus the count of PS families hit (rows in §18) and the circular ₹ value.
 - **HIGH** if exposure ≥ PM, ≥4 families, or circular value ≥ PM; **MODERATE** if ≥50% of PM or ≥2 families; else **LOW**.
 - It drives the Sales TOD size (25 / 30 / 35) and KEY-stratum ranking, and is the headline of `get_engagement_status`, the Overview page and memo §2.
 

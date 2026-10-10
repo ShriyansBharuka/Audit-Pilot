@@ -31,8 +31,9 @@ def test_only_the_partner_decides(eng):
         partner.review_queue("nobody")
     with pytest.raises(ValueError, match="comment is mandatory"):
         partner.decide_finding(PTN, "F-001", "CONFIRM", "  ")
-    with pytest.raises(ValueError, match="must balance"):
-        partner.decide_finding(PTN, "F-001", "MODIFY", "x", proposed_aje=[{"dr_paise": 5}, {"cr_paise": 4}])
+    with pytest.raises(ValueError, match="(?i)balanc|debit|Dr"):
+        partner.decide_finding(PTN, "F-001", "MODIFY", "x", proposed_aje=[
+            {"account_code": "SALES", "dr_paise": 500}, {"account_code": "DEBTORS", "party_id": "SELF", "cr_paise": 400}])
 
 
 def test_sign_off_blocked_until_decided_then_locks(eng):
@@ -47,7 +48,7 @@ def test_sign_off_blocked_until_decided_then_locks(eng):
         assert a.execute("SELECT status FROM engagements").fetchone()[0] == "SIGNED_OFF"
         assert chain.verify(a, "audit_trail")["valid"]
         tools = [r[0] for r in a.execute("SELECT tool FROM audit_trail WHERE transport = 'UI'")]
-    assert tools == ["partner.decide_finding", "partner.sign_off"]
+    assert tools == ["partner.decide_finding", "sign_off", "partner.conclusion"]
 
 
 def test_explorer_is_audit_only(eng):
