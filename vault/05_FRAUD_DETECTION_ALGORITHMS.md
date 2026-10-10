@@ -68,6 +68,7 @@ RP status alone is **never** a finding, only a sampling weight. Standards: Ind A
 - `FOR_DESTINATION`: POD `delivered_on`. With no POD the item is UNRESOLVED and goes to an evidence request.
 - `BILL_AND_HOLD`: the customer's written-request date, **only** if all four Ind AS 115 B81 criteria are recorded (substantive reason; goods identified as the customer's; ready for transfer; cannot be used or redirected). Otherwise treat it as undelivered.
 - `CONSIGNMENT`: no revenue until the consignee's onward sale; flag for judgement.
+- **Services** (every line HSN `99…`): control date = invoice date (no movement exists); D3 date-conflict checks and D4 movement checks skip them. *(Answer to DA-1a's question, 2026-10-10.)*
 
 Run over **every** invoice. When FY(control_date) ≠ FY(SALES voucher date): `PREMATURE` (control after period_end; overstatement) or `DELAYED` (control on/before period_end, booked after). Impact = taxable value. Separate date-conflict hits: dispatch vs LR vs EWB dates >1 day apart; POD before dispatch; invoice dated after removal or >1 day before it (CGST s.31(1)(a)). Use Asia/Kolkata everywhere (an EWB at 01:30 IST on 1 Apr is *April*). Standards: Ind AS 115 paras 31–38 and B79–B82 (AS 9 for non-Ind AS entities), SA 500, SA 240 (revenue-recognition fraud risk).
 
@@ -267,3 +268,38 @@ Only the partner confirms, in the UI.
 | Credit notes | 10 Apr / 15 Jun reversal; unrelated-invoice link; return without inward movement; unaccrued rebate; after the s.34 limit | D9 |
 | Changes after testing | LR/POD edit; party GSTIN/bank edit; CN on a sampled invoice; register re-upload; direct SQLite edit; DROP TRIGGER + rehash | D11, D12 |
 | Circular trading | sale to B / buy from C (shared director); cash round trip | D10 |
+
+## 19. Risk graph, risk scores, confidence scores, company flag (team proposal, 2026-10-10)
+
+**Decision: adopt it as a scoring layer on top of D0–D14, not as a replacement for matching.**
+The PS judges itemised findings: "every difference … is a finding", a cut-off TOD that verifies dispatch dates, and a memo with ₹ impact and proposed adjustments. A score alone can't produce an AJE, isn't audit evidence, and can't tell a judge *which* planted row it caught. The detectors stay the source of truth. The graph turns their hits into a ranked, visual, company-level picture. Framing for the pitch and memo: we **detect and flag** manipulation. Preventing it is management's control job (SA 240: the auditor doesn't determine fraud).
+
+**Graph (`risk_graph.py`, built from data that already exists):**
+- **Nodes:** SELF, parties, invoices, CNs, movements, settlements/bank accounts, journals.
+- **Document edges:** invoice–party, invoice–movement, invoice–journal, receipt–payer account, CN–invoice.
+- **Identity edges:** the D1 graph (shared PAN, bank, phone, email, address, director).
+
+**Entry risk score `R` (0–100), deterministic.** It is a noisy-OR over the entry's own hits:
+`R = 100 × (1 − Π(1 − w(code) × severity/5))`. The `w(code)` weights sit in `config.RISK_WEIGHTS` (default 1.0; [REG]-only format codes 0.2).
+
+**Propagation (one pass, two hops):**
+- Party risk = value-weighted noisy-OR of its entries' `R`, raised to ≥60 for UNDISCLOSED_RP / CUSTOMER_CLUSTER.
+- Entry risk becomes `R' = max(R, 0.5 × risk of its party, 0.5 × risk of the payer account)`.
+
+This is how a clean-looking invoice to a high-risk customer cluster still floats up.
+
+**Confidence score `C` (0–1) per entry and per finding.** It measures how sure we are, not how bad it is:
+- **Base:** 0.9 if the hit compares against an independent source (ext.db portal/bank, POD); 0.7 deterministic internal; 0.4 heuristic (D5, CUSTOMER_CLUSTER).
+- **Up:** +0.1 per corroborating detector on the same entry, and +0.2 after `test_sample` confirms with evidence.
+- **Down:** −0.3 when the evidence is NP or NEEDS_MANUAL_REVIEW.
+- Capped at [0, 1].
+
+**Company flag (engagement-level risk, SA 315).**
+- Exposure = Σ (R′/100 × taxable) over entries, shown with the count of PS families hit (rows in §18).
+- **HIGH** if exposure ≥ performance materiality *or* ≥4 families hit; **MODERATE** if ≥50% of PM or ≥2 families; else **LOW**.
+- It drives the Sales TOD size (LOW 25 / MODERATE 30 / HIGH 35), feeds the KEY stratum ranking, and is the headline on `get_engagement_status`, the Overview page and memo §2. It is wording-safe: "risk of material misstatement: HIGH", never "fraud".
+
+**Outputs:**
+- `risk_graph.build(engagement_id) -> {nodes:[{id,type,R,C,label}], edges:[{a,b,kind}], company:{band, exposure_paise, families}}`, cached per analytics run.
+- MCP tool `get_risk_graph` (04 #46).
+- UI graph view via `st.graphviz_chart` (built into Streamlit, no new dependency; node colour = R′, border = C, top 150 nodes by R′).

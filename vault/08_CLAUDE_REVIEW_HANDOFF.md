@@ -189,6 +189,16 @@
 5. **The exact submission time and format** (repo only? video? slides?). Update `07 §6` with it.
 6. **Repo:** the organisers' repo `ELEVATE-1-0/ELEV01` is where we push. Never commit secrets or generated data.
 
+## 6b. Update 2026-10-10 14:30 (decisions after the team's new inputs)
+- **Voroa is the hosting platform** (2 vCPU / 4 GB shared, CPU only; outbound OpenAI calls allowed). We deploy both services there (`10 §3`, task IB-8), and the deploy hello-world happens now. ShipReady and n8n credentials are still on the way; the OpenAI key comes later.
+- **Deadline: 08:00 IST 11 Oct; deliverables are a PPT + a working prototype.** We ship **one web application** (Streamlit + the MCP endpoint, with a landing page as its home), not a separate website (`07 §6`).
+- **The team's "risk graph + risk/confidence scores + company flag" framework is adopted as a layer on top of the detectors, not a replacement** (`05 §19`, task DA-6, tool `get_risk_graph`). Why not replace matching: the PS judges itemised findings (every register ≠ SoR difference, cut-off dates, ₹ impact and AJEs), and a score can't produce an AJE or name the planted row. The graph adds ranking, propagation through related customers, a company-level risk band (SA 315) that sizes the sample, and a strong demo visual. Wording: "detect and flag", not "prevent"; "risk of material misstatement", not "fraud".
+- **Synthetic dataset:** ours, built by `seed.py` (DA-1). No Kaggle data: none of it has LRs, e-way bills, RPs or a ledger.
+- **Answers to DA-1a's questions:**
+  1. Service invoices: control date = invoice date, and D3/D4 movement checks skip them (`05 D3`).
+  2. Partner `membership_no` in the identity record: yes (`04 §1`).
+- Who works on what next: `09` → "Who pulls what right now".
+
 ## 7. Next review checkpoints
 - **T6** (integration #1, ~18:30) and **T11** (judge simulation, ~23:30). Before pinging Claude, make sure `PROGRESS.md` is current and pushed.
 - Claude can also take correctness-critical cores on request: `chain.py` + anchors, the Gateway, `check_for_changes`.

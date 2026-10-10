@@ -21,7 +21,7 @@ Identity is a **credential, never a tool argument**. No tool has a `caller_ident
 | `client_admin` | `adm_` | client CFO/director (may call every client tool) | MCP, client portal |
 | `audit_staff` | `aud_` | AI auditor: the judges' agent, or our investigator (`10`) | MCP, auditor UI |
 | `orchestrator` | `orc_` | n8n workflows: status, analytics, tests, events only | MCP (HTTP) |
-| `engagement_partner` | `ptn_` | **human** CA | **web UI only; the MCP verifier rejects this token** |
+| `engagement_partner` | `ptn_` | **human** CA | **web UI only; the MCP verifier rejects this token**. Its record also carries `membership_no` (ICAI), printed on sign-off |
 
 ### How identity is bound
 - **Streamable HTTP (judges, n8n).** The client sends `Authorization: Bearer <token>` to `https://<public-host>/mcp`. `Tokens.verify_token()` returns `AccessToken(client_id=principal, scopes=[role])`, and tools read it with `get_access_token()`. An unknown token gets a 401 before any tool runs.
@@ -196,6 +196,7 @@ Gotchas:
 | 43 | `generate_deliverables` | audit_staff | T1 | The 4-sheet xlsx, findings memo and trail export (DRAFT until signed) → download URLs + sha256 |
 | 44 | `submit_for_partner_review` | audit_staff | T1 | Sets READY_FOR_REVIEW and returns the review URL + blocking items (PROPOSED findings, stale samples, integrity failures) |
 | 45 | `run_readonly_sql` | audit_staff | T2 | Ad-hoc SELECT on erp/ext through the read-only handle; `set_authorizer` allows only SELECT/READ/FUNCTION; row cap 100 |
+| 46 | `get_risk_graph` | audit_staff | T1 | `05 §19`: company risk band + exposure, and the top-N risk-scored nodes/edges (`min_risk`, `focus_party`, `limit`); each node carries R′ and confidence C |
 | **Partner (UI only)** | engagement_partner | | Review queue → confirm / reject / modify each finding and AJE → sign off (refused while anything is PROPOSED or STALE or integrity fails) → optionally release the memo to client_admin |
 
 Owning role for `amend_record`: `sales` covers parties (customers), sales_orders and schemes; `warehouse` covers movements and invoice_movements; `client_admin` covers everything [V]. **Ledger rows are never amended**: correct them by reversal or a new JV.

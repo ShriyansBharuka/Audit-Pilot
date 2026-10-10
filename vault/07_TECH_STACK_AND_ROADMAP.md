@@ -129,6 +129,8 @@ def run_d1_d2(engagement_id: str) -> list[dict];  def rp_status(party_id: str, o
 def run_all(engagement_id, detectors=None, incremental=False) -> dict    # writes risk_hits; returns counts by detector/code + top 20
 def select(engagement_id, kind, size=30, seed=None, actor='') -> dict     # first call = testing start (anchor + snapshots + requests)
 def reproduce(run_id: str) -> dict;  def pps(items, k, rng) -> list
+# risk_graph.py (05 §19)
+def build(engagement_id) -> dict                                  # {nodes, edges, company:{band, exposure_paise, families}}
 def from_hits(engagement_id) -> list[str];  def aje(finding: dict) -> list[dict] | None;  def sa450_summary(engagement_id) -> dict
 
 # evidence.py
@@ -154,7 +156,18 @@ Shared shapes (plain dicts; no class hierarchy):
 
 Rule: you edit only your modules; for anything else, ask the owner or write it in `PROGRESS.md`. Changing a contract (03/04/07 §4) means editing the vault in the same commit.
 
-## 6. 20-hour schedule (T0 ≈ 12:30 IST 10 Oct; confirm the exact submission time)
+## 6. Schedule: **submission 08:00 IST, 11 Oct 2026** (format: PPT + working prototype)
+
+**What we ship (decided 14:30):**
+1. **One web application**, not a marketing website. It's the Streamlit app (client portal, auditor workspace with Overview / Transactions / Investigation / Risk graph / Workpaper, partner review) plus the MCP endpoint that judges' agents use. Its home page doubles as a 1-screen landing ("what it is, how to connect, judge card"), which covers anything a website would.
+2. Deployed on **Voroa** (`10 §3`).
+3. The **PPT** (~10 slides: problem → system of record → independence/MCP → 100% detection + risk graph → live demo flow → deliverables → sponsors → architecture → team).
+
+Revised end-game (T0 = 12:30). The hours below stay valid up to T15; the rows after it replace the old T15–T20 rows:
+- **T15–T17 (03:30–05:30):** deploy on Voroa and re-run the judge simulation against the Voroa URL; finish the PPT and the demo video backup (screen recording, in case the live demo fails).
+- **T17 (05:30): feature freeze.**
+- **T17–T19 (05:30–07:30):** final clean seed on Voroa, full selftest, rehearsal, push.
+- **Submit by 07:30** (30 min buffer).
 
 | When | What | Exit check |
 |---|---|---|
@@ -198,7 +211,8 @@ Rule: you edit only your modules; for anything else, ask the owner or write it i
 ```bash
 pip install -r requirements.txt
 python -m app.seed --reset                       # prints the judge card (tokens per role)
-cloudflared tunnel --url http://localhost:8000   # copy the https host
+# Production: deploy both services on Voroa (10 §3) and use its https host below.
+cloudflared tunnel --url http://localhost:8000   # fallback only (laptop): copy the https host
 set PUBLIC_HOST=<host> & set PUBLIC_URL=https://<host>/mcp     (PowerShell: $env:PUBLIC_HOST="<host>")
 python -m app.mcp_server                         # HTTP MCP on :8000
 streamlit run ui/app.py                          # partner + client portal on :8501

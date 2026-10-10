@@ -6,7 +6,7 @@
 
 **Wiring**
 - **App → n8n:** `notify.emit()` writes `audit.events` and, when `N8N_WEBHOOK_URL` is set, POSTs `{kind, engagement_id, payload, at}` with the header `X-AuditPilot-Signature: sha256=<HMAC(body, N8N_SECRET)>`. In n8n: Webhook node → Crypto node (HMAC-SHA256) → IF (signature matches) → the rest.
-- **n8n → app:** the **MCP Client node** (n8n ≥ 1.122, use it as a normal step) points at `https://<tunnel-host>/mcp`, transport Streamable HTTP, with a **Bearer** credential holding the `orc_…` (orchestrator) token. The orchestrator may only call `whoami`, `get_engagement_status`, `list_evidence_requests`, `run_analytics`, `test_sample`, `check_for_changes`, `verify_integrity` and `list_audit_items(kind=events)`. It cannot touch business data or findings.
+- **n8n → app:** the **MCP Client node** (n8n ≥ 1.122, use it as a normal step) points at `https://<voroa-host>/mcp`, transport Streamable HTTP, with a **Bearer** credential holding the `orc_…` (orchestrator) token. The orchestrator may only call `whoami`, `get_engagement_status`, `list_evidence_requests`, `run_analytics`, `test_sample`, `check_for_changes`, `verify_integrity` and `list_audit_items(kind=events)`. It cannot touch business data or findings.
 - **Fallback:** `PIPELINE_MODE=inline` (the default) runs the pipeline in-process on upload, so n8n only adds notifications, reminders and schedules.
 
 **Workflows** (export each to `n8n/<name>.json`):
@@ -36,19 +36,24 @@ ShipReady is a Shopify-app boilerplate (Remix + Vite + Prisma + Polaris, with we
 - **Needs:** a Shopify Partner account + development store (free), the ShipReady licence (ask the sponsor desk), and `shopify app dev` (Shopify CLI provides its own tunnel).
 - Detectors gain real-looking data for free: discount codes → D5 `SCHEME_WINDOW`/`DISCOUNT_SPIKE`; post-period refunds → D9.
 
-## 3. Voroa: pluggable slot (product unknown as of 2026-10-10)
+## 3. Voroa: hosting platform (confirmed 2026-10-10 · IB-8)
 
-Get the API docs and credits from the sponsor desk, then re-plan in 15 minutes. Prepared interface (`adapters/voroa.py`):
-```python
-def request_confirmation(sample_ref: str, to_phone: str, script: str, language: str = "hi") -> dict: ...
-def chase_evidence(request_ids: list[str], to_phone: str, language: str = "mr") -> dict: ...
-# callback: POST /connectors/voroa  →  intake.submit(kind='EVIDENCE', doc_kind='EXTERNAL_CONFIRMATION', declared={...transcript})
-```
-**If Voroa is voice AI**, it adds two strong, judge-visible features:
-- **SA 505 external confirmation.** The agent calls a sampled customer: "Did you receive 120 units on 30 Mar 2026 against invoice G2/0391/25?" A third-party answer is stronger evidence (SA 500) and directly catches fake sales (D4) and cut-off (D3).
-- **Evidence chasing** in Hindi/Marathi (the regional-language brownie).
+Voroa is the **compute platform** we deploy on: **2 vCPU / 4 GB shared across all our services, CPU only (no GPU)**. Outbound model API calls (OpenAI) work. This replaces the laptop + cloudflared setup for judging. Keep cloudflared only as a fallback.
 
-Independence: confirmations are sent and controlled by the **auditor side** (audit_staff/orchestrator only), never routed through the client, as SA 505 requires.
+| Service on Voroa | Command | Notes |
+|---|---|---|
+| `auditpilot-mcp` | `python -m app.mcp_server` (env `PORT`, `PUBLIC_HOST` = the Voroa hostname, `PUBLIC_URL=https://<host>/mcp`) | judges' agents, n8n, the ShipReady app and `/files` all hit this |
+| `auditpilot-ui` | `streamlit run ui/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true` | client portal + partner review + graph view |
+| boot step | `python -m app.seed --reset` only if `data/erp.db` is missing | **check whether the Voroa disk persists across restarts.** If not, the seed re-runs on boot (<60 s), and `identities.json` must come from an env/secret so judge tokens don't change |
+
+**Resource budget:**
+- Both services together need roughly 300–600 MB, so they fit.
+- **Don't** render 7,000 PDFs at seed time: render evidence on demand.
+- Keep the LLM work on the OpenAI API (no local models; there's no GPU).
+- Analytics over 7k invoices is SQLite + stdlib, a few seconds on 2 vCPU.
+
+**Wiring:** n8n cloud and the ShipReady app call the Voroa URL directly, so no tunnel is needed. Put `OPENAI_API_KEY`, `PORTAL_SECRET` and `N8N_SECRET` in Voroa's secret/env settings, never in git.
+**Pitch line:** "On-prem ready: the whole system runs on 2 CPUs and 4 GB with no GPU. The LLM is optional."
 
 ## 4. GPT credits ($700): the in-product AI (P1 · Aarav · AA-5)
 

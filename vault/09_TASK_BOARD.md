@@ -11,6 +11,18 @@
 > Prefixes: SH = Shriyans, IB = Ibrahim, DA = Darshan, AA = Aarav (detector codes D0–D14 are a different namespace).
 > Worker column: **AG** Antigravity · **C2** Claude Code #2 (second PC) · **CL** this Claude (review/cores on request).
 
+## Who pulls what right now (updated 2026-10-10 14:30 · submission 08:00 tomorrow)
+
+Status: DA-1a / DA-2 / DA-3 pure cores are done and tested (25 tests green). **Everything else waits on the platform (SH-1 / SH-2 / SH-4)**, so that goes first.
+
+| Person · machine | Pull, then do (in order) |
+|---|---|
+| **Shriyans · Antigravity (this PC)** | **SH-1 → SH-2 → SH-4 now (the critical path).** Honour DA-1a's *Requests* in `PROGRESS.md`: `config.set_clock()/now()`, the service kwargs it already calls, `config.UNITS`, WAL + `synchronous=NORMAL`. Then SH-3 / SH-5 |
+| **Claude Code #2 (other PC)** | Keep the pure-core pattern while the platform lands: **AA-1a → AA-1** (sampling), **AA-2** analytics cores (D3/D4/D5/D6/D7/D9/D13 over the seed plan + register rows), **DA-6** risk-graph core. Wire DA-1 `load()` / DA-2 `reconcile` / DA-3 `run_d1_d2` into the DB as soon as SH-2/SH-4 are pushed |
+| **Ibrahim** | **IB-1 now** (chain, money, test_tamper: no dependencies), then **IB-8 Voroa hello-world** (de-risks hosting early), then IB-2 / IB-3 / IB-4. IB-6 (n8n) once the login arrives |
+| **Darshan** | DA-1 complete plant set (≥2 per family from `08 §5`, naive + evasive), checked against the answer key. The synthetic dataset **is** DA-1: no external dataset needed. Then DA-4 workpaper. DA-5 ShipReady when its creds arrive |
+| **Aarav** | Review Claude #2's AA work and own the detector false-positive list; start **ALL-4 PPT** outline at T9; AA-5 investigator when the OpenAI key arrives |
+
 ## Start now (no dependencies; do these while the rest of the vault is read)
 | ID | Owner · Worker | Task | Done when |
 |---|---|---|---|
@@ -38,7 +50,7 @@
 | IB-4 | T2–T4 | `trail.py` (audit_trail row with erp anchor; `anchor()`), `notify.py` (`events` row + optional HMAC webhook) | IB-1 | every MCP call writes OK/DENIED/ERROR; `verify` clean; trail never contains a token |
 | IB-5 | T4–T9 | `evidence.py`: content-addressed store, `extract` ("Key: Value" + PyMuPDF text + regex; else NEEDS_MANUAL_REVIEW), `test_sample` (D8 + Fig. 2 attributes), `bundle`, `check_for_changes` (D11), `verify_integrity` (D12, five checks); `scripts/verify_trail.py` (stdlib), `scripts/tamper_demo.py` | IB-3, AA-1 | forged EWB, other-transaction EWB and reused LR all flagged; consolidated LR not flagged; LR date amended after testing → stale sample with field diff + actor |
 | IB-6 | T7–T11 | n8n workflows ×4 per `10 §1`; exported JSON in `n8n/`; orchestrator token | IB-4, SH-5 | register upload → notification; evidence request email + reminder; 15-min digest via the MCP Client node |
-| IB-7 | when docs arrive | Voroa adapter slot per `10 §3` (1.5 h time box) | IB-6 | one real call/action from the workflow |
+| IB-8 | **now: hello-world**, T15: real deploy | Deploy on **Voroa** per `10 §3`. First (≤45 min, now): a throwaway `whoami` MCP server + a Streamlit hello on Voroa, to learn the hostname, ports, env/secret handling and **whether the disk persists**. Write the findings in `PROGRESS.md`. T15: deploy the real services | — | judges' agent connects to `https://<voroa-host>/mcp` with a token |
 
 ## Darshan: data, register, related parties, workpaper, ShipReady
 | ID | T | Task | Depends | Done when |
@@ -47,6 +59,7 @@
 | DA-2 | T2–T6 | `intake.py` (`submit`, `on_client_upload`), `register.py` (`parse_verbatim` xlsx/csv, `map_columns` with Fig. 1 headers, `reconcile` = D0 incl. totals tie-out) | SH-2 | `tests/test_verbatim.py` passes; every K-family plant caught |
 | DA-3 | T3–T8 | `related_parties.py`: D1 graph (STRONG/MEDIUM/WEAK, fan-out guard, GSTIN checksum, PAN in GSTIN), D2 windows/statuses/RP_PERIOD_MISSTATED | DA-1 | A- and B-family plants caught; a CA's phone shared by 6 customers gives no edge |
 | DA-4 | T6–T12 | `workpaper.py`: 4 sheets per `06` (header blocks, verbatim copy rules incl. `data_type='s'`, columns, tick marks, DRAFT, footer chain heads) | DA-2, IB-5, AA-3 | opens in Excel and LibreOffice; looks like Figs. 2–3 |
+| DA-6 | T6–T11 | `risk_graph.py` per `05 §19`: graph, R/R′ (noisy-OR + 2-hop propagation), confidence C, company band. Pure core first over the `risk_hits` shape and DA-3's `analyse()` output; wire to the DB after SH-2; `get_risk_graph` wrapper for SH-5; Streamlit graph view (`st.graphviz_chart`) for SH-7 | DA-3, AA-2 | clean seed → company LOW; full plant set → HIGH with ≥4 families; top-20 nodes are planted items |
 | DA-5 | T10–T14 (P1) | ShipReady "AuditPilot for Shopify" connector per `10 §2`; `/connectors/shopify` + `scripts/replay_shopify.py` first | SH-4 | replay creates SO/movement/CN/receipt with erp_log entries; the live store does the same |
 
 ## Aarav: audit brain
@@ -65,6 +78,7 @@
 | ALL-2 | T11–T15 | Recall/false-positive pass vs `answer_key.json`; fix in the owning module |
 | ALL-3 | T15–T17 | Rehearse the demo: plant live → catch live → partner signs → verify the trail offline |
 | CL-1/2 | T6, T11 | Ping Claude (this machine) with `PROGRESS.md` + the repo for a review pass |
+| ALL-4 | T9–T17 | **PPT** (owner: Aarav; Darshan helps): ~10 slides per `07 §6` + a 2-min screen-recorded demo as backup. Screenshots come from the Voroa deployment |
 
 ## Demo script (≈7 min; owner Shriyans)
 1. **Judge card.** Show the roles; the auditor token can't even *see* client tools.
