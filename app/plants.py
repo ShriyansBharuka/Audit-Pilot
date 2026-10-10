@@ -254,7 +254,7 @@ def add_plants(plan, seed_no=7):
 
     with_tax = lambda t: t + t * 18 // 100
     evs += p2p("PP1", "P-PLV1", "2026-02-02", 100, 5_000_00, "ADVANCE", [("2026-02-20", 60)],
-               bill=("2026-02-21", 100, 5_00_000_00), advance=("2026-02-05", 5_00_000_00))
+               bill=("2026-02-21", 100, 4_23_728_82), advance=("2026-02-05", 5_00_000_00))
     plant("P", "SHORT_RECEIPT", "purchase_order", "@PP1/po", "₹5 L paid in advance for 100 units, 60 received")
     evs += p2p("PP2", "P-VEN1", "2025-11-03", 12, 5_296_61, "CREDIT_30", [("2025-11-10", 12)],
                bill=("2025-11-11", 12, 63_559_33),

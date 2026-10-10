@@ -10,8 +10,8 @@ import sqlite3
 from collections import Counter
 from datetime import datetime, timedelta
 
-from app import (analytics, config, db, evidence, findings, intake, ledger, memo, register, risk_graph, sampling,
-                 workpaper)
+from app import (analytics, config, db, evidence, findings, intake, ledger, memo, money_trail, register, risk_graph,
+                 sampling, workpaper)
 from app import gateway
 from app.gateway import ToolError, tool
 from app.toolkit import call, clean, inr, limit_of, money_in, offset_of, page, paise, result, scrub, steps
@@ -465,6 +465,26 @@ def get_risk_graph(min_risk: int = 30, focus_party: str | None = None, limit: in
         return result({"company": g.get("company"), "nodes": len(nodes), "cycles": len(g.get("cycles", []))},
                       [scrub(n, ("label",)) for n in chunk], str(off + n_lim) if off + n_lim < len(nodes) else None,
                       edges=edges, cycles=g.get("cycles", [])[:20])
+    return call(go)
+
+@tool(*AUD, read_only=True)
+def trace_money(object_id: str, hops: int = 2, limit: int = 50, cursor: str | None = None) -> dict:
+    """Money trail (vault/13): for an invoice, credit note, PO, GRN, purchase bill, settlement, bank line or party,
+    every edge with its provenance: VERIFIED (bank line / portal record), CLAIMED (the company's own books), INFERRED
+    (identity link). numbers = recorded vs bank-verified vs goods received vs potentially affected (not a loss).
+    Transfers beyond hop 1 are context only: nothing is attributed downstream. Example: trace_money(object_id='PO-000001')"""
+    def go(who, role):
+        try:
+            r = money_trail.trace(object_id, hops=hops, role=role)
+        except LookupError as ex:
+            raise ToolError(str(ex)) from None
+        items, nxt = page(r["edges"], limit, cursor)
+        return result({"root": r["root"], "numbers": r["numbers"], "edges": len(r["edges"]), "cycles": r["cycles"]},
+                      items, nxt,
+                      steps(("list_audit_items", {"kind": "risk_hits", "filters": {"min_severity": 4}},
+                             "the hits behind affected_basis"),
+                            ("trace_sale", {"invoice": "G2/0001/25"}, "the document chain of one sale")),
+                      nodes=[scrub(n, ("label",)) for n in r["nodes"]])
     return call(go)
 
 # ---------------------------------------------------------------- /files/<key> (one-time deliverable downloads)

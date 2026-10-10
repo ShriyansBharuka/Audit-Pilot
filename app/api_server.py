@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, notify, partner, register, risk_graph, sampling, trail, workpaper
+from app import config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, register, risk_graph, sampling, trail, workpaper
 
 app = FastAPI(
     title="AuditPilot AI API",
@@ -546,6 +546,16 @@ def get_shap_explanation(invoice_no: str):
             "top_positive": [{"feature": c["feature"], "value": c["value"]} for c in pos[:3]],
             "top_negative": [{"feature": c["feature"], "value": c["value"]} for c in neg[:3]],
             "detector_hits_count": sum(1 for c in x["contributions"] if c["kind"] == "hit")}
+
+
+@app.get("/api/money-trail/{object_id:path}", dependencies=[AUDIT])
+def get_money_trail(object_id: str, hops: int = Query(2, ge=1, le=3)):
+    """vault/13 §6: {root, nodes, edges, numbers, cycles}. Edges carry source BANK/PORTAL/BOOKS/IDENTITY and status
+    VERIFIED/CLAIMED/INFERRED; numbers never attribute money downstream."""
+    try:
+        return money_trail.trace(object_id, hops=hops)
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
 
 
 # ---------------------------------------------------------------- Deliverables & Exports
