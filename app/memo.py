@@ -40,9 +40,11 @@ _CHECK = {"D3": "obtain the LR / e-way bill / POD and confirm the delivery terms
           "D13": "obtain the reason for the late entry / sequence break", "D11": "re-test the stale sample"}
 
 
-def build(engagement_id, final=False):
-    """Write memo.md and memo.html -> {path, html_path, sha256, download_key}."""
-    from app import findings, risk_graph, trail
+def build(engagement_id, final=None):
+    """Write memo.md and memo.html -> {path, html_path, sha256, download_key}. final=None follows the engagement
+    (FINAL once SIGNED_OFF)."""
+    from app import findings, risk_graph, workpaper
+    final = workpaper._is_final(engagement_id, final)
     s450 = findings.sa450_summary(engagement_id)
     with db.borrow("audit", "system") as a:
         eng = dict(a.execute("SELECT * FROM engagements WHERE id = ?", (engagement_id,)).fetchone())

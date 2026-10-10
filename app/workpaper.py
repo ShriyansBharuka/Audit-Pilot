@@ -160,8 +160,17 @@ def _quarter(d):
     return f"Q{((m - 4) % 12) // 3 + 1}"
 
 
-def build(engagement_id, final=False):
-    """Write the 4-sheet workpaper -> {path, sha256, download_key}. DRAFT until the partner signs off."""
+def _is_final(engagement_id, final):
+    if final is not None:
+        return final
+    with db.borrow("audit", "system") as a:
+        r = a.execute("SELECT status FROM engagements WHERE id = ?", (engagement_id,)).fetchone()
+    return bool(r) and r[0] == "SIGNED_OFF"
+
+
+def build(engagement_id, final=None):
+    """Write the 4-sheet workpaper -> {path, sha256, download_key}. DRAFT until the partner signs off (final=None
+    follows the engagement: FINAL once it is SIGNED_OFF)."""
     import hashlib
     from datetime import datetime
 
@@ -170,6 +179,7 @@ def build(engagement_id, final=False):
     from openpyxl.styles import PatternFill
 
     from app import analytics, chain, evidence, findings, register, related_parties
+    final = _is_final(engagement_id, final)
     eng = findings.ensure_materiality(engagement_id)
     with db.borrow("audit", "system") as a, db.borrow("erp", "system") as e, db.borrow("pbc", "system") as p, \
             db.borrow("ext", "system") as x:
