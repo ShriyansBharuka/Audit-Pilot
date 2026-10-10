@@ -96,6 +96,7 @@ def post_journal(conn, voucher_date, voucher_type, lines: list[dict], narration,
                  source_type=None, source_id=None, reverses_no=None, aje_ref=None) -> int   # raises ValueError unless Dr == Cr > 0
 def reverse_journal(conn, journal_no: int, date: str, actor, role, tool, reason) -> int
 def trial_balance(conn, upto: str) -> dict[str, int]             # account_code -> net paise (Dr positive)
+def seed_coa(conn) -> int                                         # called by db.init_all: 03 §2 COA via erp.write_doc (erp_log rows)
 
 # erp.py: each service is (actor, role, **args) -> dict(result, next_steps); opens erp rw, calls portal.* when needed
 def write_doc(conn, actor, role, tool, action, doc_type, doc_id, reason=None) -> int        # appends erp_log; returns seq
