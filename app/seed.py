@@ -794,6 +794,7 @@ def load(plan, reset, progress=None):
                 args = dict(ev["args"])
                 for arg, ref in ev["refs"].items():
                     args[arg] = [ids[ref]] if arg.endswith(("_nos", "_ids")) else ids[ref]
+                args = _subst(args, ids)
                 res = _call(erp, ev["service"], ev["actor"], ev["role"], args, ev["at"])
                 for key, field in ev["out"].items():
                     ids[key] = res["result"][field]
@@ -802,6 +803,17 @@ def load(plan, reset, progress=None):
     finally:
         config.set_clock(None)
     return ids
+
+def _subst(v, ids):
+    """'@key' strings anywhere in the args (e.g. inside credit-note lines) become the id published under key."""
+    if isinstance(v, str) and v.startswith("@") and v[1:] in ids:
+        return ids[v[1:]]
+    if isinstance(v, list):
+        return [_subst(x, ids) for x in v]
+    if isinstance(v, dict):
+        return {k: _subst(x, ids) for k, x in v.items()}
+    return v
+
 
 def _call(erp, service, actor, role, args, where):
     try:
@@ -817,16 +829,28 @@ def main(argv=None):
     ap.add_argument("--invoices", type=int, default=7000, help="FY 2025-26 invoices (post-period adds ~8%%)")
     ap.add_argument("--seed", type=int, default=7, help="data seed (the demo company; not a sampling seed)")
     ap.add_argument("--plan-only", action="store_true", help="write data/seed_plan.json + identities, skip the DBs")
+    ap.add_argument("--no-plants", action="store_true", help="clean year only: no DA-1 plants, no answer key")
     a = ap.parse_args(argv)
 
     t0 = time.perf_counter()
     plan = build_plan(a.invoices, a.seed)
+    stubs = None
+    if not a.no_plants:
+        from app import plants
+        stubs = plants.add_plants(plan, a.seed)
     if a.plan_only:
         data = Path(os.environ.get("DATA_DIR", "data"))
         data.mkdir(exist_ok=True)
         (data / "seed_plan.json").write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
     else:
-        load(plan, a.reset)
+        ids = load(plan, a.reset)
+        if stubs is not None:
+            from app import plants
+            key = plants.resolve(stubs, ids) + plants.network_and_list_plants(ids)
+            config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+            plants.write_answer_key(config.DATA_DIR / "answer_key.json", key)
+            (config.DATA_DIR / "rp_list_demo.csv").write_text(plants.demo_rp_csv(plan), encoding="utf-8")
+            print(f"plants: {len(key)} planted irregularities -> data/answer_key.json; demo RP list -> data/rp_list_demo.csv")
     # tokens survive a plain re-run so configured agents keep working; --reset issues new ones
     id_path = Path(os.environ.get("IDENTITIES", "identities.json"))
     if a.reset or not id_path.exists():
