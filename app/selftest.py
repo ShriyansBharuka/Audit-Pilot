@@ -7,6 +7,7 @@ SH-6 fills the E2E steps in as the queue lands. Exit code 1 if anything FAILs.
 """
 import importlib
 import inspect
+import json
 import random
 import shutil
 import sqlite3
@@ -17,6 +18,7 @@ import traceback
 from app import config
 
 RESULTS = []
+SELFTEST_IDS = (("adm.kiran", "client_admin"), ("aud.judge", "audit_staff"), ("ptn.mehta", "engagement_partner"))
 
 
 def step(name):
@@ -310,9 +312,36 @@ def run():
         assert {"NOT_IN_SOR", "MISSING_FROM_REGISTER", "TAXABLE_DIFF"} <= codes, codes
         return f"D0 codes {sorted(codes)}; {rp} D1/D2 hits (no RP list uploaded: group companies undisclosed)"
 
+    def e2e_mcp():
+        import asyncio
+        import hashlib
+        from app import gateway, mcp_server  # noqa: F401
+        gateway.STDIO_ID = ("aud.judge", "audit_staff")
+        seen = {t.name for t in asyncio.run(gateway.mcp.list_tools())}
+        assert "get_engagement_status" in seen and "issue_invoice" not in seen
+        erp_file = config.DB_PATHS["erp"]
+        before = [hashlib.sha256(p.read_bytes()).hexdigest() for p in (erp_file, erp_file.with_name("erp.db-wal"))
+                  if p.exists()]
+        try:
+            asyncio.run(gateway.mcp.call_tool("create_party", {"name": "Ghost"}))
+            raise AssertionError("an auditor created a party")
+        except Exception as e:  # noqa: BLE001
+            assert "PERMISSION_DENIED" in str(e), e
+        after = [hashlib.sha256(p.read_bytes()).hexdigest() for p in (erp_file, erp_file.with_name("erp.db-wal"))
+                 if p.exists()]
+        assert before == after
+        st = json.loads(asyncio.run(gateway.mcp.call_tool("get_engagement_status", {})).content[0].text)
+        gateway.STDIO_ID = None
+        with db.borrow("audit", "audit_staff") as a:
+            outcomes = [r[0] for r in a.execute("SELECT outcome FROM audit_trail ORDER BY seq")]
+        assert outcomes[-2:] == ["DENIED", "OK"], outcomes[-2:]
+        return f"{len(seen)} audit tools; denied call trailed, erp.db byte-identical; status: {st['summary']['status']}"
+
     e2e = [("seed 300 invoices through erp services", ("erp", "ledger", "portal", "chain"), e2e_seed),
            ("export register (Fig. 1) + doctored upload", ("erp", "intake"), e2e_upload),
            ("D0 reconcile + D1/D2 on the frozen register", ("intake",), e2e_d0),
+           ("MCP: auditor sees only audit tools; a client tool is denied + trailed; erp.db unchanged",
+            ("gateway", "trail"), e2e_mcp),
            ("run_analytics", ("analytics",), None),
            ("select_samples x3 + reproduce identical", ("sampling", "trail"), None),
            ("render/upload evidence (one forged) -> test_sample flags it", ("evidence",), None),
@@ -332,9 +361,15 @@ def run():
 
 
 def main():
+    import json
+    import os
     keep = "--keep" in sys.argv
     tmp = tempfile.mkdtemp(prefix="auditpilot-selftest-")
     config.set_data_dir(tmp)
+    ids = os.path.join(tmp, "identities.json")             # the Gateway reads IDENTITIES at import (04 §2)
+    with open(ids, "w") as f:
+        json.dump({f"{r[:3]}_selftest": {"principal": p, "role": r, "name": p} for p, r in SELFTEST_IDS}, f)
+    os.environ["IDENTITIES"] = ids
     try:
         run()
     finally:

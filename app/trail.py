@@ -6,6 +6,7 @@ Tokens are never logged; evidence bytes / base64 payloads are replaced by their 
 """
 import hashlib
 import json
+import sys
 
 from app import chain, config, db
 
@@ -17,7 +18,10 @@ def _redact(v):
     if isinstance(v, dict):
         return {k: ("[redacted]" if str(k).lower() in _SECRET_KEYS else _redact(x)) for k, x in v.items()}
     if isinstance(v, list):
-        return [_redact(x) for x in v[:200]]
+        if len(v) > 50:                   # bulk payloads (import_records rows): one trail row with the payload sha256
+            blob = json.dumps(v, sort_keys=True, default=str).encode()
+            return {"sha256": hashlib.sha256(blob).hexdigest(), "items": len(v)}
+        return [_redact(x) for x in v]
     if isinstance(v, (bytes, bytearray)):
         return {"sha256": hashlib.sha256(v).hexdigest(), "bytes": len(v)}
     if isinstance(v, str) and len(v) > _BIG:
@@ -32,6 +36,9 @@ def erp_head():
 
 def trail(principal, role, tool, args, outcome, result=None, transport="HTTP"):
     """Append one audit_trail row: OK | DENIED | ERROR, anchored to the current erp_log head."""
+    gw = sys.modules.get("app.gateway")
+    if transport == "HTTP" and gw is not None and gw.STDIO_ID:      # the Gateway (04 §2) doesn't pass it
+        transport = "STDIO"
     try:
         seq, h = erp_head()
     except FileNotFoundError:
