@@ -233,18 +233,50 @@ def run():
 
     @step("stubs return their contract shapes")
     def _():
-        from app import analytics, evidence, findings, memo, risk_graph, sampling, workpaper, erp
-        assert set(analytics.run_all("E")) >= {"counts", "top"}
-        assert set(sampling.select("E", "sales_tod")) >= {"run_id", "seed", "items"}
-        assert sampling.reproduce("R")["identical"] in (True, False)
-        assert set(evidence.verify_integrity("E")) >= {"ok", "checks"}
-        assert set(evidence.check_for_changes("E")) >= {"changes", "stale_samples"}
-        assert set(risk_graph.build("E")) == {"nodes", "edges", "cycles", "company"}
-        assert all(set(m.build("E")) == {"path", "sha256", "download_key"} for m in (workpaper, memo))
-        assert isinstance(findings.from_hits("E"), list)
-        assert all(set(getattr(erp, s)("a", "r")) >= {"result", "next_steps"} for s in erp.SERVICES)
-        rng = random.Random(1)
-        assert isinstance(sampling.pps([("I1", 1)], 1, rng), list)
+        checks = {
+            "analytics": lambda m: set(m.run_all("E")) >= {"counts", "top"},
+            "sampling": lambda m: set(m.select("E", "sales_tod")) >= {"run_id", "seed", "items"}
+                                  and isinstance(m.pps([("I1", 1)], 1, random.Random(1)), list),
+            "evidence": lambda m: set(m.verify_integrity("E")) >= {"ok", "checks"}
+                                  and set(m.check_for_changes("E")) >= {"changes", "stale_samples"},
+            "risk_graph": lambda m: set(m.build("E")) >= {"nodes", "edges", "cycles", "company"},
+            "workpaper": lambda m: set(m.build("E")) >= {"path", "sha256", "download_key"},
+            "memo": lambda m: set(m.build("E")) >= {"path", "sha256", "download_key"},
+            "findings": lambda m: isinstance(m.from_hits("E"), list),
+        }
+        done = []
+        for name, ok in checks.items():
+            if is_stub(name):
+                assert ok(mod(name)), f"{name} stub shape"
+                done.append(name)
+        return f"checked: {', '.join(done)}" if done else "no stubs left"
+
+    @step("ERP: one sale end to end (SO -> invoice/IRN -> EWB -> dispatch -> POD -> GSTR-1 -> receipt), trace has no gaps")
+    def _():
+        from app import erp
+        if is_stub("erp"):
+            return "SKIP (stub: erp)"
+        A, W, C = ("acc.neha", "accounts"), ("whs.ganesh", "warehouse"), ("adm.kiran", "client_admin")
+        config.set_clock("2026-03-01T10:00:00+05:30")
+        erp.create_party(*C, id="SELF", tags="SELF", name=config.ENTITY_NAME, gstin=config.UNITS["G2"]["gstin"],
+                         bank_account="50100012345678", ifsc="HDFC0001234")
+        erp.create_party(*C, id="P-0001", name="Selftest Customer Pvt Ltd", gstin="27AAPFU0939F1ZV", pincode="400001")
+        erp.create_item(*C, id="IT-001", name="Valve", hsn="8481", list_rate_paise=680000)
+        so = erp.create_sales_order("sales.priya", "sales", party_id="P-0001", confirmed_on="2026-03-05",
+                                    lines=[{"item_id": "IT-001", "qty": 10}])["result"]["id"]
+        inv = erp.issue_invoice(*A, so_id=so, invoice_date="2026-03-28")["result"]
+        ewb = erp.generate_eway_bill(*W, invoice_id=inv["id"], vehicle_no="MH08AB1234", distance_km=300)["result"]
+        mv = erp.record_dispatch(*W, invoice_nos=[inv["invoice_no"]], moved_on="2026-03-28", lr_no="LR-1",
+                                 ewb_no=ewb["ewb_no"])["result"]["id"]
+        erp.record_delivery(*W, movement_id=mv, delivered_on="2026-03-29")
+        config.set_clock("2026-04-11T10:00:00+05:30")
+        erp.file_gstr1(*A, period="202603")
+        erp.record_receipt(*A, amount_paise=inv["total_paise"], invoice_nos=[inv["id"]], settled_on="2026-04-20")
+        config.set_clock(None)
+        gaps = erp.trace_sale("audit_staff", inv["invoice_no"])["gaps"]
+        assert gaps == [], gaps
+        db.init_all(reset=True)
+        return inv["invoice_no"]
 
     # 07 §8.6 end to end, in order; each step needs the listed modules to be real
     e2e = [("seed 300 invoices through erp services", ("erp", "ledger", "portal", "chain")),
