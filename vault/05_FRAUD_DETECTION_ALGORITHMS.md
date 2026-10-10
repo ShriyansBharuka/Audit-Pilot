@@ -24,6 +24,7 @@ Pair register rows to SoR invoices/CNs by **normalised** document number (upper-
 | `TAXABLE_DIFF` / `TAX_DIFF` / `TOTAL_DIFF` | amount differs |
 | `FY_DIFF` | register puts it in a different FY |
 | `FORMAT_ONLY` | same after normalisation (`'0012'` vs `12`): low severity, still listed (PS: a finding, not a cleaning step) |
+| `TIEOUT_RESIDUE` | totals don't tie: the register's own total row ≠ the sum of its rows, or SoR net taxable ≠ ledger revenue / GSTR-1 (object_id `register_footer` \| `ledger` \| `gstr1`) |
 
 Totals tie-out: register taxable total vs ledger revenue (SALES-type accounts, net of CNs) vs SoR invoices minus CNs vs GSTR-1 (by month). The row findings must explain the difference; any residue is a hit. **RP_Status comes from the SoR customer and invoice date, never from register text alone**, because a judge may swap a customer name to a non-RP in the export. Standards: SA 500 (inconsistent evidence from different sources must be resolved), SA 230.
 
