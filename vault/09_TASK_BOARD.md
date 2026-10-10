@@ -34,7 +34,7 @@ Status: DA-1a / DA-2 / DA-3 pure cores are done (25 tests green). No platform co
 
 If C2 hits its Pro quota, hand the next queue item to Antigravity (the same task IDs and specs) and note it in `PROGRESS.md`.
 
-**Antigravity (Shriyans's PC):** **SH-7 Streamlit UI** against the `07 §4` contracts (stub data until the services land): login by token; Overview with the company risk band; Transactions; Investigation; **Risk graph + timeline** (`st.graphviz_chart`); Workpaper; client portal; partner review.
+**SH-7 Streamlit UI: ✅ built by Claude (Shriyans's PC), commit 47b5cce.** `ui/app.py` (MCP client) + `app/partner.py` + `app/explorer.py`: login + landing, client portal, auditor Overview / **Audit Investigation Explorer** (Network View, Transaction Timeline, Evidence & Change History) / Workpaper, partner review + sign-off (`HOW_IT_WORKS.md §5b`). C2: don't edit these files; Antigravity: polish only, after asking Shriyans.
 
 ## Start now (no dependencies; do these while the rest of the vault is read)
 | ID | Owner · Worker | Task | Done when |
