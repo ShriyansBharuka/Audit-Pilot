@@ -1,5 +1,10 @@
 import {
   AuditOverview,
+  ChartsData,
+  NewTenantInput,
+  TenantItem,
+  TrailResponse,
+  StatutoryMemo,
   N8nEvents,
   ShapSummary,
   CycleItem,
@@ -14,16 +19,28 @@ import {
 // REST API (app/api_server.py) runs on 8001; 8000 is the MCP server for agents.
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+// EX-4: the organisation (tenant) this browser is working on; the server checks the token may see it.
+const TENANT_KEY = "auditpilot_tenant";
+export const getActiveTenant = () => (typeof window !== "undefined" ? localStorage.getItem(TENANT_KEY) : null);
+export const setActiveTenant = (slug: string | null) => {
+  if (typeof window === "undefined") return;
+  if (slug) localStorage.setItem(TENANT_KEY, slug);
+  else localStorage.removeItem(TENANT_KEY);
+};
+
+/** Bearer token + X-Tenant (when one is picked). */
+function authHeaders(): Record<string, string> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auditpilot_token") : null;
+  const tenant = getActiveTenant();
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(tenant ? { "X-Tenant": tenant } : {}) };
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...authHeaders(),
     ...(options.headers as Record<string, string>),
   };
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -46,8 +63,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 /** Download an authenticated file (the token goes in the header, never in a URL). */
 export async function downloadWithToken(path: string, filename: string) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("auditpilot_token") : null;
-  const res = await fetch(`${API_BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
   const url = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
@@ -119,14 +135,13 @@ export const api = {
 
   /** Client uploads a file for a request (multipart; the server computes the SHA-256 and stores it verbatim). */
   submitEvidence: async (requestId: string, file: File) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("auditpilot_token") : null;
     const form = new FormData();
     form.append("request_id", requestId);
     form.append("file", file);
     const res = await fetch(`${API_BASE}/api/audit/evidence/submit`, {
       method: "POST",
       body: form,
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: authHeaders(),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
@@ -140,12 +155,25 @@ export const api = {
     request<ShapExplanation>(`/api/audit/shap/${encodeURIComponent(invoiceNo)}`),
   getShapSummary: (minRisk = 30) => request<ShapSummary>(`/api/audit/shap-summary?min_risk=${minRisk}`),
 
-  // Audit Trail
-  getAuditTrail: (limit = 50, offset = 0) =>
-    request<{ total: number; offset: number; limit: number; items: any[] }>(`/api/audit/trail?limit=${limit}&offset=${offset}`),
+  // Organisations (EX-4): each is its own data directory + engagement
+  getTenants: () => request<{ items: TenantItem[] }>("/api/tenants"),
+  createTenant: (body: NewTenantInput) => request<TenantItem>("/api/tenants", { method: "POST", body: JSON.stringify(body) }),
 
-  // Power BI Export
-  getPowerBiDatasetUrl: () => `${API_BASE}/api/integrations/powerbi`,
+  // Analytics charts (EX-2)
+  getAnalyticsCharts: () => request<ChartsData>("/api/audit/analytics/charts"),
+
+  // Statutory memo (EX-3): PROPOSED / DRAFT; the partner decides in the findings flow
+  draftStatutoryMemo: (polish = false) =>
+    request<StatutoryMemo>("/api/audit/deliverables/statutory-memo", { method: "POST", body: JSON.stringify({ polish }) }),
+  downloadStatutoryMemo: (format: "md" | "pdf") =>
+    downloadWithToken(`/api/audit/deliverables/statutory-memo?format=${format}`, `statutory_memo.${format}`),
+
+  // Audit Trail
+  getAuditTrail: (limit = 50, offset = 0) => request<TrailResponse>(`/api/audit/trail?limit=${limit}&offset=${offset}`),
+
+  // Power BI: JSON "Web" feed URL + the zip package (4 CSVs in paise + measures.dax)
+  getPowerBiDatasetUrl: () => `${API_BASE}/api/v1/powerbi/feed`,
+  downloadPowerBiPackage: () => downloadWithToken("/api/integrations/powerbi/package", "AuditPilot_PowerBI.zip"),
 
   // n8n: the real event feed this app emits (workflows themselves run in n8n)
   getN8nEvents: (limit = 20) => request<N8nEvents>(`/api/integrations/n8n/events?limit=${limit}`),

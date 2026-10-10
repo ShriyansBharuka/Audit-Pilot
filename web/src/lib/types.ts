@@ -47,6 +47,14 @@ export interface AuditOverview {
   evidence_requests?: Record<string, number>;
   signed_by?: string;
   signed_at?: string;
+  detectors?: DetectorMeta[];
+}
+
+export interface DetectorMeta {
+  detector_id: string;
+  name: string;
+  standard: string;
+  severity: number;
 }
 
 export interface TransactionItem {
@@ -317,4 +325,83 @@ export interface AuditReport {
   engagement_id: string;
   published_at: string;
   shared_count?: number;
+}
+
+export interface ChartsData {
+  period: { start: string; end: string };
+  volume: {
+    days: { date: string; count: number; total_paise: number; z: number; flagged: boolean; period_end_window: boolean }[];
+    mean_paise: number;
+    stdev_paise: number;
+    z_flag: number;
+  };
+  benford: {
+    n: number;
+    chi2: number;
+    critical: number;
+    flagged: boolean;
+    mad: number;
+    digits: { digit: number; count: number; actual: number; expected: number }[];
+  };
+  risk: {
+    histogram: { band: string; count: number }[];
+    scatter: { invoice_no: string; total_paise: number; risk_score: number; category: string; code: string | null }[];
+    scatter_total: number;
+    scatter_shown: number;
+  };
+}
+
+export interface StatutoryMemo {
+  markdown: string;
+  html: string;
+  sha256: string;
+  status: string;
+  finding_ids: string[];
+  aje_totals: { dr_paise: number; cr_paise: number };
+  polished: boolean;
+}
+
+export interface TenantItem {
+  slug: string;
+  name: string;
+  pan: string;
+  gstin: string;
+  fy_label: string;
+  period_start: string;
+  period_end: string;
+  engagement_id: string;
+  default: boolean;
+  invoices_count: number;
+  active?: boolean;
+}
+
+export interface NewTenantInput {
+  name: string;
+  pan: string;
+  gstin: string;
+  fy: string;
+}
+
+export interface TrailRow {
+  seq: number;
+  at: string;
+  principal: string;
+  role: string;
+  transport: "STDIO" | "HTTP" | "UI" | "SYSTEM" | "CONNECTOR";
+  tool: string;
+  args: Record<string, unknown>;
+  outcome: "OK" | "DENIED" | "ERROR";
+  result_sha256: string | null;
+  erp_seq: number | null;
+  erp_hash: string | null;
+  prev_hash: string;
+  hash: string;
+}
+
+export interface TrailResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  items: TrailRow[];
+  verification: { valid: boolean; broken_at_seq: number | null; anchor_mismatch_at: number | null; head_seq: number; head_hash: string; anchors: number };
 }

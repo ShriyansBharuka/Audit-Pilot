@@ -1,53 +1,31 @@
 @import "tailwindcss";
 
 /*
- * AuditPilot design tokens (ui-ux-pro-max: "fintech compliance audit dashboard", Swiss minimal), light theme.
- * Pages were written dark-first with stock slate/indigo/emerald/amber/rose classes, so the scales are remapped
- * here instead of editing every page:
- *   slate is inverted: 900 = white cards, 950 = input wells, 800/700 = borders, 500..50 = text, dark to darkest
- *   (text-slate-50 is the heading colour);
- *   status hues keep 500+ for fills/tints, while their 100..400 "text on dark" shades become the 700..900
- *   shades so they stay readable (>= 4.5:1) on white; indigo resolves to trust blue.
+ * AuditPilot tokens, Supabase-style dark: neutral greys (no blue tint), one green brand accent.
+ * Pages use stock slate/indigo classes; slate maps to the grey scale (50 = headings, 900 = panels,
+ * 950 = wells) and indigo maps to the brand green.
  */
 @theme {
-  --color-slate-50: #0b1220;
-  --color-slate-100: #0f172a;
-  --color-slate-200: #1e293b;
-  --color-slate-300: #334155;
-  --color-slate-400: #475569;
-  --color-slate-500: #5f6b7e;
-  --color-slate-600: #94a3b8;
-  --color-slate-700: #cbd5e1;
-  --color-slate-800: #e2e8f0;
-  --color-slate-900: #ffffff;
-  --color-slate-950: #f1f4f9;
+  --color-slate-50: #ededed;
+  --color-slate-100: #ededed;
+  --color-slate-200: #d6d6d6;
+  --color-slate-300: #b4b4b4;
+  --color-slate-400: #a0a0a0;
+  --color-slate-500: #8b8b8b;
+  --color-slate-600: #5a5a5a;
+  --color-slate-700: #3e3e3e;
+  --color-slate-800: #2e2e2e;
+  --color-slate-900: #232323;
+  --color-slate-950: #1a1a1a;
 
-  --color-indigo-100: #1e3a8a;
-  --color-indigo-200: #1e40af;
-  --color-indigo-300: #1d4ed8;
-  --color-indigo-400: #1d4ed8;
-  --color-indigo-500: #3b82f6;
-  --color-indigo-600: #2563eb;
-  --color-indigo-700: #1d4ed8;
-
-  --color-emerald-100: #064e3b;
-  --color-emerald-200: #065f46;
-  --color-emerald-300: #047857;
-  --color-emerald-400: #047857;
-
-  --color-amber-100: #78350f;
-  --color-amber-200: #92400e;
-  --color-amber-300: #b45309;
-  --color-amber-400: #b45309;
-
-  --color-rose-100: #881337;
-  --color-rose-200: #9f1239;
-  --color-rose-300: #be123c;
-  --color-rose-400: #be123c;
-
-  --color-sky-300: #0369a1;
-  --color-sky-400: #0369a1;
-  --color-purple-300: #7e22ce;
+  --color-indigo-100: #d1fae5;
+  --color-indigo-200: #a7f3d0;
+  --color-indigo-300: #6ee7b7;
+  --color-indigo-400: #3ecf8e;
+  --color-indigo-500: #3ecf8e;
+  --color-indigo-600: #006239;
+  --color-indigo-700: #00754a;
+  --color-purple-300: #c4b5fd;
 }
 
 @theme inline {
@@ -56,10 +34,10 @@
 }
 
 :root {
-  --background: #f5f7fb;
-  --sidebar: #ffffff;
+  --background: #1c1c1c;
+  --sidebar: #171717;
   --foreground: var(--color-slate-100);
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
@@ -113,16 +91,17 @@ summary {
 }
 
 /* Surfaces: solid cards with a hairline border (no blur; dense data reads better on flat panels) */
+.panel,
 .glass-panel {
   background: var(--color-slate-900);
   border: 1px solid var(--color-slate-800);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+  box-shadow: none;
 }
 
 .glass-card {
   background: var(--color-slate-900);
   border: 1px solid var(--color-slate-800);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+  box-shadow: none;
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
@@ -133,19 +112,19 @@ summary {
 /* Risk Badges */
 .badge-high {
   background-color: rgb(239 68 68 / 0.1);
-  color: #b91c1c;
+  color: #f87171;
   border: 1px solid rgb(239 68 68 / 0.35);
 }
 
 .badge-review {
   background-color: rgb(245 158 11 / 0.12);
-  color: #b45309;
+  color: #fbbf24;
   border: 1px solid rgb(245 158 11 / 0.35);
 }
 
 .badge-low {
   background-color: rgb(16 185 129 / 0.1);
-  color: #047857;
+  color: #3ecf8e;
   border: 1px solid rgb(16 185 129 / 0.35);
 }
 
@@ -156,5 +135,17 @@ summary {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* circular-trading ring: dashes drift along the loop */
+.ring-flow {
+  stroke-dasharray: 7 5;
+  animation: ring-dash 1.4s linear infinite;
+}
+
+@keyframes ring-dash {
+  to {
+    stroke-dashoffset: -24;
   }
 }

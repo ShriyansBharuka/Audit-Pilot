@@ -12,11 +12,11 @@ function Waterfall({ data }: { data: ShapExplanation }) {
   return (
     <div className="space-y-2 pt-2">
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_4.5rem] gap-3 items-center text-xs text-slate-500 font-mono">
-        <span>feature (player)</span>
-        <span>0 ────────────── score 100</span>
-        <span className="text-right">φ (pts)</span>
+        <span>Factor</span>
+        <span></span>
+        <span className="text-right">Points</span>
       </div>
-      <Row label="Baseline: a clean invoice of a clean customer" from={0} to={data.base_value} value={data.base_value} muted />
+      <Row label="Clean invoice" from={0} to={data.base_value} value={data.base_value} muted />
       {data.contributions.map((c) => {
         const from = running;
         running += c.value;
@@ -31,7 +31,7 @@ function Waterfall({ data }: { data: ShapExplanation }) {
         );
       })}
       <div className="flex items-center justify-between text-xs p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/30 font-bold mt-3">
-        <span className="text-slate-50">Risk score R = max(0.7·A + 0.3·E, hard-evidence floor 60)</span>
+        <span className="text-slate-50">Risk score</span>
         <span className="font-mono text-indigo-300 text-sm">{data.risk_score.toFixed(1)} pts</span>
       </div>
     </div>
@@ -109,13 +109,12 @@ function ShapContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+        <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
             SHAP Explainability
           </h1>
-        <p className="text-xs text-slate-400 mt-1 max-w-3xl">Exact Shapley contributions to each invoice&apos;s risk score.</p>
       </div>
 
-      <div className="glass-panel p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+      <div className="panel p-4 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -133,7 +132,7 @@ function ShapContent() {
               className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-50 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
             />
           </div>
-          <button type="submit" className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium">
+          <button type="submit" className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/60 text-white text-xs font-medium">
             Explain
           </button>
         </form>
@@ -164,12 +163,12 @@ function ShapContent() {
               Computing exact Shapley values…
             </div>
           ) : error ? (
-            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">{error}</div>
+            <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">{error}</div>
           ) : !data ? (
             <div className="p-6 text-xs text-slate-400">Pick an invoice to explain.</div>
           ) : (
             <>
-              <div className="p-5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+              <div className="p-5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-2">
                 <div className="text-xs font-mono text-indigo-400">
                   {data.invoice_no} · {data.invoice_date} · {data.party_id} {data.party_name ? `(${data.party_name})` : ""}
                 </div>
@@ -179,48 +178,33 @@ function ShapContent() {
                     {data.risk_score.toFixed(1)} / 100
                   </span>
                   <span className="text-xs font-normal text-slate-400 ml-2">
-                    {data.risk_band} · A {data.A} · E {data.E}
+                    {data.risk_band}
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">{data.explanation_text}</p>
-                <div
-                  className={`inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded ${
-                    data.check.exact ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/10 text-rose-300 border border-rose-500/30"
-                  }`}
-                  title={data.check.note}
-                >
-                  {data.check.exact ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                  Σφ = {data.check.sum_of_attributions.toFixed(2)} = model output {data.check.model_output.toFixed(2)}
-                  {Math.abs(data.stored_risk_score - data.risk_score) >= 0.05 && ` (stored, rounded: ${data.stored_risk_score})`}
-                </div>
               </div>
 
-              <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3">
+              <div className="panel p-5 rounded-lg border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                     <BarChart2 className="h-4 w-4 text-indigo-400" />
-                    Attribution waterfall
+                    Why this score
                   </h2>
-                  <span className="text-xs text-slate-400 font-mono">R = φ₀ + Σ φᵢ</span>
                 </div>
                 {data.contributions.length ? (
                   <Waterfall data={data} />
                 ) : (
                   <div className="text-xs text-slate-400">No risk hits and no customer risk: this invoice scores 0.</div>
                 )}
-                <div className="text-xs text-slate-500 flex gap-1.5 pt-2">
-                  <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>{data.method}.</span>
-                </div>
               </div>
             </>
           )}
         </div>
 
-        <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 h-fit">
+        <div className="panel p-5 rounded-lg border border-slate-800 space-y-3 h-fit">
           <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2 border-b border-slate-800 pb-3">
             <Globe2 className="h-4 w-4 text-sky-400" />
-            What drives risk across the audit
+            Top risk drivers
           </h2>
           {!summary ? (
             <div className="text-xs text-slate-400">Loading…</div>
@@ -228,15 +212,12 @@ function ShapContent() {
             <div className="text-xs text-slate-400">No invoice scores ≥ {summary.min_risk} yet.</div>
           ) : (
             <>
-              <div className="text-xs text-slate-400">
-                Mean |φ| per risk code over the {summary.invoices} invoices scored ≥ {summary.min_risk}.
-              </div>
               <div className="space-y-2">
                 {summary.features.slice(0, 12).map((f) => (
                   <div key={f.feature} className="space-y-0.5">
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-200 font-mono truncate">
-                        {f.feature === "ENTITY_RISK_E" ? "customer entity risk E" : f.feature}
+                        {f.feature === "ENTITY_RISK_E" ? "Customer risk" : f.feature}
                         {f.detector && <span className="text-slate-500"> · {f.detector}</span>}
                       </span>
                       <span className="text-slate-400 font-mono">

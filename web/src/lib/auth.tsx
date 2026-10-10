@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserRole, UserSession } from "./types";
-import { api } from "./api";
+import { api, setActiveTenant } from "./api";
 
 interface AuthContextType {
   user: UserSession | null;
@@ -53,6 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: res.name,
       membership_no: res.membership_no,
     };
+    // a different identity may not see the previous organisation: start from the default one
+    if (session.token !== localStorage.getItem("auditpilot_token")) setActiveTenant(null);
     setUser(session);
     localStorage.setItem("auditpilot_token", session.token);
   };
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("auditpilot_token");
+    setActiveTenant(null);
     setUser(null);
   };
 

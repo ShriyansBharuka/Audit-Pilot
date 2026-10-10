@@ -66,178 +66,95 @@ export default function OverviewPage() {
     D14: { title: "Client Data Injection", standard: "OWASP LLM01 / SA 240", desc: "Instruction injection attempts hidden in client data cells" },
   };
 
+  const proposed = data?.findings_counts?.PROPOSED ?? 0;
+  const band = data?.company_risk?.band || "—";
+  const stats = [
+    { label: "Revenue tested", value: data?.revenue_formatted ?? "—", sub: `${(data?.invoices_count ?? 0).toLocaleString("en-IN")} invoices · ${data?.customers_count ?? 0} customers` },
+    { label: "Proposed findings", value: String(proposed), sub: data?.materiality_paise ? `Materiality ${data.materiality_formatted}` : "Materiality not set" },
+    { label: "Circular loops", value: String(data?.company_risk?.cycles_count ?? 0), sub: `₹${((data?.company_risk?.circular_paise ?? 0) / 1e9).toFixed(2)} Cr turnover` },
+    { label: "Company risk", value: band, sub: "AuditGraph" },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
-            Audit Overview
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            {data?.entity_name || "Konkan Marine Controls Ltd"} · {data?.period_start} → {data?.period_end} · {data?.framework === "IND_AS" ? "Ind AS" : data?.framework || "Ind AS"} framework
-          </p>
-        </div>
+        <h1 className="text-2xl font-medium text-slate-50 tracking-tight">Overview</h1>
         <button
           onClick={loadData}
           disabled={loading}
-          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 flex items-center gap-1.5 transition"
+          className="h-8 px-3 rounded-md text-slate-300 text-xs border border-slate-700 hover:bg-slate-800 flex items-center gap-1.5 transition"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          <span>Refresh</span>
+          Refresh
         </button>
       </div>
 
       {error && (
-        <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-          <AlertOctagon className="h-4 w-4 shrink-0 text-rose-400" />
+        <div className="p-3 rounded-md border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <AlertOctagon className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Card 1: Revenue Tested */}
-        <div className="glass-card p-4 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span className="font-medium">Total Population Revenue</span>
-            <FileSpreadsheet className="h-4 w-4 text-indigo-400" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-lg border border-slate-800 bg-slate-900 divide-x divide-slate-800">
+        {stats.map((st) => (
+          <div key={st.label} className="p-5">
+            <div className="text-xs text-slate-500">{st.label}</div>
+            <div className="mt-2 text-2xl font-medium text-slate-50 tabular-nums flex items-center gap-2">
+              {st.label === "Company risk" && (
+                <span className={`h-2 w-2 rounded-full ${band === "HIGH" ? "bg-rose-500" : band === "REVIEW" ? "bg-amber-500" : "bg-indigo-500"}`} />
+              )}
+              {st.value}
+            </div>
+            <div className="mt-1 text-xs text-slate-500">{st.sub}</div>
           </div>
-          <div className="text-xl font-bold text-slate-50 font-mono tracking-tight">
-            {data?.revenue_formatted ?? "—"}
-          </div>
-          <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-            <span className="text-emerald-400 font-semibold">{(data?.invoices_count ?? 0).toLocaleString("en-IN")} invoices</span>
-            <span>across {data?.customers_count ?? 0} customers</span>
-          </div>
-        </div>
-
-        {/* Card 2: Exceptions & Proposed AJEs */}
-        <div className="glass-card p-4 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span className="font-medium">Exceptions & AJEs</span>
-            <Award className="h-4 w-4 text-amber-400" />
-          </div>
-          <div className="text-xl font-bold text-amber-400 font-mono tracking-tight flex items-baseline gap-2">
-            <span>{data?.findings_counts?.PROPOSED ?? 0} proposed</span>
-            <span className="text-xs text-slate-400 font-normal">SA 320</span>
-          </div>
-          <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-            <span className="text-amber-400">Materiality OM:</span>
-            <span>{data?.materiality_paise ? data.materiality_formatted : "set when findings are generated"}</span>
-          </div>
-        </div>
-
-        {/* Card 3: Circular Trading Loops */}
-        <div className="glass-card p-4 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span className="font-medium">Circular Trading Loops</span>
-            <Network className="h-4 w-4 text-rose-400" />
-          </div>
-          <div className="text-xl font-bold text-rose-400 font-mono tracking-tight flex items-baseline gap-2">
-            <span>{data?.company_risk?.cycles_count ?? 0} flagged cycles</span>
-          </div>
-          <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-            <span className="text-rose-400 font-medium">₹{((data?.company_risk?.circular_paise ?? 0) / 1e9).toFixed(2)} Cr</span>
-            <span>circular turnover flagged</span>
-          </div>
-        </div>
-
-        {/* Card 4: Audit Readiness */}
-        <div className="glass-card p-4 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-            <span className="font-medium">Company Risk Band</span>
-            <ShieldAlert className="h-4 w-4 text-indigo-400" />
-          </div>
-          <div className="text-xl font-bold text-slate-50 font-mono tracking-tight flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-xs badge-high font-bold">
-              {data?.company_risk?.band || "HIGH"}
-            </span>
-            <span className="text-xs text-slate-400 font-normal">AuditGraph</span>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Main Grid: Detector Matrix & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 cols): 15 Detectors Breakdown */}
-        <div className="lg:col-span-2 glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-50">Detector results (D0–D14)</h2>
-            </div>
-            <Link
-              href="/transactions"
-              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-            >
-              <span>View all</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+        <section className="lg:col-span-2 rounded-lg border border-slate-800 bg-slate-900">
+          <div className="flex items-center justify-between px-5 h-12 border-b border-slate-800">
+            <h2 className="text-sm font-medium text-slate-50">Detectors</h2>
+            <Link href="/transactions" className="text-xs text-slate-400 hover:text-slate-50 flex items-center gap-1 transition">
+              View population <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-slate-800">
+              {(data?.detectors?.length
+                ? data.detectors.map((d) => [d.detector_id, { title: d.name, standard: d.standard }] as const)
+                : Object.entries(DETECTOR_NAMES)
+              ).map(([key, meta]) => {
+                const count = data?.detector_counts?.[key] || 0;
+                return (
+                  <tr key={key} className={count ? "hover:bg-slate-800/40" : "text-slate-500"}>
+                    <td className="pl-5 py-2.5 w-14 font-mono text-xs text-slate-500">{key}</td>
+                    <td className={`py-2.5 ${count ? "text-slate-200" : ""}`}>{meta.title}</td>
+                    <td className="py-2.5 text-xs text-slate-500 hidden md:table-cell">{meta.standard}</td>
+                    <td className={`pr-5 py-2.5 text-right tabular-nums ${count ? "text-slate-50" : ""}`}>{count}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Object.entries(DETECTOR_NAMES).map(([key, meta]) => {
-              const count = data?.detector_counts?.[key] || 0;
-              const hasHits = count > 0;
-              return (
-                <div
-                  key={key}
-                  className={`p-3 rounded-lg border transition ${
-                    hasHits
-                      ? "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                      : "border-slate-800/40 bg-slate-950/40 opacity-70"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
-                        {key}
-                      </span>
-                      <span className="text-xs font-semibold text-slate-200">{meta.title}</span>
-                    </div>
-                    <span
-                      className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
-                        hasHits ? "bg-amber-500/20 text-amber-300" : "bg-slate-800 text-slate-500"
-                      }`}
-                    >
-                      {count} hits
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-indigo-400/80 font-mono mt-1">{meta.standard}</div>
-                </div>
-              );
-            })}
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-5 space-y-4 h-fit">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-slate-50">Partner sign-off</h2>
+            <span className="text-xs text-slate-500">{(data?.status || "IN_PROGRESS").replace("_", " ").toLowerCase()}</span>
           </div>
-        </div>
-
-        {/* Right Column (1 col): Quick Navigation & Partner Status */}
-        <div className="space-y-4">
-          {/* Partner Sign-off Card */}
-          <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
-                <Award className="h-4 w-4 text-indigo-400" />
-                Partner sign-off
-              </h3>
-              <span className="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
-                {data?.status || "IN_PROGRESS"}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">Each finding needs a partner decision with a comment.</p>
-            <div className="border-t border-slate-800 pt-3 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-300">
-                <span>Proposed Findings:</span>
-                <span className="font-mono font-bold text-amber-400">{data?.findings_counts?.PROPOSED ?? 0}</span>
-              </div>
-            </div>
-            <Link
-              href="/findings"
-              className="mt-2 block text-center w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-lg shadow-indigo-600/20 transition"
-            >
-              Open Partner Review Queue
-            </Link>
+          <div>
+            <div className="text-3xl font-medium text-slate-50 tabular-nums">{proposed}</div>
+            <div className="text-xs text-slate-500 mt-1">findings awaiting a decision</div>
           </div>
-        </div>
+          <Link
+            href="/findings"
+            className="inline-flex h-8 items-center px-3 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 text-white text-xs font-medium transition"
+          >
+            Review findings
+          </Link>
+        </section>
       </div>
     </div>
   );

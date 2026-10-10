@@ -103,7 +103,7 @@ export default function SharingPage() {
       {/* Top Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
             Report Sharing
           </h1>
         </div>
@@ -112,7 +112,7 @@ export default function SharingPage() {
       {/* Reports Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {reports.map((rep) => (
-          <div key={rep.id} className="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between">
+          <div key={rep.id} className="panel p-5 rounded-lg border border-slate-800 space-y-3 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">
@@ -150,7 +150,7 @@ export default function SharingPage() {
 
               <button
                 onClick={() => handleOpenShare(rep)}
-                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-1.5 transition"
+                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/60 text-white font-medium flex items-center gap-1.5 transition"
               >
                 <Share2 className="h-3.5 w-3.5" />
                 <span>Configure Share</span>
@@ -161,7 +161,7 @@ export default function SharingPage() {
       </div>
 
       {/* Immutable Access Log */}
-      <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+      <div className="panel p-5 rounded-lg border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
             <Clock className="h-4 w-4 text-emerald-400" />
@@ -192,14 +192,14 @@ export default function SharingPage() {
       {/* Share Modal */}
       {shareModalOpen && selectedReport && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSaveShare} className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
+          <form onSubmit={handleSaveShare} className="bg-slate-900 border border-slate-700 rounded-lg max-w-lg w-full p-6 space-y-4 text-xs">
             <h3 className="font-bold text-slate-50 text-sm flex items-center gap-2">
               <Share2 className="h-4 w-4 text-indigo-400" />
               Configure Sharing for "{selectedReport.title}"
             </h3>
 
             {shareSuccess ? (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 space-y-2">
+              <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 space-y-2">
                 <div className="font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4" />
                   Access Rules Configured & Enforced!
@@ -208,7 +208,7 @@ export default function SharingPage() {
                 <button
                   type="button"
                   onClick={() => setShareModalOpen(false)}
-                  className="w-full mt-2 py-1.5 rounded bg-emerald-600 text-white font-medium"
+                  className="w-full mt-2 py-1.5 rounded bg-indigo-600 border border-indigo-500/40 text-white font-medium"
                 >
                   Done
                 </button>

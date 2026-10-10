@@ -4,13 +4,13 @@ import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { EvidenceRequestItem } from "@/lib/types";
-import { CheckCircle2, FileUp, FolderOpen, RefreshCw } from "lucide-react";
+import { AlertOctagon, CheckCircle2, FileUp, RefreshCw } from "lucide-react";
 
-const STATUS_STYLE: Record<string, string> = {
-  OPEN: "bg-amber-500/15 text-amber-300",
-  OVERDUE: "bg-rose-500/15 text-rose-300",
-  RECEIVED: "bg-emerald-500/15 text-emerald-300",
-  WAIVED: "bg-slate-700 text-slate-300",
+const STATUS_COLOR: Record<string, string> = {
+  OPEN: "text-amber-300",
+  OVERDUE: "text-rose-300",
+  RECEIVED: "text-indigo-400",
+  WAIVED: "text-slate-500",
 };
 
 export default function EvidencePage() {
@@ -31,7 +31,7 @@ export default function EvidencePage() {
         setItems(r);
         setError(null);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(e.message || "Failed to load requests"))
       .finally(() => setLoading(false));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -42,7 +42,7 @@ export default function EvidencePage() {
     setNote(null);
     try {
       await api.submitEvidence(req.id, file);
-      setNote(`${file.name} received for ${req.sample_ref} (${req.doc_kind}). The server stored it byte-for-byte with its SHA-256.`);
+      setNote(`${file.name} received for ${req.sample_ref}.`);
       load();
     } catch (e: unknown) {
       setNote(e instanceof Error ? e.message : "Upload failed");
@@ -51,80 +51,87 @@ export default function EvidencePage() {
     }
   };
 
-  const counts = items.reduce<Record<string, number>>((m, r) => ({ ...m, [r.status]: (m[r.status] || 0) + 1 }), {});
+  const count = (s: string) => items.filter((r) => r.status === s).length;
+  const stats = [
+    { label: "Requests", value: items.length },
+    { label: "Open", value: count("OPEN") },
+    { label: "Overdue", value: count("OVERDUE") },
+    { label: "Received", value: count("RECEIVED") },
+  ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-indigo-400" />
-            {isClient ? "Evidence requests from your auditor" : "Evidence & PBC requests"}
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 max-w-3xl">
-            {isClient
-              ? "Upload the requested document for each item."
-              : "Requests sent to the client for selected samples."}
-          </p>
-        </div>
+        <h1 className="text-2xl font-medium text-slate-50 tracking-tight">{isClient ? "Evidence requests" : "Evidence"}</h1>
         <div className="flex items-center gap-2">
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="text-xs bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-slate-200"
+            className="h-8 text-xs bg-slate-900 border border-slate-700 rounded-md px-2 text-slate-200"
           >
             <option value="">All statuses</option>
             {["OPEN", "OVERDUE", "RECEIVED", "WAIVED"].map((s) => (
               <option key={s} value={s}>
-                {s}
+                {s.charAt(0) + s.slice(1).toLowerCase()}
               </option>
             ))}
           </select>
-          <button onClick={load} className="p-1.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
+          <button
+            onClick={load}
+            disabled={loading}
+            className="h-8 px-3 rounded-md text-slate-300 text-xs border border-slate-700 hover:bg-slate-800 flex items-center gap-1.5 transition"
+          >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
           </button>
         </div>
       </div>
 
-      <div className="flex gap-2 text-xs font-mono">
-        {Object.entries(counts).map(([k, v]) => (
-          <span key={k} className={`px-2 py-0.5 rounded ${STATUS_STYLE[k] || "bg-slate-800 text-slate-300"}`}>
-            {k} {v}
-          </span>
+      {error && (
+        <div className="p-3 rounded-md border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <AlertOctagon className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+      {note && <div className="p-3 rounded-md border border-slate-700 text-slate-300 text-xs">{note}</div>}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-lg border border-slate-800 bg-slate-900 divide-x divide-slate-800">
+        {stats.map((st) => (
+          <div key={st.label} className="p-5">
+            <div className="text-xs text-slate-500">{st.label}</div>
+            <div className="mt-2 text-2xl font-medium text-slate-50 tabular-nums">{st.value}</div>
+          </div>
         ))}
       </div>
 
-      {note && <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-200">{note}</div>}
-      {error && <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">{error}</div>}
-
-      <div className="glass-panel rounded-xl border border-slate-800 overflow-hidden">
-        <table className="w-full text-xs">
-          <thead className="bg-slate-900/80 text-slate-400 text-xs">
-            <tr>
-              <th className="text-left p-2.5">Sample</th>
-              <th className="text-left p-2.5">Document</th>
-              <th className="text-left p-2.5">For</th>
-              <th className="text-left p-2.5">Due</th>
-              <th className="text-left p-2.5">Status</th>
-              <th className="text-left p-2.5">Files received</th>
-              {isClient && <th className="text-left p-2.5">Upload</th>}
+      <section className="rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-slate-500 border-b border-slate-800">
+              <th className="text-left font-normal pl-5 py-3">Ref</th>
+              <th className="text-left font-normal py-3">Document</th>
+              <th className="text-left font-normal py-3">For</th>
+              <th className="text-left font-normal py-3">Due</th>
+              <th className="text-left font-normal py-3">Status</th>
+              <th className="text-left font-normal py-3">Files</th>
+              {isClient && <th className="pr-5 py-3"></th>}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-800">
             {items.map((r) => (
-              <tr key={r.id} className="border-t border-slate-800/80 align-top">
-                <td className="p-2.5 font-mono text-slate-200">{r.sample_ref}</td>
-                <td className="p-2.5 text-slate-300">{r.doc_kind.replace("_", " ")}</td>
-                <td className="p-2.5 font-mono text-slate-400">{r.about_doc_no || "—"}</td>
-                <td className="p-2.5 font-mono text-slate-400">{r.due_on}</td>
-                <td className="p-2.5">
-                  <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${STATUS_STYLE[r.status] || ""}`}>{r.status}</span>
+              <tr key={r.id} className="align-top hover:bg-slate-800/40">
+                <td className="pl-5 py-3 font-mono text-xs text-slate-300">{r.sample_ref}</td>
+                <td className="py-3 text-slate-200">{r.doc_kind.replace("_", " ").toLowerCase()}</td>
+                <td className="py-3 font-mono text-xs text-slate-400">{r.about_doc_no || "—"}</td>
+                <td className="py-3 text-xs text-slate-400 tabular-nums">{r.due_on}</td>
+                <td className={`py-3 text-xs ${STATUS_COLOR[r.status] || "text-slate-400"}`}>
+                  {r.status.charAt(0) + r.status.slice(1).toLowerCase()}
                 </td>
-                <td className="p-2.5 space-y-1">
-                  {r.submissions.length === 0 && <span className="text-slate-600">—</span>}
+                <td className="py-3 space-y-1">
+                  {r.submissions.length === 0 && <span className="text-slate-600 text-xs">—</span>}
                   {r.submissions.map((s) => (
                     <div key={s.id} className="flex items-center gap-1.5 text-xs">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                      <CheckCircle2 className="h-3 w-3 text-indigo-400 shrink-0" />
                       <span className="text-slate-300 truncate max-w-[12rem]" title={s.filename}>
                         {s.filename}
                       </span>
@@ -135,10 +142,10 @@ export default function EvidencePage() {
                   ))}
                 </td>
                 {isClient && (
-                  <td className="p-2.5">
-                    <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs cursor-pointer">
+                  <td className="pr-5 py-3 text-right">
+                    <label className="inline-flex h-7 items-center gap-1.5 px-2.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs cursor-pointer">
                       <FileUp className="h-3 w-3" />
-                      {busy === r.id ? "Uploading…" : "Choose file"}
+                      {busy === r.id ? "Uploading…" : "Upload"}
                       <input
                         type="file"
                         className="hidden"
@@ -156,14 +163,14 @@ export default function EvidencePage() {
             ))}
             {!loading && items.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-slate-500">
-                  No evidence requests yet. They appear once the auditor selects samples.
+                <td colSpan={7} className="px-5 py-10 text-center text-xs text-slate-500">
+                  No evidence requests yet. They appear once samples are selected.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+      </section>
     </div>
   );
 }

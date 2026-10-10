@@ -61,14 +61,14 @@ export default function PermissionsPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
             Access Control
           </h1>
         </div>
       </div>
 
       {/* Permissions Matrix */}
-      <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+      <div className="panel p-5 rounded-lg border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
             <Sliders className="h-4 w-4 text-indigo-400" />
@@ -77,7 +77,7 @@ export default function PermissionsPage() {
           <span className="text-xs text-slate-400">Click any switch to toggle permission</span>
         </div>
 
-        <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900/60">
+        <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/60">
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950 text-[11px] text-slate-400 uppercase font-mono border-b border-slate-800">
               <tr>
@@ -150,7 +150,7 @@ export default function PermissionsPage() {
       </div>
 
       {/* Immutable Permission Audit Log */}
-      <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+      <div className="panel p-5 rounded-lg border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
             <History className="h-4 w-4 text-amber-400" />
@@ -169,8 +169,8 @@ export default function PermissionsPage() {
                 <span
                   className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                     log.action.includes("GRANT") || log.action.includes("ENABLE")
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-rose-500/20 text-rose-300"
+                      ? "text-emerald-300"
+                      : "text-rose-300"
                   }`}
                 >
                   {log.action}

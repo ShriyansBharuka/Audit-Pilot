@@ -95,14 +95,14 @@ export default function InvestigationsPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
             Fraud Hub
           </h1>
         </div>
 
         <button
           onClick={() => setCreateModalOpen(true)}
-          className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-lg shadow-rose-600/20"
+          className="px-3.5 py-1.5 rounded-lg border border-rose-500/40 hover:bg-rose-500/10 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition"
         >
           <Plus className="h-4 w-4" />
           <span>New Investigation Docket</span>
@@ -111,7 +111,7 @@ export default function InvestigationsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Docket List */}
-        <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-3">
+        <div className="panel p-4 rounded-lg border border-slate-800 space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
             <h2 className="text-sm font-semibold text-slate-50 flex items-center gap-1.5">
               <ShieldAlert className="h-4 w-4 text-rose-400" />
@@ -125,9 +125,9 @@ export default function InvestigationsPage() {
               <div
                 key={item.id}
                 onClick={() => setSelectedCase(item)}
-                className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                className={`p-3.5 rounded-lg border cursor-pointer transition ${
                   selectedCase?.id === item.id
-                    ? "border-rose-500/80 bg-rose-500/10 shadow-lg"
+                    ? "border-rose-500/80 bg-rose-500/10"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
@@ -135,8 +135,8 @@ export default function InvestigationsPage() {
                   <span
                     className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                       item.severity === "CRITICAL"
-                        ? "bg-rose-500/20 text-rose-300"
-                        : "bg-amber-500/20 text-amber-300"
+                        ? "text-rose-300"
+                        : "text-amber-300"
                     }`}
                   >
                     {item.severity}
@@ -155,7 +155,7 @@ export default function InvestigationsPage() {
           {selectedCase ? (
             <>
               {/* Case Header Banner */}
-              <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+              <div className="p-5 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-rose-400 font-bold uppercase">{selectedCase.id}</span>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
@@ -167,7 +167,7 @@ export default function InvestigationsPage() {
               </div>
 
               {/* Thread Discussion */}
-              <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+              <div className="panel p-5 rounded-lg border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <h3 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-indigo-400" />
@@ -179,7 +179,7 @@ export default function InvestigationsPage() {
                 {/* Comment Feed */}
                 <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                   {comments.map((c) => (
-                    <div key={c.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5">
+                    <div key={c.id} className="p-3.5 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-indigo-300">{c.author}</span>
@@ -205,7 +205,7 @@ export default function InvestigationsPage() {
                   />
                   <button
                     type="submit"
-                    className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 transition"
+                    className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/60 text-white text-xs font-semibold flex items-center gap-1.5 transition"
                   >
                     <Send className="h-3.5 w-3.5" />
                     <span>Post</span>
@@ -222,7 +222,7 @@ export default function InvestigationsPage() {
       {/* New Case Modal */}
       {createModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleCreateCase} className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+          <form onSubmit={handleCreateCase} className="bg-slate-900 border border-slate-700 rounded-lg max-w-md w-full p-6 space-y-4 text-xs">
             <h3 className="font-bold text-slate-50 text-sm">Open New Fraud Investigation</h3>
             <div className="space-y-1">
               <label className="text-slate-300 font-semibold">Case Title</label>
@@ -266,7 +266,7 @@ export default function InvestigationsPage() {
               >
                 Cancel
               </button>
-              <button type="submit" className="px-4 py-1.5 rounded-lg bg-rose-600 text-white font-medium">
+              <button type="submit" className="px-4 py-1.5 rounded-lg border border-rose-500/40 text-rose-300 font-medium">
                 Create Docket
               </button>
             </div>

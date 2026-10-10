@@ -7,6 +7,7 @@ import {
   BarChart3,
   CheckCircle2,
   Copy,
+  Download,
   ExternalLink,
   Play,
   RefreshCw,
@@ -20,6 +21,8 @@ export default function IntegrationsPage() {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [feed, setFeed] = useState<N8nEvents | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const powerBiUrl = api.getPowerBiDatasetUrl();
   const mcpUrl = process.env.NEXT_PUBLIC_MCP_URL || "http://localhost:8000/mcp";
 
@@ -28,6 +31,15 @@ export default function IntegrationsPage() {
     api.getN8nEvents(20).then(setFeed).catch(() => setFeed(null)).finally(() => setRefreshing(false));
   };
   useEffect(load, []);
+
+  const downloadPackage = () => {
+    setDownloading(true);
+    setDownloadError(null);
+    api
+      .downloadPowerBiPackage()
+      .catch((e) => setDownloadError(e.message || "Download failed"))
+      .finally(() => setDownloading(false));
+  };
 
   const copyPowerBi = () => {
     navigator.clipboard.writeText(powerBiUrl);
@@ -40,7 +52,7 @@ export default function IntegrationsPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
             Integrations
           </h1>
         </div>
@@ -48,7 +60,7 @@ export default function IntegrationsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Power BI Connector Card */}
-        <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+        <div className="panel p-5 rounded-lg border border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
@@ -59,7 +71,7 @@ export default function IntegrationsPage() {
                 <div className="text-xs text-slate-400">Live JSON Web Data Connector Endpoint</div>
               </div>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded text-emerald-300 font-bold">
               Ready
             </span>
           </div>
@@ -85,17 +97,30 @@ export default function IntegrationsPage() {
             </div>
           </div>
 
+          <div className="flex items-center gap-3">
+            <button
+              onClick={downloadPackage}
+              disabled={downloading}
+              className="h-8 px-3 rounded-md bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/40 text-white text-xs font-medium flex items-center gap-1.5 transition disabled:opacity-60"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {downloading ? "Preparing…" : "Download dataset"}
+            </button>
+            <span className="text-xs text-slate-500">4 CSV tables + measures.dax</span>
+            {downloadError && <span className="text-xs text-rose-300">{downloadError}</span>}
+          </div>
+
           <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-400 space-y-1">
             <div className="font-semibold text-slate-300">How to connect in Power BI:</div>
             <div>1. In Power BI Desktop, click <strong>Get Data</strong> → <strong>Web</strong></div>
             <div>2. Paste the URL above and click <strong>OK</strong></div>
             <div>3. Under <strong>Advanced</strong>, add the header <code>Authorization: Bearer &lt;auditor token&gt;</code>.</div>
-            <div>4. Load the <code>invoices</code> and <code>findings</code> tables into your model.</div>
+            <div>4. Load the <code>invoices</code>, <code>customers</code>, <code>detectors</code> and <code>findings</code> tables. Amounts are in paise.</div>
           </div>
         </div>
 
         {/* MCP Agent Gateway Card */}
-        <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+        <div className="panel p-5 rounded-lg border border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold">
@@ -106,7 +131,7 @@ export default function IntegrationsPage() {
                 <div className="text-xs text-slate-400">Streamable HTTP gateway, role-filtered tools</div>
               </div>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded text-indigo-300 font-bold">
               Port 8000
             </span>
           </div>
@@ -128,7 +153,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* n8n: real events this app emits; the workflows themselves run in n8n (n8n/README.md) */}
-      <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+      <div className="panel p-5 rounded-lg border border-slate-800 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-emerald-400" />
@@ -137,7 +162,7 @@ export default function IntegrationsPage() {
           <div className="flex items-center gap-3">
             <span
               className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
-                feed?.webhook_configured ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
+                feed?.webhook_configured ? "text-emerald-300" : "text-amber-300"
               }`}
             >
               {feed?.webhook_configured ? "webhook configured" : "N8N_WEBHOOK_URL not set: events recorded only"}
@@ -155,7 +180,7 @@ export default function IntegrationsPage() {
           ))}
         </div>
         <div className="space-y-1.5">
-          <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Recent events (signed HMAC-SHA256 webhooks)</div>
+          <div className="text-xs font-semibold text-slate-300 ">Recent events (signed HMAC-SHA256 webhooks)</div>
           {(feed?.events || []).length === 0 && <div className="text-xs text-slate-500">No events yet.</div>}
           {(feed?.events || []).map((ev) => (
             <div key={ev.id} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
@@ -166,7 +191,7 @@ export default function IntegrationsPage() {
                 <span className="text-[11px] text-slate-500 font-mono">{ev.at}</span>
                 <span
                   className={`text-[11px] font-mono px-2 py-0.5 rounded ${
-                    ev.notified_at ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"
+                    ev.notified_at ? "text-emerald-300" : "bg-slate-800 text-slate-400"
                   }`}
                 >
                   {ev.notified_at ? "delivered" : "recorded"}

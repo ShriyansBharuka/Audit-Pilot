@@ -109,17 +109,16 @@ export default function FindingsPage() {
       {/* Top Banner */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
             Findings & Sign-Off
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">{findings.length}</span>
+            <span className="text-sm text-slate-500 font-normal tabular-nums">{findings.length}</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">Review proposed findings and sign off.</p>
         </div>
 
         {/* Sign-off Trigger Button */}
         <button
           onClick={handleOpenSignoff}
-          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition"
+          className="px-4 py-2 rounded-lg bg-indigo-600 border border-indigo-500/40 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-2  transition"
         >
           <Lock className="h-4 w-4" />
           <span>Execute Partner Sign-Off</span>
@@ -128,7 +127,7 @@ export default function FindingsPage() {
 
       {/* Role Alert if not partner */}
       {!isPartner && (
-        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
+        <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
             <span>
@@ -158,7 +157,7 @@ export default function FindingsPage() {
       {/* Main 2-column split layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left list (1 col) */}
-        <div className="glass-panel p-3 rounded-xl border border-slate-800 space-y-2 overflow-y-auto max-h-[750px]">
+        <div className="panel p-3 rounded-lg border border-slate-800 space-y-2 overflow-y-auto max-h-[750px]">
           {loading ? (
             <div className="py-12 text-center text-slate-400">
               <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-indigo-400" />
@@ -171,21 +170,21 @@ export default function FindingsPage() {
               <div
                 key={f.id}
                 onClick={() => setSelectedFinding(f)}
-                className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                className={`p-3.5 rounded-lg border cursor-pointer transition ${
                   selectedFinding?.id === f.id
                     ? "border-indigo-500 bg-indigo-500/10"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-mono font-bold text-indigo-400">{f.id}</span>
+                  <span className="font-mono text-indigo-400">{f.id}</span>
                   <span
                     className={`text-[11px] font-mono px-1.5 py-0.2 rounded ${
                       f.status === "CONFIRMED"
-                        ? "bg-emerald-500/20 text-emerald-300"
+                        ? "text-emerald-300"
                         : f.status === "REJECTED"
-                        ? "bg-rose-500/20 text-rose-300"
-                        : "bg-amber-500/20 text-amber-300"
+                        ? "text-rose-300"
+                        : "text-amber-300"
                     }`}
                   >
                     {f.status}
@@ -194,7 +193,7 @@ export default function FindingsPage() {
                 <div className="font-semibold text-xs text-slate-50 truncate">{f.title}</div>
                 <div className="flex items-center justify-between mt-2 text-xs">
                   <span className="text-slate-400">{f.category}</span>
-                  <span className="font-mono font-bold text-amber-400">{f.gross_impact_formatted}</span>
+                  <span className="font-mono text-amber-400">{f.gross_impact_formatted}</span>
                 </div>
               </div>
             ))
@@ -202,24 +201,24 @@ export default function FindingsPage() {
         </div>
 
         {/* Right detail view (2 cols) */}
-        <div className="lg:col-span-2 glass-panel p-6 rounded-xl border border-slate-800 space-y-5">
+        <div className="lg:col-span-2 panel p-6 rounded-lg border border-slate-800 space-y-5">
           {selectedFinding ? (
             <>
               {/* Header */}
               <div className="flex items-start justify-between border-b border-slate-800 pb-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-indigo-400">{selectedFinding.id}</span>
+                    <span className="text-xs font-mono text-indigo-400">{selectedFinding.id}</span>
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                       Detector {selectedFinding.detector} ({selectedFinding.code})
                     </span>
                     <span
                       className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                         selectedFinding.status === "CONFIRMED"
-                          ? "bg-emerald-500/20 text-emerald-300"
+                          ? "text-emerald-300"
                           : selectedFinding.status === "REJECTED"
-                          ? "bg-rose-500/20 text-rose-300"
-                          : "bg-amber-500/20 text-amber-300"
+                          ? "text-rose-300"
+                          : "text-amber-300"
                       }`}
                     >
                       {selectedFinding.status}
@@ -233,13 +232,13 @@ export default function FindingsPage() {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => handleOpenDecision("CONFIRM")}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition"
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 border border-indigo-500/40 hover:bg-indigo-700 text-white text-xs font-medium transition"
                     >
                       Confirm
                     </button>
                     <button
                       onClick={() => handleOpenDecision("REJECT")}
-                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium transition"
+                      className="px-3 py-1.5 rounded-lg border border-rose-500/40 hover:bg-rose-500/10 text-rose-300 text-xs font-medium transition"
                     >
                       Reject
                     </button>
@@ -248,22 +247,22 @@ export default function FindingsPage() {
               </div>
 
               {/* Impact Banner */}
-              <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+              <div className="grid grid-cols-3 gap-3 p-3.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
                 <div>
                   <div className="text-[11px] text-slate-500 uppercase font-mono">Gross Impact</div>
-                  <div className="text-base font-bold font-mono text-amber-400 mt-0.5">
+                  <div className="text-base font-mono text-amber-400 mt-0.5">
                     {selectedFinding.gross_impact_formatted}
                   </div>
                 </div>
                 <div>
                   <div className="text-[11px] text-slate-500 uppercase font-mono">Taxable Value</div>
-                  <div className="text-base font-bold font-mono text-slate-200 mt-0.5">
+                  <div className="text-base font-mono text-slate-200 mt-0.5">
                     {selectedFinding.taxable_impact_formatted}
                   </div>
                 </div>
                 <div>
                   <div className="text-[11px] text-slate-500 uppercase font-mono">Confidence Level</div>
-                  <div className="text-base font-bold font-mono text-indigo-400 mt-0.5">
+                  <div className="text-base font-mono text-indigo-400 mt-0.5">
                     {selectedFinding.confidence}
                   </div>
                 </div>
@@ -271,10 +270,10 @@ export default function FindingsPage() {
 
               {/* Explanation & Technical Basis */}
               <div className="space-y-2 text-xs">
-                <h3 className="font-semibold text-slate-50 uppercase tracking-wider text-xs">
+                <h3 className="font-semibold text-slate-50  text-xs">
                   Auditor Substantive Explanation
                 </h3>
-                <p className="text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <p className="text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-lg border border-slate-800">
                   {selectedFinding.explanation}
                 </p>
                 <div className="text-xs text-indigo-400 font-mono">
@@ -284,7 +283,7 @@ export default function FindingsPage() {
 
               {/* Proposed Adjusting Journal Entry (AJE) Table */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-slate-50 uppercase tracking-wider text-xs flex items-center gap-1.5">
+                <h3 className="font-semibold text-slate-50  text-xs flex items-center gap-1.5">
                   <FileCheck className="h-3.5 w-3.5 text-emerald-400" />
                   Proposed Adjusting Journal Entry (AJE)
                 </h3>
@@ -293,7 +292,7 @@ export default function FindingsPage() {
                     Disclosure-only matter. No balance sheet reclassification proposed.
                   </div>
                 ) : (
-                  <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
+                  <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-950">
                     <table className="w-full text-left text-xs text-slate-300">
                       <thead className="bg-slate-900 text-[11px] text-slate-400 uppercase font-mono">
                         <tr>
@@ -331,7 +330,7 @@ export default function FindingsPage() {
       {/* Partner Decision Modal */}
       {decisionModalOpen && selectedFinding && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg max-w-lg w-full p-6 space-y-4">
             <h3 className="font-bold text-slate-50 text-sm">
               Record Partner Decision: {decisionType} Finding {selectedFinding.id}
             </h3>
@@ -364,7 +363,7 @@ export default function FindingsPage() {
               <button
                 onClick={submitDecision}
                 disabled={submittingDecision}
-                className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition"
+                className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/60 text-white text-xs font-medium transition"
               >
                 {submittingDecision ? "Recording..." : `Confirm ${decisionType}`}
               </button>
@@ -376,14 +375,14 @@ export default function FindingsPage() {
       {/* Sign-off Modal */}
       {signoffModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg max-w-xl w-full p-6 space-y-4">
             <h3 className="font-bold text-slate-50 text-sm flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-emerald-400" />
               Final Engagement Partner Sign-Off
             </h3>
 
             {signoffResult ? (
-              <div className="space-y-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300">
+              <div className="space-y-3 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300">
                 <div className="font-bold text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4" />
                   Audit Successfully Signed Off!
@@ -394,7 +393,7 @@ export default function FindingsPage() {
                 </div>
                 <button
                   onClick={() => setSignoffModalOpen(false)}
-                  className="w-full mt-2 py-1.5 rounded bg-emerald-600 text-white font-medium"
+                  className="w-full mt-2 py-1.5 rounded bg-indigo-600 border border-indigo-500/40 text-white font-medium"
                 >
                   Close
                 </button>
@@ -402,7 +401,7 @@ export default function FindingsPage() {
             ) : (
               <>
                 {blockers.length > 0 && (
-                  <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
+                  <div className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
                     <div className="font-bold text-rose-400 flex items-center gap-1">
                       <AlertOctagon className="h-3.5 w-3.5" />
                       Sign-off Blocked by Preconditions:
@@ -443,7 +442,7 @@ export default function FindingsPage() {
                   <button
                     onClick={submitSignoff}
                     disabled={signingOff || blockers.length > 0}
-                    className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold"
+                    className="px-4 py-1.5 rounded-lg bg-indigo-600 border border-indigo-500/40 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-semibold"
                   >
                     {signingOff ? "Signing..." : "Lock & Sign Off Audit"}
                   </button>

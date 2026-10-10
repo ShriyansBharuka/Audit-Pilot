@@ -87,15 +87,15 @@ export default function TransactionsPage() {
       {/* Page Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-medium text-slate-50 tracking-tight flex items-center gap-3">
             100% Population
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">{total} invoices</span>
+            <span className="text-sm text-slate-500 font-normal tabular-nums">{total} invoices</span>
           </h1>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="glass-panel p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+      <div className="panel p-4 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-3">
         <form onSubmit={handleSearchSubmit} className="flex-1 min-w-[260px] flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5" />
@@ -109,7 +109,7 @@ export default function TransactionsPage() {
           </div>
           <button
             type="submit"
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition"
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 border border-indigo-500/60 text-white text-xs font-medium transition"
           >
             Search
           </button>
@@ -161,7 +161,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Transactions Table */}
-      <div className="glass-panel rounded-xl border border-slate-800 overflow-hidden">
+      <div className="panel rounded-lg border border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-900/80 text-xs text-slate-400 uppercase font-mono border-b border-slate-800">
@@ -200,11 +200,11 @@ export default function TransactionsPage() {
                     <td className="py-3 px-4 font-mono font-medium text-slate-50 flex items-center gap-1.5">
                       <span>{row.invoice_no}</span>
                       {row.irn ? (
-                        <span className="text-[11px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">
+                        <span className="text-[11px] px-1 py-0.2 rounded text-emerald-300 font-mono">
                           IRN
                         </span>
                       ) : (
-                        <span className="text-[11px] px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono">
+                        <span className="text-[11px] px-1 py-0.2 rounded text-rose-300 font-mono">
                           NO IRN
                         </span>
                       )}
@@ -215,7 +215,7 @@ export default function TransactionsPage() {
                       <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
                         <span>{row.buyer_gstin}</span>
                         {row.is_related_party && (
-                          <span className="px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold">
+                          <span className="px-1 py-0.2 rounded text-purple-300 font-bold">
                             RP
                           </span>
                         )}
@@ -226,7 +226,7 @@ export default function TransactionsPage() {
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
                         <span
-                          className={`text-[11px] px-2 py-0.5 rounded font-mono font-bold ${
+                          className={`text-[11px] px-2 py-0.5 rounded font-mono ${
                             row.risk_band === "HIGH"
                               ? "badge-high"
                               : row.risk_band === "REVIEW"
@@ -302,7 +302,7 @@ export default function TransactionsPage() {
       {/* Slide-over Transaction Inspector Drawer */}
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end">
-          <div className="w-full max-w-2xl bg-[var(--sidebar)] border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+          <div className="w-full max-w-2xl bg-[var(--sidebar)] border-l border-slate-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
             {/* Drawer Header */}
             <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
               <div>
@@ -344,7 +344,7 @@ export default function TransactionsPage() {
               ) : (
                 <>
                   {/* Top Metadata Box */}
-                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-slate-900 border border-slate-800 grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-[11px] text-slate-500 uppercase font-mono">Invoice Date</div>
                       <div className="font-mono text-slate-200 mt-0.5">{detail.invoice.invoice_date}</div>
@@ -371,7 +371,7 @@ export default function TransactionsPage() {
 
                   {/* Detector Exceptions */}
                   <div>
-                    <h3 className="text-xs font-semibold text-slate-50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-semibold text-slate-50  mb-2 flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
                       Detector Hits on this Document ({detail.risk_hits.length})
                     </h3>
@@ -387,10 +387,10 @@ export default function TransactionsPage() {
                             className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-1"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="font-mono font-bold text-amber-400 text-xs">
+                              <span className="font-mono text-amber-400 text-xs">
                                 {h.detector}: {h.code}
                               </span>
-                              <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                              <span className="text-[11px] font-mono px-1.5 py-0.2 rounded text-amber-300">
                                 Severity {h.severity}
                               </span>
                             </div>
@@ -403,7 +403,7 @@ export default function TransactionsPage() {
 
                   {/* Line Items Table */}
                   <div>
-                    <h3 className="text-xs font-semibold text-slate-50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-semibold text-slate-50  mb-2 flex items-center gap-1.5">
                       <FileText className="h-3.5 w-3.5 text-indigo-400" />
                       Invoice Line Items
                     </h3>
@@ -435,7 +435,7 @@ export default function TransactionsPage() {
 
                   {/* Logistics: EWB and Lorry Receipts */}
                   <div>
-                    <h3 className="text-xs font-semibold text-slate-50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <h3 className="text-xs font-semibold text-slate-50  mb-2 flex items-center gap-1.5">
                       <Truck className="h-3.5 w-3.5 text-emerald-400" />
                       Physical Movement Evidence (EWB & Lorry Receipt)
                     </h3>
