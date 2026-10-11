@@ -961,6 +961,62 @@ async def post_csv_verify(file: UploadFile = File(...), ai: bool = Form(False),
     return out
 
 
+class AssistantChat(BaseModel):
+    messages: List[Dict[str, Any]]
+    page: Optional[str] = None
+    context: Optional[Dict[str, Any]] = None
+
+
+class AssistantRun(BaseModel):
+    tool: str
+    args: Dict[str, Any] = {}
+
+
+ANY_ROLE = require(*AUDIT_ROLES, *CLIENT_ROLES)
+
+
+@app.get("/api/assistant/status")
+def get_assistant_status(who: Dict[str, Any] = Depends(ANY_ROLE)):
+    """ASSIST: is the assistant on, and does it support this identity? The UI hides the panel when not."""
+    from app import assistant
+    return assistant.status(who)
+
+
+@app.post("/api/assistant/chat")
+async def post_assistant_chat(body: AssistantChat, x_tenant: Optional[str] = Header(None, alias="X-Tenant"),
+                              who: Dict[str, Any] = Depends(ANY_ROLE)):
+    """ASSIST: streamed (SSE) answer from an Agents SDK agent working through MCP with the caller's own token.
+    Read-only tools run; writes come back as {type: proposal} events for the user to Run."""
+    from fastapi.responses import StreamingResponse
+    from app import assistant
+    st = assistant.status(who)
+    if not st["enabled"]:
+        raise HTTPException(status_code=503, detail=st["reason"])
+    if not st["supported"]:
+        raise HTTPException(status_code=403, detail=f"UNSUPPORTED: {st['reason']}")
+    gen = assistant.chat(who, who["token"], body.messages, body.page, body.context, tenant=x_tenant or None)
+    return StreamingResponse(gen, media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/api/assistant/execute")
+async def post_assistant_execute(body: AssistantRun, x_tenant: Optional[str] = Header(None, alias="X-Tenant"),
+                                 who: Dict[str, Any] = Depends(ANY_ROLE)):
+    """ASSIST: the user pressed Run on ONE proposed action: that single call goes over MCP with the user's own token
+    (the gateway checks the role and writes the audit trail)."""
+    from app import assistant
+    st = assistant.status(who)
+    if not st["enabled"]:
+        raise HTTPException(status_code=503, detail=st["reason"])
+    if st["mode"] != "tools":
+        raise HTTPException(status_code=403, detail="PERMISSION_DENIED: this identity cannot run tools through the assistant")
+    try:
+        return await assistant.execute(who["token"], body.tool, body.args, tenant=x_tenant or None)
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+    except Exception as ex:  # noqa: BLE001  MCP down, network
+        raise HTTPException(status_code=502, detail=f"MCP server unreachable: {type(ex).__name__}")
+
+
 # ---------------------------------------------------------------- Deliverables & Exports
 
 def _fresh_deliverables(eid):

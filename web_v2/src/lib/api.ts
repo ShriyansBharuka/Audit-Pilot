@@ -33,7 +33,7 @@ export const setActiveTenant = (slug: string | null) => {
 };
 
 /** Bearer token + X-Tenant (when one is picked). */
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auditpilot_token") : null;
   const tenant = getActiveTenant();
   return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(tenant ? { "X-Tenant": tenant } : {}) };
@@ -90,6 +90,59 @@ export async function downloadWithToken(path: string, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export interface AssistantStatus {
+  enabled: boolean;
+  supported: boolean;
+  mode: "tools" | "page_data" | null;
+  reason: string;
+}
+
+export type AssistantEvent =
+  | { type: "status"; mode: string; model: string }
+  | { type: "delta"; text: string }
+  | { type: "tool"; name: string; status: "running" | "done" }
+  | { type: "proposal"; tool: string; args: Record<string, unknown>; why: string }
+  | { type: "done"; tool_calls: number; usd: number }
+  | { type: "error"; message: string };
+
+/** ASSIST: stream one assistant turn (SSE over POST); onEvent gets each parsed event. */
+export async function streamAssistant(
+  body: { messages: { role: string; content: string }[]; page?: string; context?: unknown },
+  onEvent: (e: AssistantEvent) => void,
+  signal?: AbortSignal,
+) {
+  const res = await fetch(`${API_BASE}/api/assistant/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || `Assistant unavailable (${res.status})`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, i).trim();
+      buf = buf.slice(i + 2);
+      if (chunk.startsWith("data: ")) {
+        try {
+          onEvent(JSON.parse(chunk.slice(6)) as AssistantEvent);
+        } catch {
+          // ignore a malformed line
+        }
+      }
+    }
+  }
 }
 
 export const api = {
@@ -214,6 +267,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  // ASSIST: in-app assistant (Agents SDK over MCP with the caller's own token)
+  getAssistantStatus: () => request<AssistantStatus>("/api/assistant/status"),
+  runAssistantAction: (tool: string, args: Record<string, unknown>) =>
+    request<{ ok: boolean; text: string }>("/api/assistant/execute", { method: "POST", body: JSON.stringify({ tool, args }) }),
 
   // CSV verification agent (LangGraph): does the file hold data, and does it match the books?
   verifyCsv: async (file: File, ai = false) => {

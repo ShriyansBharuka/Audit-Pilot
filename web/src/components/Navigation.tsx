@@ -10,6 +10,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, LogOut, Shield, UserCheck, X 
 import { CLIENT_NAV, NAV, PRINTABLE, allHrefs, groupForPath, itemHrefs, type BadgeKey, type NavItem } from "@/lib/nav";
 import { SectionTabs } from "@/components/SectionTabs";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
+import { AssistantPanel } from "@/components/AssistantPanel";
 import { Landing } from "@/components/Landing";
 import { OnboardingScreen, OrgPickerScreen, SignInScreen, SignUpScreen } from "@/components/AuthScreens";
 
@@ -203,6 +204,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center space-x-3">
             {isAudit && PRINTABLE.includes(pathname) && <ExportPdfButton />}
+            <AssistantPanel />
             <button
               onClick={() => setCardOpen(true)}
               className="h-8 text-xs px-3 rounded-md hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition"
