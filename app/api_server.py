@@ -517,7 +517,7 @@ def execute_sign_off(
     token = auth_header[7:].strip()
     try:
         rec = partner._partner(token)
-        res = findings.sign_off(config.ENGAGEMENT_ID, rec, req.statement, req.password)
+        res = partner.sign_off(token, req.statement)          # blockers, signoff_hash, conclusion in the trail
         trail.trail(rec["principal"], rec["role"], "partner.sign_off", {"engagement_id": config.ENGAGEMENT_ID}, "OK", res, transport="UI")
         return res
     except Exception as e:
