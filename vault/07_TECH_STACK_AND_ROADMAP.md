@@ -123,6 +123,9 @@ POST /api/client/related-parties              client_admin: multipart file -> in
 POST /api/client/records/{kind}               party | invoice | credit-note | journal -> erp.* (same roles and
                                               parameters as the client MCP tools; money as rupee strings)
 GET  /api/client/lookups                      client roles: parties, items, recent invoices, chart of accounts
+GET  /api/agent-tokens                        web account in its active organisation -> its agent tokens (last 4 chars)
+POST /api/agent-tokens                        {label} -> {token (shown once), role}; partner's agent = audit_staff
+DELETE /api/agent-tokens/{id}                 revoke
 ```
 
 ## 4. Module contracts (code against these; stubs first)

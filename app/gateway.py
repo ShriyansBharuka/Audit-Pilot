@@ -9,12 +9,13 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from app.trail import trail                      # appends audit.audit_trail (H/A), returns nothing
-from app import accounts, tenants                 # ASSIST-2: Supabase web accounts + organisations
+from app import accounts, agent_tokens, tenants   # ASSIST-2: Supabase web accounts + organisations; agt_ agent tokens
 from app.playbook import PLAYBOOK, DENY_HINT
 
 IDS = json.loads(Path(os.environ.get("IDENTITIES", "identities.json")).read_text())
 TOOL_ROLES: dict[str, set[str]] = {}
 STDIO_ID = None                                   # (principal, role) in stdio mode
+STDIO_TENANT = None                               # organisation of an agt_ token in stdio mode
 
 TENANT_SEP = "#tenant="                           # ASSIST-2: TenantHeader folds X-Tenant into the bearer value
 
@@ -29,6 +30,9 @@ class Tokens(TokenVerifier):
             if slug and not tenants.allowed(i["principal"], slug):
                 return None
             return AccessToken(token=token, client_id=i["principal"], scopes=[i["role"]] + ([f"tenant:{slug}"] if slug else []))
+        a = agent_tokens.lookup(token)               # agt_: long-lived agent token, bound to the organisation it was made in
+        if a:                                         # (X-Tenant cannot move it elsewhere)
+            return AccessToken(token=token, client_id=a["principal"], scopes=[a["role"], f"tenant:{a['slug']}"])
         if slug and accounts.looks_like_jwt(token):   # Supabase web account: role from that organisation's tenant.json
             try:
                 user = await asyncio.to_thread(accounts.verify, token)
@@ -47,7 +51,8 @@ def caller():
 
 def caller_tenant():
     t = get_access_token()
-    return next((s[7:] for s in (t.scopes if t else []) if s.startswith("tenant:")), None)
+    if not t: return STDIO_TENANT
+    return next((s[7:] for s in t.scopes if s.startswith("tenant:")), None)
 
 class Gateway(MCPServer):                         # the single choke point: permission + trail
     async def list_tools(self):

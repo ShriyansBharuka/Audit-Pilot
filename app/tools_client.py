@@ -7,7 +7,7 @@ import base64
 import csv
 import io
 
-from app import config, db, erp, gateway, intake, playbook
+from app import config, db, erp, gateway, intake, playbook, tenants
 from app.gateway import TOOL_ROLES, ToolError, caller, tool
 from app.toolkit import call, clean, from_service, limit_of, money_in, offset_of, paise, result, scrub, steps
 
@@ -40,7 +40,8 @@ def whoami() -> dict:
     """START HERE. Who you are (from your token), your role, exactly the tools you may call, the engagement and FY
     dates, the role playbook, and the rule for untrusted client text. Takes no arguments."""
     who, role = caller()
-    name = next((i.get("name") for i in gateway.IDS.values() if i["principal"] == who), who)
+    name = next((i.get("name") for i in gateway.IDS.values() if i["principal"] == who), None) \
+        or tenants.current().get("emails", {}).get(who, who)            # an organisation's agent token: its owner
     tools = sorted(t for t, roles in TOOL_ROLES.items() if role in roles)
     return result({"principal": who, "name": name, "role": role, "tools": tools, "entity": config.ENTITY_NAME,
                    "engagement_id": config.ENGAGEMENT_ID, "fy": config.FY_LABEL, "period_start": config.PERIOD_START,

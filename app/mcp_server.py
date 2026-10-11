@@ -5,7 +5,12 @@ import app.tools_client, app.tools_audit           # noqa: F401  (register tools
 
 def main():
     if os.environ.get("MCP_TRANSPORT") == "stdio":
-        i = gateway.IDS.get(os.environ.get("MCP_TOKEN", ""))
+        tok = os.environ.get("MCP_TOKEN", "")
+        i = gateway.IDS.get(tok)
+        a = None if i else gateway.agent_tokens.lookup(tok)     # agt_: a web account's agent token
+        if a:
+            i = a
+            gateway.STDIO_TENANT = a["slug"]
         if not i or i["role"] == "engagement_partner":
             raise SystemExit("MCP_TOKEN missing or not an MCP identity")
         gateway.STDIO_ID = (i["principal"], i["role"])  # set on the module that caller() reads

@@ -245,6 +245,18 @@ export const api = {
       body: JSON.stringify({ email, role }),
     }),
 
+  // Agent tokens (MCP) for web accounts: shown once, stored hashed on the server
+  getAgentTokens: () =>
+    request<{ organisation: string; items: { id: string; role: string; label: string; hint: string; created_at: string }[] }>(
+      "/api/agent-tokens",
+    ),
+  createAgentToken: (label: string) =>
+    request<{ id: string; role: string; label: string; hint: string; token: string; organisation: string }>("/api/agent-tokens", {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    }),
+  revokeAgentToken: (id: string) => request<{ id: string }>(`/api/agent-tokens/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
   // Client input: register / related-party uploads (stored byte-for-byte, server SHA-256) and manual ERP entry
   uploadClientFile: async (kind: "sales-register" | "related-parties", file: File) => {
     const form = new FormData();

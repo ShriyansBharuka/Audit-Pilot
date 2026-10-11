@@ -28,6 +28,21 @@ Rules the server enforces, whatever the agent asks:
 - Without `X-Tenant`, MCP serves the demo company (Konkan Marine Controls Ltd). A web (e-mail) account works with its own
   organisation: send its Supabase session as the Bearer token plus `X-Tenant: <slug>`; the role comes from that
   organisation, and the partner role is still refused.
+- Tokens from `identities.json` work on the demo company (Konkan Marine Controls Ltd); `agt_…` tokens created in the
+  app work on the organisation they were created for.
+
+## Easiest: the in-app page
+
+In the web app click **Connect an agent** (top right). It walks you through it with your token already filled in:
+
+1. **Get your token.** Signed in with an access token: it is shown there (Show / Copy). Signed in with e-mail: click
+   **Create token** for your organisation (shown once; revoke any time). A partner's agent works as audit staff.
+2. **Pick your assistant** (Claude Code, Claude Desktop, Claude.ai, ChatGPT, Cursor, VS Code, Gemini CLI, n8n, Python)
+   and follow the numbered steps; every command and config has a Copy button.
+3. **Public address** for the cloud assistants (Claude.ai, ChatGPT).
+4. **Prompts to try.**
+
+E-mail accounts' agent tokens (`agt_…`) work on *their own* organisation; the demo company uses the tokens below.
 
 ## Before you start
 

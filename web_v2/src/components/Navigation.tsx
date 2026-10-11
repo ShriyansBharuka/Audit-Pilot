@@ -16,14 +16,12 @@ import { OnboardingScreen, OrgPickerScreen, SignInScreen, SignUpScreen } from "@
 
 const AUDIT_ROLES = ["audit_staff", "engagement_partner"];
 const AUTH_ROUTES = ["/signin", "/signup"];
-const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL || "http://localhost:8000/mcp";
 
 export function Navigation({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout, identities, loginWithToken } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cardOpen, setCardOpen] = useState(false);
   const [ov, setOv] = useState<AuditOverview | null>(null);
   // collapsible menu: group open state (Admin closed by default) and expanded items with sub-pages
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
@@ -85,7 +83,8 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   const groups = isAudit
     ? NAV
     : [{ key: "client", label: "Client portal", defaultOpen: true, items: CLIENT_NAV }];
-  const allowed = isAudit ? allHrefs().includes(pathname) : CLIENT_NAV.some((i) => i.href === pathname);
+  const allowed =
+    pathname === "/connect" || (isAudit ? allHrefs().includes(pathname) : CLIENT_NAV.some((i) => i.href === pathname));
 
   const navLink = (item: NavItem) => {
     const Icon = item.icon;
@@ -205,13 +204,15 @@ export function Navigation({ children }: { children: React.ReactNode }) {
           <div className="flex items-center space-x-3">
             {isAudit && PRINTABLE.includes(pathname) && <ExportPdfButton />}
             <AssistantPanel />
-            <button
-              onClick={() => setCardOpen(true)}
-              className="h-8 text-xs px-3 rounded-md hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition"
+            <Link
+              href="/connect"
+              className={`h-8 text-xs px-3 rounded-md hover:bg-slate-800 border flex items-center gap-1.5 transition ${
+                pathname === "/connect" ? "border-slate-500 text-slate-50" : "border-slate-700 text-slate-300"
+              }`}
             >
               <UserCheck className="h-3.5 w-3.5 text-slate-400" />
               <span>Connect an agent</span>
-            </button>
+            </Link>
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
@@ -294,27 +295,6 @@ export function Navigation({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {cardOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-lg max-w-2xl w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-indigo-400" />
-                <h3 className="font-semibold text-slate-50 text-sm">Connect your own AI agent (MCP)</h3>
-              </div>
-              <button onClick={() => setCardOpen(false)} className="text-slate-400 hover:text-slate-50 text-xs px-2 py-1 rounded bg-slate-800">
-                ✕ Close
-              </button>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">Your agent gets your role&apos;s tools. Every call is logged.</p>
-            <code className="block p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-indigo-300 break-all select-all">
-              {`claude mcp add --transport http auditpilot ${MCP_URL} --header "Authorization: Bearer ${
-                user.role === "engagement_partner" ? "<an auditor token>" : user.token
-              }"`}
-            </code>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app import accounts, cases, charts, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, tenants, trail, workpaper, yearend
+from app import accounts, agent_tokens, cases, charts, config, db, erp, evidence, explain, explorer, findings, gateway, intake, ledger, memo, money, money_trail, notify, partner, powerbi, register, reports, risk_graph, sampling, tenants, trail, workpaper, yearend
 
 async def tenant_scope(x_tenant: Optional[str] = Header(None, alias="X-Tenant"),
                        authorization: Optional[str] = Header(None, alias="Authorization")):
@@ -855,6 +855,48 @@ def post_invite(slug: str, body: Invite, who: Dict[str, Any] = Depends(_signed_i
     with tenants.scope(slug):
         trail.trail(who["principal"], "engagement_partner", "tenants.invite", {"role": body.role}, "OK", out, transport="UI")
     return out
+
+
+# ---------------------------------------------------------------- Agent tokens (connect an AI agent over MCP)
+
+class NewAgentToken(BaseModel):
+    label: Optional[str] = None
+
+
+def _web_member(who):
+    """A web account acting in its active organisation (the demo company stays on identities.json tokens)."""
+    t = tenants.current()
+    if t["default"] or not who.get("role"):
+        raise HTTPException(status_code=403, detail="NO_ROLE: open one of your organisations first (Organizations)")
+    return t
+
+
+@app.get("/api/agent-tokens")
+def get_agent_tokens(who: Dict[str, Any] = Depends(_signed_in)):
+    """Your agent tokens in the active organisation (never the token itself: only its last 4 characters)."""
+    t = _web_member(who)
+    return {"organisation": t["name"], "items": agent_tokens.mine(t["slug"], who["principal"])}
+
+
+@app.post("/api/agent-tokens")
+def post_agent_token(body: NewAgentToken, who: Dict[str, Any] = Depends(_signed_in)):
+    """Create an agent token for MCP. Shown once. A partner's agent gets audit_staff (sign-off stays human)."""
+    t = _web_member(who)
+    token, rec = agent_tokens.create(t["slug"], who["principal"], who["role"], body.label)
+    trail.trail(who["principal"], who["role"], "agent_tokens.create", {"label": rec["label"]}, "OK",
+                {"id": rec["id"], "role": rec["role"]}, transport="UI")
+    return {**rec, "token": token, "organisation": t["name"]}
+
+
+@app.delete("/api/agent-tokens/{token_id}")
+def delete_agent_token(token_id: str, who: Dict[str, Any] = Depends(_signed_in)):
+    t = _web_member(who)
+    try:
+        agent_tokens.revoke(t["slug"], who["principal"], token_id)
+    except LookupError as ex:
+        raise HTTPException(status_code=404, detail=str(ex))
+    trail.trail(who["principal"], who["role"], "agent_tokens.revoke", {"id": token_id}, "OK", None, transport="UI")
+    return {"id": token_id, "status": "revoked"}
 
 
 # ---------------------------------------------------------------- Client input (same services as the MCP client tools)

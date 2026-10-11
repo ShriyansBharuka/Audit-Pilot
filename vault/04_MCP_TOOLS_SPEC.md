@@ -44,12 +44,13 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from app.trail import trail                      # appends audit.audit_trail (H/A), returns nothing
-from app import accounts, tenants                 # ASSIST-2: Supabase web accounts + organisations
+from app import accounts, agent_tokens, tenants   # ASSIST-2: Supabase web accounts + organisations; agt_ agent tokens
 from app.playbook import PLAYBOOK, DENY_HINT
 
 IDS = json.loads(Path(os.environ.get("IDENTITIES", "identities.json")).read_text())
 TOOL_ROLES: dict[str, set[str]] = {}
 STDIO_ID = None                                   # (principal, role) in stdio mode
+STDIO_TENANT = None                               # organisation of an agt_ token in stdio mode
 
 TENANT_SEP = "#tenant="                           # ASSIST-2: TenantHeader folds X-Tenant into the bearer value
 
@@ -64,6 +65,9 @@ class Tokens(TokenVerifier):
             if slug and not tenants.allowed(i["principal"], slug):
                 return None
             return AccessToken(token=token, client_id=i["principal"], scopes=[i["role"]] + ([f"tenant:{slug}"] if slug else []))
+        a = agent_tokens.lookup(token)               # agt_: long-lived agent token, bound to the organisation it was made in
+        if a:                                         # (X-Tenant cannot move it elsewhere)
+            return AccessToken(token=token, client_id=a["principal"], scopes=[a["role"], f"tenant:{a['slug']}"])
         if slug and accounts.looks_like_jwt(token):   # Supabase web account: role from that organisation's tenant.json
             try:
                 user = await asyncio.to_thread(accounts.verify, token)
@@ -82,7 +86,8 @@ def caller():
 
 def caller_tenant():
     t = get_access_token()
-    return next((s[7:] for s in (t.scopes if t else []) if s.startswith("tenant:")), None)
+    if not t: return STDIO_TENANT
+    return next((s[7:] for s in t.scopes if s.startswith("tenant:")), None)
 
 class Gateway(MCPServer):                         # the single choke point: permission + trail
     async def list_tools(self):
@@ -144,7 +149,12 @@ import app.tools_client, app.tools_audit           # noqa: F401  (register tools
 
 def main():
     if os.environ.get("MCP_TRANSPORT") == "stdio":
-        i = gateway.IDS.get(os.environ.get("MCP_TOKEN", ""))
+        tok = os.environ.get("MCP_TOKEN", "")
+        i = gateway.IDS.get(tok)
+        a = None if i else gateway.agent_tokens.lookup(tok)     # agt_: a web account's agent token
+        if a:
+            i = a
+            gateway.STDIO_TENANT = a["slug"]
         if not i or i["role"] == "engagement_partner":
             raise SystemExit("MCP_TOKEN missing or not an MCP identity")
         gateway.STDIO_ID = (i["principal"], i["role"])  # set on the module that caller() reads
@@ -159,6 +169,14 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+Agent tokens (added 2026-10-11, for assistants outside the app: Claude Code/Desktop, Claude.ai, ChatGPT, Cursor…):
+a web account creates an `agt_…` token for an organisation where it holds a role (`app/agent_tokens.py`, REST
+`/api/agent-tokens`, page `/connect`). Unlike a Supabase session (ASSIST-2, which expires hourly) it is long-lived and
+revocable. Only its SHA-256 is stored, in that organisation's `tenant.json`. `Tokens.verify_token` resolves it to
+`(principal, role)` plus `tenant:<slug>` of the organisation it was made in (X-Tenant cannot move it). A partner's agent
+is `audit_staff`; a revoked token, or one whose owner lost the role, stops working. Stdio accepts it too
+(`STDIO_TENANT`).
+
 Gotchas:
 - Without `transport_security.allowed_hosts`, any non-localhost Host (tunnel, LAN IP) gets **421 Invalid Host header**.
 - Raise `ToolError` for every anticipated failure; any other exception reaches the model only as "Error executing tool".
