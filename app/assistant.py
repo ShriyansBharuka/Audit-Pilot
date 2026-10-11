@@ -15,7 +15,7 @@ ponytail: chat history lives in the browser session only. Upgrade path: an appen
 import json
 import os
 
-from app import config, investigator
+from app import investigator
 from app.playbook import PLAYBOOK
 
 MCP_URL = os.environ.get("MCP_INTERNAL_URL", "http://localhost:8000/mcp")
@@ -50,9 +50,6 @@ def status(who):
         return {"enabled": False, "supported": False, "mode": None, "reason": f"assistant is off: {why}"}
     if not who.get("role"):
         return {"enabled": True, "supported": False, "mode": None, "reason": "no role in this organisation"}
-    if who.get("account") == "supabase" or config.active_tenant():      # ASSIST-2 lifts this
-        return {"enabled": True, "supported": False, "mode": None,
-                "reason": "the assistant serves identities.json tokens on the demo company for now"}
     if who["role"] == "engagement_partner":
         return {"enabled": True, "supported": True, "mode": "page_data",
                 "reason": "partner: read-only over the page's data (sign-off stays in the web app)"}

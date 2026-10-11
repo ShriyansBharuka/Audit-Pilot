@@ -15,7 +15,7 @@ def main():
         host = os.environ.get("PUBLIC_HOST", "localhost")   # e.g. abc.trycloudflare.com
         app = gateway.mcp.streamable_http_app(stateless_http=True, json_response=True, host="0.0.0.0",
                   transport_security=gateway.TransportSecuritySettings(allowed_hosts=["localhost:*", "127.0.0.1:*", host, host + ":*"]))
-        uvicorn.run(gateway.TokenInPath(app), host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))
+        uvicorn.run(gateway.TokenInPath(gateway.TenantHeader(app)), host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))
 
 if __name__ == "__main__":
     main()

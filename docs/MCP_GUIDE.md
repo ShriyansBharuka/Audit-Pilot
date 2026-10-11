@@ -25,7 +25,9 @@ Rules the server enforces, whatever the agent asks:
 - **No AI sign-off:** the engagement partner's token is refused over MCP. Confirming findings and signing off happen
   only in the web app, by a person.
 - **Agent output is a proposal:** findings an agent proposes stay *PROPOSED* until the partner decides.
-- MCP serves the demo company (Konkan Marine Controls Ltd). Organisations created by e-mail sign-up are web-only for now.
+- Without `X-Tenant`, MCP serves the demo company (Konkan Marine Controls Ltd). A web (e-mail) account works with its own
+  organisation: send its Supabase session as the Bearer token plus `X-Tenant: <slug>`; the role comes from that
+  organisation, and the partner role is still refused.
 
 ## Before you start
 

@@ -101,7 +101,8 @@ endpoint honours `X-Tenant` (403 when the token's principal may not see that ten
 ### 3b. Web sign-in with Supabase (added 2026-10-11)
 
 The web app signs people in with Supabase Auth (e-mail + password). The Bearer token is then the Supabase session
-token; agent/judge tokens from `identities.json` keep working everywhere, and the MCP gateway is unchanged.
+token; agent/judge tokens from `identities.json` keep working everywhere. Since ASSIST-2 the MCP gateway also accepts a
+Supabase session for an organisation (`X-Tenant`), role from that organisation's `tenant.json` only (vault/04 §2).
 
 - `partner.identity(token)`: `identities.json` first; otherwise a JWT goes to `accounts.identity`, which asks Supabase
   (`GET /auth/v1/user`, anon key) whether the session is valid and caches the answer until the token expires. The
@@ -110,6 +111,9 @@ token; agent/judge tokens from `identities.json` keep working everywhere, and th
 - Settings: `SUPABASE_URL`, `SUPABASE_ANON_KEY` in `.env` (the anon key is public). Never the service-role key.
 
 ```text
+GET  /api/assistant/status                 ASSIST: {enabled, supported, mode tools|page_data, reason}
+POST /api/assistant/chat                   ASSIST: SSE; Agents SDK agent over MCP with the caller's own token (+ X-Tenant)
+POST /api/assistant/execute                ASSIST: the user pressed Run on ONE proposed tool call -> MCP, caller's token
 GET  /api/auth/memberships                    signed-in web account -> [{slug, name, role}] (accepts pending invites)
 POST /api/onboarding/organization             {name, pan, gstin, fy, membership_no?} -> new tenant; creator = engagement_partner
 GET  /api/tenants/{slug}/members              that tenant's engagement partner -> members + pending invites
