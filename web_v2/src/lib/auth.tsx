@@ -32,8 +32,19 @@ const AuthContext = createContext<AuthContextType>({
   identities: [],
 });
 
+// sign-in and Supabase's SIGNED_IN event arrive together: share one lookup per token instead of racing
+let inflight: { token: string; p: Promise<UserSession> } | null = null;
+function supabaseSession(accessToken: string): Promise<UserSession> {
+  if (inflight?.token === accessToken) return inflight.p;
+  const p = loadSupabaseSession(accessToken).finally(() => {
+    if (inflight?.p === p) inflight = null;
+  });
+  inflight = { token: accessToken, p };
+  return p;
+}
+
 /** Supabase access token -> session: memberships decide the active organisation, the server decides the role. */
-async function supabaseSession(accessToken: string): Promise<UserSession> {
+async function loadSupabaseSession(accessToken: string): Promise<UserSession> {
   const previous = getActiveTenant();
   localStorage.setItem(TOKEN_KEY, accessToken);
   localStorage.setItem(MODE_KEY, "supabase");

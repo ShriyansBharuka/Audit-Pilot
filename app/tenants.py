@@ -54,6 +54,18 @@ def get(slug):
     return t
 
 
+def current():
+    """The tenant this context runs against (identified by its data directory, which is unique; two organisations may
+    share an engagement-id stem), the default when none is active."""
+    active = config.active_tenant()
+    if active:
+        d = Path(active["DATA_DIR"]).resolve()
+        for t in registry():
+            if not t["default"] and (_root() / t["slug"]).resolve() == d:
+                return t
+    return get(DEFAULT)
+
+
 def allowed(principal, slug):
     try:
         t = get(slug)
@@ -117,8 +129,12 @@ def create(name, pan, gstin, fy, principals, created_by):
     from app import db, intake
     name, pan, gstin, fy_label, start, end = validate(name, pan, gstin, fy)
     slug = _slug(name)
+    stem, taken, n = slug.split("-")[0][:8].upper(), {t["engagement_id"] for t in registry()}, 2
+    eid = f"ENG-{stem}-{fy_label}"
+    while eid in taken:                      # "Velas Marine" and "Velas Shipping" must not share an engagement id
+        eid, n = f"ENG-{stem}{n}-{fy_label}", n + 1
     t = {"slug": slug, "name": name, "pan": pan, "gstin": gstin, "fy_label": fy_label, "period_start": start,
-         "period_end": end, "engagement_id": f"ENG-{slug.split('-')[0][:8].upper()}-{fy_label}",
+         "period_end": end, "engagement_id": eid,
          "principals": sorted(set(principals)), "created_by": created_by, "created_at": config.now()}
     d = _root() / slug
     d.mkdir(parents=True, exist_ok=False)

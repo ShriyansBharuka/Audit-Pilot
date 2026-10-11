@@ -186,6 +186,33 @@ export function SignUpScreen() {
   );
 }
 
+/** A web account that is on an organisation where it holds no role: pick one of its own. */
+export function OrgPickerScreen() {
+  const { user, refresh, logout } = useAuth();
+  return (
+    <Card title="Choose an organisation" sub={`Signed in as ${user?.email}.`}>
+      <div className="rounded-md border border-slate-800 divide-y divide-slate-800">
+        {user?.memberships?.map((m) => (
+          <button
+            key={m.slug}
+            onClick={async () => {
+              setActiveTenant(m.slug);
+              await refresh();
+            }}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/50"
+          >
+            <span className="text-sm text-slate-100">{m.name}</span>
+            <span className="text-xs text-slate-500">{m.role.replace("_", " ")}</span>
+          </button>
+        ))}
+      </div>
+      <button onClick={logout} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200">
+        <LogOut className="h-3.5 w-3.5" /> Sign out
+      </button>
+    </Card>
+  );
+}
+
 /** A signed-in web account with no organisation yet: create one (you become its partner) or wait for an invite. */
 export function OnboardingScreen() {
   const { user, refresh, logout } = useAuth();

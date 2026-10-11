@@ -84,6 +84,30 @@ def test_onboarding_invite_upload_and_isolation(api):
     assert api.get("/api/auth/memberships", headers=H("eyO.outsider.sig")).json()["items"] == []
 
 
+def test_same_first_word_orgs_keep_their_own_roles(api):
+    # "Velas Logistics" shares the "velas" stem with "Velas Marine": distinct engagement ids, and each partner is
+    # partner in their own organisation only (the bug: the role was looked up in the first org with that stem)
+    r = api.post("/api/onboarding/organization", headers=H("eyO.outsider.sig"),
+                 json={"name": "Velas Logistics Pvt Ltd", "pan": "AAFCS6120R", "gstin": "27AAFCS6120R1ZV", "fy": "2025-26"})
+    assert r.status_code == 200, r.text
+    mine = r.json()
+    others = [m for m in api.get("/api/tenants", headers=H("eyO.outsider.sig", mine["slug"])).json()["items"]]
+    assert [o["slug"] for o in others] == [mine["slug"]] and others[0]["active"]
+    login = api.post("/api/auth/token-login", headers=H("eyO.outsider.sig", mine["slug"]), json={"token": "eyO.outsider.sig"})
+    assert login.json()["role"] == "engagement_partner"
+    assert api.get("/api/audit/overview", headers=H("eyO.outsider.sig", mine["slug"])).status_code == 200
+    velas_marine = api.get("/api/auth/memberships", headers=H("eyP.partner.sig")).json()["items"][0]
+    assert velas_marine["slug"] != mine["slug"]
+    from app import tenants
+    assert tenants.get(velas_marine["slug"])["engagement_id"] != tenants.get(mine["slug"])["engagement_id"]
+    # organisations created before the fix can still share an id on disk: the role must still resolve per organisation
+    t = tenants.get(mine["slug"])
+    t["engagement_id"] = tenants.get(velas_marine["slug"])["engagement_id"]
+    accounts._save(t)
+    login = api.post("/api/auth/token-login", headers=H("eyO.outsider.sig", mine["slug"]), json={"token": "eyO.outsider.sig"})
+    assert login.json()["role"] == "engagement_partner"
+
+
 def test_agent_tokens_unchanged(api):
     # judge/agent tokens keep their identities.json role on the default tenant
     assert api.get("/api/audit/overview", headers=H("aud_test")).status_code == 200

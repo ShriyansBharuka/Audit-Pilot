@@ -11,7 +11,7 @@ import { CLIENT_NAV, NAV, PRINTABLE, allHrefs, groupForPath, itemHrefs, type Bad
 import { SectionTabs } from "@/components/SectionTabs";
 import { ExportPdfButton } from "@/components/ExportPdfButton";
 import { Landing } from "@/components/Landing";
-import { OnboardingScreen, SignInScreen, SignUpScreen } from "@/components/AuthScreens";
+import { OnboardingScreen, OrgPickerScreen, SignInScreen, SignUpScreen } from "@/components/AuthScreens";
 
 const AUDIT_ROLES = ["audit_staff", "engagement_partner"];
 const AUTH_ROUTES = ["/signin", "/signup"];
@@ -63,6 +63,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   if (!user) return pathname === "/" ? <Landing /> : pathname === "/signup" ? <SignUpScreen /> : <SignInScreen />;
   // a web account that belongs to no organisation yet: create one, or wait for an invite
   if (user.account === "supabase" && !user.memberships?.length) return <OnboardingScreen />;
+  if (user.account === "supabase" && !user.role) return <OrgPickerScreen />;
   if (AUTH_ROUTES.includes(pathname)) {
     return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Signing in…</div>;
   }
@@ -170,7 +171,9 @@ export function Navigation({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="px-4 py-3 border-t border-slate-800">
-          <div className="text-xs font-medium text-slate-300 truncate">{ov?.entity_name || "Konkan Marine Controls Ltd"}</div>
+          <div className="text-xs font-medium text-slate-300 truncate">
+            {ov?.entity_name || user.memberships?.find((m) => m.role === user.role)?.name || "Konkan Marine Controls Ltd"}
+          </div>
           <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
             <span className="flex items-center gap-1">
                             {ov ? `${ov.period_start} → ${ov.period_end}` : "FY 2025-26"}

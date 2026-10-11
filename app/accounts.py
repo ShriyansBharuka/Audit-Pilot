@@ -65,11 +65,7 @@ def principal_of(user):
 
 def current_tenant():
     """The tenant this request runs against (config ContextVar set by tenant_scope), default when none."""
-    active = (config.active_tenant() or {}).get("ENGAGEMENT_ID")
-    for t in tenants.registry():
-        if (active and t["engagement_id"] == active) or (not active and t["default"]):
-            return t
-    return tenants.get(tenants.DEFAULT)
+    return tenants.current()
 
 
 def _save(t):

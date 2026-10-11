@@ -762,7 +762,7 @@ class NewTenant(BaseModel):
 @app.get("/api/tenants")
 def get_tenants(who: Dict[str, Any] = Depends(require(*AUDIT_ROLES, *CLIENT_ROLES))):
     """EX-4: the organisations this identity may open (the default for everyone; others by membership) + the active one."""
-    active = (config.active_tenant() or {}).get("ENGAGEMENT_ID")
+    active = tenants.current()["slug"]
     items = []
     mine = None
     if who.get("account") == "supabase":            # web accounts see only the organisations they hold a role in
@@ -771,7 +771,7 @@ def get_tenants(who: Dict[str, Any] = Depends(require(*AUDIT_ROLES, *CLIENT_ROLE
         if mine is not None and t["slug"] not in mine:
             continue
         items.append({**tenants.public(t), **tenants.counts(t),
-                      "active": (t["engagement_id"] == active) if active else t["default"]})
+                      "active": t["slug"] == active})
     return {"items": items}
 
 
