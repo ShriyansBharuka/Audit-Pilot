@@ -1,0 +1,15 @@
+# The image holds the Python backend only; the Next.js app (web/) deploys separately (Vercel).
+.git
+.env
+identities.json
+data/
+web/
+web_v2/
+**/node_modules
+**/.next
+**/__pycache__
+.pytest_cache
+.playwright-mcp
+graphify-out
+docs/pitch
+*.db

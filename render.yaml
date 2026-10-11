@@ -1,0 +1,36 @@
+# Render Blueprint: the AuditPilot backend (REST API + MCP server on one port). Render → New → Blueprint → this repo.
+# The web app (web/) deploys on Vercel; point its NEXT_PUBLIC_API_URL / NEXT_PUBLIC_MCP_URL at this service.
+services:
+  - type: web
+    name: auditpilot-api
+    runtime: docker
+    plan: free                      # free: sleeps after 15 min idle (~1 min wake-up); data resets to the demo on restart
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY         # set in the dashboard (secret); without it the AI parts stay off
+        sync: false
+      - key: LLM_ENABLED
+        value: "1"
+      - key: OPENAI_MODEL_DEV
+        value: gpt-6.1-sol
+      - key: OPENAI_MODEL_DEMO
+        value: gpt-6-astra
+      - key: OPENAI_MODEL_EXTRACT
+        value: gpt-6-luna
+      - key: LLM_RUN_CAP_USD
+        value: "3"
+      - key: LLM_DAY_CAP_USD        # public site: keep the daily AI spend small
+        value: "5"
+      - key: PIPELINE_MODE
+        value: inline
+      - key: PORTAL_SECRET
+        generateValue: true
+      - key: SUPABASE_URL
+        value: https://ysimtmaxmdkubvkbpyes.supabase.co
+      - key: SUPABASE_ANON_KEY      # the public anon key (safe to publish); never the service-role key
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzaW10bWF4bWRrdWJ2a2JweWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MzQyNzMsImV4cCI6MjEwNzIxMDI3M30.Km5TYirgZOX01ZSKE6ifyb8toD5EaWI0MXtHhNApWD0
+      - key: DEMO_ROLE_SWITCHER     # "1": the sign-in page lists the demo personas (never the partner). "0" to hide them
+        value: "1"
