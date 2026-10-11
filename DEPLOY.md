@@ -17,11 +17,16 @@ Sign-in uses the Supabase project already configured; only its URL settings chan
 4. Wait for the build. It installs Python, then seeds the demo company (7,000 invoices) and the second organisation
    **into the image**, so starts are instant. When the log says `Your service is live`, open
    `https://<service>.onrender.com/api/health`: it answers `"status": "healthy"`.
-5. **Tokens (judge card):** open the build log and search for `Claude Code:` or `Bearer`. One token per role is printed
+5. **Demo organisations:** the same build step runs `scripts/demo_seed.py --inprocess`, which creates three
+   organisations with e-mail logins (`docs/DEMO_ACCOUNTS.md`). It needs `SUPABASE_ANON_KEY`, which Render passes to
+   the Docker build as a build argument from `render.yaml`. Search the build log for `Demo organisations`: each line
+   should end in `all plants found`. Without the key the step is skipped, and the service still starts.
+6. **Tokens (judge card):** open the build log and search for `Claude Code:` or `Bearer`. One token per role is printed
    there (`aud_…` auditor, `adm_…` client admin, `ptn_…` partner…). They stay the same until the next build.
 
 Free plan notes: the service sleeps after 15 minutes without traffic (the first request then takes about a minute), and
-every restart or deploy resets the data to the seeded demo (organisations created by sign-up are lost). For
+every restart or deploy resets the data to the seeded demo. The three demo organisations come back because they're in
+the image; organisations created later by sign-up are lost. For
 persistent data choose the Starter plan and add a **Disk** mounted at `/app/data` (1 GB is plenty): the first boot
 copies the seeded demo onto it, later boots keep everything.
 
