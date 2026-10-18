@@ -104,3 +104,5 @@ More: [`HOW_IT_WORKS.md`](HOW_IT_WORKS.md) · [`AGENTS.md`](AGENTS.md) (rules fo
 ## Team
 
 Shriyans, Ibrahim, Darshan, Aarav. Built at ELEVATE 1.0, DJ Sanghvi College of Engineering.
+
+Questions or feedback? Open an issue on this repository.
